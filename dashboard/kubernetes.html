@@ -6,141 +6,55 @@
   <title>Kubernetes — Floci Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Amazon Ember","Helvetica Neue",Arial,sans-serif; background:#f2f3f3; color:#16191f; min-height:100vh; }
 
-    body {
-      font-family: "Amazon Ember", "Helvetica Neue", Arial, sans-serif;
-      background: #f2f3f3;
-      color: #16191f;
-      min-height: 100vh;
-    }
+    header { background:#232f3e; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; }
+    header .logo { font-size:22px; font-weight:700; color:#ff9900; }
+    header .subtitle { font-size:13px; color:#aab7b8; margin-top:2px; }
+    header a.back { font-size:13px; color:#aab7b8; text-decoration:none; border:1px solid #4a5568; padding:5px 14px; border-radius:3px; }
+    header a.back:hover { color:#fff; border-color:#fff; }
 
-    header {
-      background: #232f3e;
-      padding: 12px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    .hero { background:linear-gradient(135deg,#1a2332,#2d3a4a); padding:32px; display:flex; align-items:center; gap:24px; }
+    .hero-icon { font-size:36px; background:#326ce5; width:72px; height:72px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .hero h1 { font-size:24px; font-weight:700; color:#fff; }
+    .hero p  { font-size:13px; color:#aab7b8; margin-top:4px; }
+    .hero .refresh-btn { margin-left:auto; padding:8px 18px; background:#326ce5; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+    .hero .refresh-btn:hover { background:#2554c7; }
 
-    header .left { display: flex; align-items: center; gap: 16px; }
-    header .logo { font-size: 22px; font-weight: 700; color: #ff9900; letter-spacing: 1px; }
-    header .subtitle { font-size: 13px; color: #aab7b8; margin-top: 2px; }
-    header a.back {
-      font-size: 13px; color: #aab7b8; text-decoration: none;
-      border: 1px solid #4a5568; padding: 5px 14px; border-radius: 3px;
-    }
-    header a.back:hover { color: #fff; border-color: #fff; }
+    main { max-width:1100px; margin:32px auto; padding:0 24px; }
 
-    .hero {
-      background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
-      padding: 40px 32px;
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
+    .status-bar { display:flex; gap:16px; margin-bottom:28px; flex-wrap:wrap; }
+    .stat-card { background:#fff; border:1px solid #d5dbdb; border-radius:4px; padding:16px 24px; flex:1; min-width:140px; text-align:center; }
+    .stat-card .num { font-size:32px; font-weight:700; color:#326ce5; }
+    .stat-card .label { font-size:12px; color:#687078; margin-top:4px; }
 
-    .hero-icon {
-      font-size: 56px;
-      background: #326ce5;
-      width: 80px; height: 80px;
-      border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
+    .section { margin-bottom:28px; }
+    .section h2 { font-size:16px; font-weight:600; color:#16191f; margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid #d5dbdb; display:flex; align-items:center; gap:8px; }
+    .section h2 .badge { font-size:11px; background:#326ce5; color:#fff; padding:2px 8px; border-radius:10px; font-weight:500; }
 
-    .hero h1 { font-size: 26px; font-weight: 700; color: #fff; }
-    .hero p  { font-size: 14px; color: #aab7b8; margin-top: 6px; line-height: 1.6; }
+    table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #d5dbdb; border-radius:4px; overflow:hidden; font-size:13px; }
+    th { background:#f2f3f3; padding:10px 14px; text-align:left; font-weight:600; color:#545b64; border-bottom:1px solid #d5dbdb; }
+    td { padding:10px 14px; border-bottom:1px solid #eaeded; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#fafafa; }
 
-    main { max-width: 1000px; margin: 40px auto; padding: 0 24px; }
+    .badge-green  { background:#d5f5e3; color:#1e8449; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .badge-yellow { background:#fef9e7; color:#b7950b; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .badge-red    { background:#fadbd8; color:#922b21; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .badge-grey   { background:#eaeded; color:#545b64; padding:2px 8px; border-radius:10px; font-size:11px; }
 
-    .section { margin-bottom: 36px; }
-    .section h2 {
-      font-size: 17px; font-weight: 600; color: #16191f;
-      margin-bottom: 16px; padding-bottom: 8px;
-      border-bottom: 2px solid #d5dbdb;
-    }
+    .loading { color:#687078; font-size:13px; padding:16px; text-align:center; }
+    .error-box { background:#fadbd8; border:1px solid #f1948a; border-radius:4px; padding:12px 16px; font-size:13px; color:#922b21; margin-bottom:16px; }
 
-    .cmd-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 16px;
-    }
-
-    .cmd-card {
-      background: #fff;
-      border: 1px solid #d5dbdb;
-      border-radius: 4px;
-      padding: 16px 18px;
-    }
-
-    .cmd-card h4 { font-size: 13px; font-weight: 600; color: #16191f; margin-bottom: 8px; }
-
-    .cmd-card code {
-      display: block;
-      font-family: "Courier New", monospace;
-      font-size: 12px;
-      background: #1e2a3a;
-      color: #a8d8a8;
-      padding: 10px 12px;
-      border-radius: 4px;
-      white-space: pre;
-      overflow-x: auto;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .cmd-card code:hover::after {
-      content: "Copy";
-      position: absolute; top: 6px; right: 8px;
-      font-size: 10px; background: #326ce5; color: #fff;
-      padding: 2px 6px; border-radius: 3px;
-    }
-
-    .resource-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 12px;
-    }
-
-    .resource-card {
-      background: #fff;
-      border: 1px solid #d5dbdb;
-      border-radius: 4px;
-      padding: 16px;
-      text-align: center;
-    }
-
-    .resource-card .icon { font-size: 28px; margin-bottom: 8px; }
-    .resource-card h4 { font-size: 13px; font-weight: 600; color: #16191f; }
-    .resource-card p  { font-size: 11px; color: #687078; margin-top: 4px; }
-
-    .info-box {
-      background: #e8f4fd;
-      border: 1px solid #a8d4f0;
-      border-left: 4px solid #0073bb;
-      border-radius: 4px;
-      padding: 14px 18px;
-      font-size: 13px;
-      color: #16191f;
-      line-height: 1.6;
-    }
-
-    .info-box a { color: #0073bb; }
-
-    footer {
-      text-align: center; padding: 32px;
-      font-size: 12px; color: #aab7b8;
-    }
+    footer { text-align:center; padding:32px; font-size:12px; color:#aab7b8; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="left">
-    <div>
-      <div class="logo">&#9830; Floci</div>
-      <div class="subtitle">Local AWS Emulator</div>
-    </div>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Local AWS Emulator</div>
   </div>
   <a class="back" href="index.html">&#8592; Dashboard</a>
 </header>
@@ -149,111 +63,195 @@
   <div class="hero-icon">&#9096;</div>
   <div>
     <h1>Kubernetes</h1>
-    <p>Container orchestration — manage clusters, deployments, services, and pods.<br/>
-       Use <code style="background:transparent;color:#ff9900;padding:0">kubectl</code> to interact with your cluster from the terminal.</p>
+    <p>Live cluster data via kubectl proxy &mdash; <span id="proxy-status">checking...</span></p>
   </div>
+  <button class="refresh-btn" onclick="loadAll()">&#8635; Refresh</button>
 </div>
 
 <main>
+  <div id="error-container"></div>
 
-  <div class="section">
-    <h2>Cluster</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>View cluster info</h4>
-        <code onclick="copyCmd(this)">kubectl cluster-info</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List nodes</h4>
-        <code onclick="copyCmd(this)">kubectl get nodes</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List all namespaces</h4>
-        <code onclick="copyCmd(this)">kubectl get namespaces</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Switch context</h4>
-        <code onclick="copyCmd(this)">kubectl config use-context &lt;name&gt;</code>
-      </div>
-    </div>
+  <div class="status-bar">
+    <div class="stat-card"><div class="num" id="count-nodes">—</div><div class="label">Nodes</div></div>
+    <div class="stat-card"><div class="num" id="count-pods">—</div><div class="label">Pods</div></div>
+    <div class="stat-card"><div class="num" id="count-deployments">—</div><div class="label">Deployments</div></div>
+    <div class="stat-card"><div class="num" id="count-services">—</div><div class="label">Services</div></div>
+    <div class="stat-card"><div class="num" id="count-namespaces">—</div><div class="label">Namespaces</div></div>
   </div>
 
   <div class="section">
-    <h2>Workloads</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>List pods</h4>
-        <code onclick="copyCmd(this)">kubectl get pods -A</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List deployments</h4>
-        <code onclick="copyCmd(this)">kubectl get deployments -A</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Pod logs</h4>
-        <code onclick="copyCmd(this)">kubectl logs &lt;pod-name&gt; -n &lt;ns&gt;</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Exec into pod</h4>
-        <code onclick="copyCmd(this)">kubectl exec -it &lt;pod&gt; -- /bin/sh</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Apply manifest</h4>
-        <code onclick="copyCmd(this)">kubectl apply -f &lt;file.yaml&gt;</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Delete resource</h4>
-        <code onclick="copyCmd(this)">kubectl delete -f &lt;file.yaml&gt;</code>
-      </div>
-    </div>
+    <h2>Nodes <span class="badge" id="badge-nodes">0</span></h2>
+    <div id="table-nodes"><div class="loading">Loading...</div></div>
   </div>
 
   <div class="section">
-    <h2>Networking</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>List services</h4>
-        <code onclick="copyCmd(this)">kubectl get svc -A</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Port-forward a pod</h4>
-        <code onclick="copyCmd(this)">kubectl port-forward &lt;pod&gt; 8080:80</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List ingresses</h4>
-        <code onclick="copyCmd(this)">kubectl get ingress -A</code>
-      </div>
-    </div>
+    <h2>Pods <span class="badge" id="badge-pods">0</span></h2>
+    <div id="table-pods"><div class="loading">Loading...</div></div>
   </div>
 
   <div class="section">
-    <h2>Resources</h2>
-    <div class="resource-grid">
-      <div class="resource-card"><div class="icon">&#128230;</div><h4>Pod</h4><p>Smallest deployable unit</p></div>
-      <div class="resource-card"><div class="icon">&#9881;</div><h4>Deployment</h4><p>Manages pod replicas</p></div>
-      <div class="resource-card"><div class="icon">&#127760;</div><h4>Service</h4><p>Exposes pods via network</p></div>
-      <div class="resource-card"><div class="icon">&#128274;</div><h4>Secret</h4><p>Stores sensitive data</p></div>
-      <div class="resource-card"><div class="icon">&#128196;</div><h4>ConfigMap</h4><p>Stores config data</p></div>
-      <div class="resource-card"><div class="icon">&#128190;</div><h4>PersistentVolume</h4><p>Cluster storage resource</p></div>
-    </div>
+    <h2>Deployments <span class="badge" id="badge-deployments">0</span></h2>
+    <div id="table-deployments"><div class="loading">Loading...</div></div>
   </div>
 
   <div class="section">
-    <div class="info-box">
-      To run a local cluster, use <strong>Docker Desktop</strong> (enable Kubernetes in Settings) or install
-      <strong>minikube</strong> / <strong>kind</strong>. Once running, all <code>kubectl</code> commands above work against it.
-    </div>
+    <h2>Services <span class="badge" id="badge-services">0</span></h2>
+    <div id="table-services"><div class="loading">Loading...</div></div>
   </div>
 
+  <div class="section">
+    <h2>Namespaces <span class="badge" id="badge-namespaces">0</span></h2>
+    <div id="table-namespaces"><div class="loading">Loading...</div></div>
+  </div>
 </main>
 
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
-  function copyCmd(el) {
-    navigator.clipboard.writeText(el.innerText).catch(() => {});
-  }
-</script>
+  const PROXY = 'http://localhost:8002';
 
+  function statusBadge(s) {
+    if (!s) return '<span class="badge-grey">Unknown</span>';
+    const l = s.toLowerCase();
+    if (l === 'running' || l === 'ready' || l === 'active' || l === 'true') return `<span class="badge-green">${s}</span>`;
+    if (l === 'pending' || l === 'containercreating') return `<span class="badge-yellow">${s}</span>`;
+    return `<span class="badge-red">${s}</span>`;
+  }
+
+  function age(ts) {
+    if (!ts) return '—';
+    const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+    if (diff < 60) return `${diff}s`;
+    if (diff < 3600) return `${Math.floor(diff/60)}m`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+    return `${Math.floor(diff/86400)}d`;
+  }
+
+  async function fetchK8s(path) {
+    const res = await fetch(PROXY + path);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
+  }
+
+  function showError(msg) {
+    document.getElementById('error-container').innerHTML =
+      `<div class="error-box">&#9888; kubectl proxy not reachable at <strong>${PROXY}</strong>. Run: <code>kubectl proxy --port=8002</code><br/>${msg}</div>`;
+    document.getElementById('proxy-status').textContent = 'proxy offline';
+  }
+
+  async function loadNodes() {
+    const data = await fetchK8s('/api/v1/nodes');
+    const items = data.items || [];
+    document.getElementById('count-nodes').textContent = items.length;
+    document.getElementById('badge-nodes').textContent = items.length;
+    const rows = items.map(n => {
+      const ready = n.status.conditions?.find(c => c.type === 'Ready')?.status === 'True' ? 'Ready' : 'NotReady';
+      const cpu = n.status.capacity?.cpu || '—';
+      const mem = n.status.capacity?.memory || '—';
+      const ver = n.status.nodeInfo?.kubeletVersion || '—';
+      return `<tr>
+        <td>${n.metadata.name}</td>
+        <td>${n.metadata.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ? 'control-plane' : 'worker'}</td>
+        <td>${statusBadge(ready)}</td>
+        <td>${cpu}</td>
+        <td>${mem}</td>
+        <td>${ver}</td>
+        <td>${age(n.metadata.creationTimestamp)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('table-nodes').innerHTML = `
+      <table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>CPU</th><th>Memory</th><th>Version</th><th>Age</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#687078">No nodes found</td></tr>'}</tbody></table>`;
+  }
+
+  async function loadPods() {
+    const data = await fetchK8s('/api/v1/pods');
+    const items = data.items || [];
+    document.getElementById('count-pods').textContent = items.length;
+    document.getElementById('badge-pods').textContent = items.length;
+    const rows = items.map(p => `<tr>
+      <td>${p.metadata.name}</td>
+      <td><span class="badge-grey">${p.metadata.namespace}</span></td>
+      <td>${statusBadge(p.status.phase)}</td>
+      <td>${p.status.containerStatuses?.filter(c=>c.ready).length || 0}/${p.spec.containers?.length || 0}</td>
+      <td>${p.status.containerStatuses?.reduce((a,c)=>a+c.restartCount,0) || 0}</td>
+      <td>${p.spec.nodeName || '—'}</td>
+      <td>${age(p.metadata.creationTimestamp)}</td>
+    </tr>`).join('');
+    document.getElementById('table-pods').innerHTML = `
+      <table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#687078">No pods found</td></tr>'}</tbody></table>`;
+  }
+
+  async function loadDeployments() {
+    const data = await fetchK8s('/apis/apps/v1/deployments');
+    const items = data.items || [];
+    document.getElementById('count-deployments').textContent = items.length;
+    document.getElementById('badge-deployments').textContent = items.length;
+    const rows = items.map(d => {
+      const ready = `${d.status.readyReplicas||0}/${d.spec.replicas||0}`;
+      return `<tr>
+        <td>${d.metadata.name}</td>
+        <td><span class="badge-grey">${d.metadata.namespace}</span></td>
+        <td>${statusBadge(d.status.readyReplicas === d.spec.replicas ? 'Ready' : 'Pending')}</td>
+        <td>${ready}</td>
+        <td>${d.status.updatedReplicas||0}</td>
+        <td>${age(d.metadata.creationTimestamp)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('table-deployments').innerHTML = `
+      <table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Up-to-date</th><th>Age</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#687078">No deployments found</td></tr>'}</tbody></table>`;
+  }
+
+  async function loadServices() {
+    const data = await fetchK8s('/api/v1/services');
+    const items = data.items || [];
+    document.getElementById('count-services').textContent = items.length;
+    document.getElementById('badge-services').textContent = items.length;
+    const rows = items.map(s => {
+      const ports = s.spec.ports?.map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}`).join(', ') || '—';
+      return `<tr>
+        <td>${s.metadata.name}</td>
+        <td><span class="badge-grey">${s.metadata.namespace}</span></td>
+        <td>${s.spec.type}</td>
+        <td>${s.spec.clusterIP}</td>
+        <td>${ports}</td>
+        <td>${age(s.metadata.creationTimestamp)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('table-services').innerHTML = `
+      <table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster-IP</th><th>Ports</th><th>Age</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#687078">No services found</td></tr>'}</tbody></table>`;
+  }
+
+  async function loadNamespaces() {
+    const data = await fetchK8s('/api/v1/namespaces');
+    const items = data.items || [];
+    document.getElementById('count-namespaces').textContent = items.length;
+    document.getElementById('badge-namespaces').textContent = items.length;
+    const rows = items.map(n => `<tr>
+      <td>${n.metadata.name}</td>
+      <td>${statusBadge(n.status.phase)}</td>
+      <td>${age(n.metadata.creationTimestamp)}</td>
+    </tr>`).join('');
+    document.getElementById('table-namespaces').innerHTML = `
+      <table><thead><tr><th>Name</th><th>Status</th><th>Age</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  async function loadAll() {
+    document.getElementById('error-container').innerHTML = '';
+    try {
+      await Promise.all([loadNodes(), loadPods(), loadDeployments(), loadServices(), loadNamespaces()]);
+      document.getElementById('proxy-status').textContent = 'connected ✓';
+    } catch(e) {
+      showError(e.message);
+    }
+  }
+
+  loadAll();
+  setInterval(loadAll, 30000);
+</script>
 </body>
 </html>
