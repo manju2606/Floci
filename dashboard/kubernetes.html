@@ -108,7 +108,7 @@
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
-  const PROXY = 'http://localhost:8002';
+  const PROXY = '/k8s';
 
   function statusBadge(s) {
     if (!s) return '<span class="badge-grey">Unknown</span>';
@@ -135,7 +135,7 @@
 
   function showError(msg) {
     document.getElementById('error-container').innerHTML =
-      `<div class="error-box">&#9888; kubectl proxy not reachable at <strong>${PROXY}</strong>. Run: <code>kubectl proxy --port=8002</code><br/>${msg}</div>`;
+      `<div class="error-box">&#9888; kubectl proxy not reachable. Ensure it is running: <code>kubectl proxy --port=8002</code><br/>${msg}</div>`;
     document.getElementById('proxy-status').textContent = 'proxy offline';
   }
 
