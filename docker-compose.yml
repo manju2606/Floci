@@ -1,0 +1,35 @@
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+
+  dashboard:
+    image: nginx:alpine
+    ports:
+      - "9000:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+
+  dynamoui:
+    image: aaronshaf/dynamodb-admin
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://floci:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      - floci
+
+  s3ui:
+    image: cloudlena/s3manager
+    ports:
+      - "8333:8080"
+    environment:
+      - ENDPOINT=floci:4566
+      - ACCESS_KEY_ID=test
+      - SECRET_ACCESS_KEY=test
+      - USE_SSL=false
+      - FORCE_PATH_STYLE=true

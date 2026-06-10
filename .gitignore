@@ -1,0 +1,6 @@
+# Local AWS credentials / test files
+*.txt
+!dashboard/*.txt
+
+# Claude Code
+.claude/

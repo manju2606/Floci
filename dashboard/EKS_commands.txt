@@ -1,0 +1,19 @@
+   export AWS_ENDPOINT_URL=http://localhost:4566 && aws iam create-role \
+     --role-name eks-role \
+     --assume-role-policy-document '{
+       "Version": "2012-10-17",
+       "Statement": [{
+         "Effect": "Allow",
+         "Principal": { "Service": "eks.amazonaws.com" },
+         "Action": "sts:AssumeRole"
+       }]
+     }' \
+     --endpoint-url $AWS_ENDPOINT_URL
+   Create eks-role IAM role in Floci
+
+    $ export AWS_ENDPOINT_URL=http://localhost:4566 && aws eks describe-cluster --name my-cluster --endpoint-url $AWS_ENDPOINT_URL
+
+        ❯ `aws eks list-nodegroups --cluster-name my-cluster --endpoint-url $AWS_ENDPOINT_URL`
+
+        
+

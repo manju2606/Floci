@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kubernetes — Floci Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Amazon Ember", "Helvetica Neue", Arial, sans-serif;
+      background: #f2f3f3;
+      color: #16191f;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #232f3e;
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header .left { display: flex; align-items: center; gap: 16px; }
+    header .logo { font-size: 22px; font-weight: 700; color: #ff9900; letter-spacing: 1px; }
+    header .subtitle { font-size: 13px; color: #aab7b8; margin-top: 2px; }
+    header a.back {
+      font-size: 13px; color: #aab7b8; text-decoration: none;
+      border: 1px solid #4a5568; padding: 5px 14px; border-radius: 3px;
+    }
+    header a.back:hover { color: #fff; border-color: #fff; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
+      padding: 40px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .hero-icon {
+      font-size: 56px;
+      background: #326ce5;
+      width: 80px; height: 80px;
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hero h1 { font-size: 26px; font-weight: 700; color: #fff; }
+    .hero p  { font-size: 14px; color: #aab7b8; margin-top: 6px; line-height: 1.6; }
+
+    main { max-width: 1000px; margin: 40px auto; padding: 0 24px; }
+
+    .section { margin-bottom: 36px; }
+    .section h2 {
+      font-size: 17px; font-weight: 600; color: #16191f;
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 2px solid #d5dbdb;
+    }
+
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .cmd-card {
+      background: #fff;
+      border: 1px solid #d5dbdb;
+      border-radius: 4px;
+      padding: 16px 18px;
+    }
+
+    .cmd-card h4 { font-size: 13px; font-weight: 600; color: #16191f; margin-bottom: 8px; }
+
+    .cmd-card code {
+      display: block;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      background: #1e2a3a;
+      color: #a8d8a8;
+      padding: 10px 12px;
+      border-radius: 4px;
+      white-space: pre;
+      overflow-x: auto;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .cmd-card code:hover::after {
+      content: "Copy";
+      position: absolute; top: 6px; right: 8px;
+      font-size: 10px; background: #326ce5; color: #fff;
+      padding: 2px 6px; border-radius: 3px;
+    }
+
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .resource-card {
+      background: #fff;
+      border: 1px solid #d5dbdb;
+      border-radius: 4px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .resource-card .icon { font-size: 28px; margin-bottom: 8px; }
+    .resource-card h4 { font-size: 13px; font-weight: 600; color: #16191f; }
+    .resource-card p  { font-size: 11px; color: #687078; margin-top: 4px; }
+
+    .info-box {
+      background: #e8f4fd;
+      border: 1px solid #a8d4f0;
+      border-left: 4px solid #0073bb;
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #16191f;
+      line-height: 1.6;
+    }
+
+    .info-box a { color: #0073bb; }
+
+    footer {
+      text-align: center; padding: 32px;
+      font-size: 12px; color: #aab7b8;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="left">
+    <div>
+      <div class="logo">&#9830; Floci</div>
+      <div class="subtitle">Local AWS Emulator</div>
+    </div>
+  </div>
+  <a class="back" href="index.html">&#8592; Dashboard</a>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#9096;</div>
+  <div>
+    <h1>Kubernetes</h1>
+    <p>Container orchestration — manage clusters, deployments, services, and pods.<br/>
+       Use <code style="background:transparent;color:#ff9900;padding:0">kubectl</code> to interact with your cluster from the terminal.</p>
+  </div>
+</div>
+
+<main>
+
+  <div class="section">
+    <h2>Cluster</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>View cluster info</h4>
+        <code onclick="copyCmd(this)">kubectl cluster-info</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List nodes</h4>
+        <code onclick="copyCmd(this)">kubectl get nodes</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List all namespaces</h4>
+        <code onclick="copyCmd(this)">kubectl get namespaces</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Switch context</h4>
+        <code onclick="copyCmd(this)">kubectl config use-context &lt;name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Workloads</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List pods</h4>
+        <code onclick="copyCmd(this)">kubectl get pods -A</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List deployments</h4>
+        <code onclick="copyCmd(this)">kubectl get deployments -A</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Pod logs</h4>
+        <code onclick="copyCmd(this)">kubectl logs &lt;pod-name&gt; -n &lt;ns&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Exec into pod</h4>
+        <code onclick="copyCmd(this)">kubectl exec -it &lt;pod&gt; -- /bin/sh</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Apply manifest</h4>
+        <code onclick="copyCmd(this)">kubectl apply -f &lt;file.yaml&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Delete resource</h4>
+        <code onclick="copyCmd(this)">kubectl delete -f &lt;file.yaml&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Networking</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List services</h4>
+        <code onclick="copyCmd(this)">kubectl get svc -A</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Port-forward a pod</h4>
+        <code onclick="copyCmd(this)">kubectl port-forward &lt;pod&gt; 8080:80</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List ingresses</h4>
+        <code onclick="copyCmd(this)">kubectl get ingress -A</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Resources</h2>
+    <div class="resource-grid">
+      <div class="resource-card"><div class="icon">&#128230;</div><h4>Pod</h4><p>Smallest deployable unit</p></div>
+      <div class="resource-card"><div class="icon">&#9881;</div><h4>Deployment</h4><p>Manages pod replicas</p></div>
+      <div class="resource-card"><div class="icon">&#127760;</div><h4>Service</h4><p>Exposes pods via network</p></div>
+      <div class="resource-card"><div class="icon">&#128274;</div><h4>Secret</h4><p>Stores sensitive data</p></div>
+      <div class="resource-card"><div class="icon">&#128196;</div><h4>ConfigMap</h4><p>Stores config data</p></div>
+      <div class="resource-card"><div class="icon">&#128190;</div><h4>PersistentVolume</h4><p>Cluster storage resource</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="info-box">
+      To run a local cluster, use <strong>Docker Desktop</strong> (enable Kubernetes in Settings) or install
+      <strong>minikube</strong> / <strong>kind</strong>. Once running, all <code>kubectl</code> commands above work against it.
+    </div>
+  </div>
+
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+  function copyCmd(el) {
+    navigator.clipboard.writeText(el.innerText).catch(() => {});
+  }
+</script>
+
+</body>
+</html>

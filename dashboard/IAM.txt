@@ -1,0 +1,20 @@
+export AWS_ENDPOINT_URL=http://localhost:4566
+
+# Create a user and get credentials
+aws iam create-user --user-name alice
+KEY=$(aws iam create-access-key --user-name alice --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
+AKID=$(echo $KEY | awk '{print $1}')
+SECRET=$(echo $KEY | awk '{print $2}')
+
+# Create and attach a policy that allows S3 list
+POLICY_ARN=$(aws iam create-policy \
+  --policy-name allow-s3-list \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:ListAllMyBuckets","Resource":"*"}]}' \
+  --query 'Policy.Arn' --output text)
+
+aws iam attach-user-policy --user-name alice --policy-arn $POLICY_ARN
+
+# alice can now list buckets
+AWS_ACCESS_KEY_ID=$AKID AWS_SECRET_ACCESS_KEY=$SECRET \
+  aws s3 ls
+  
