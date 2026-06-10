@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SQS — Floci Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Amazon Ember", "Helvetica Neue", Arial, sans-serif;
+      background: #f2f3f3;
+      color: #16191f;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #232f3e;
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header .left { display: flex; align-items: center; gap: 16px; }
+    header .logo { font-size: 22px; font-weight: 700; color: #ff9900; letter-spacing: 1px; }
+    header .subtitle { font-size: 13px; color: #aab7b8; margin-top: 2px; }
+    header a.back {
+      font-size: 13px; color: #aab7b8; text-decoration: none;
+      border: 1px solid #4a5568; padding: 5px 14px; border-radius: 3px;
+    }
+    header a.back:hover { color: #fff; border-color: #fff; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
+      padding: 40px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .hero-icon {
+      font-size: 36px;
+      background: #ff9900;
+      width: 80px; height: 80px;
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hero h1 { font-size: 26px; font-weight: 700; color: #fff; }
+    .hero p  { font-size: 14px; color: #aab7b8; margin-top: 6px; line-height: 1.6; }
+
+    .banner {
+      background: #1a2332;
+      color: #aab7b8;
+      font-size: 12px;
+      text-align: center;
+      padding: 6px;
+    }
+    .banner span { color: #ff9900; font-weight: 600; }
+
+    main { max-width: 1000px; margin: 40px auto; padding: 0 24px; }
+
+    .section { margin-bottom: 36px; }
+    .section h2 {
+      font-size: 17px; font-weight: 600; color: #16191f;
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 2px solid #d5dbdb;
+    }
+
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .cmd-card {
+      background: #fff;
+      border: 1px solid #d5dbdb;
+      border-radius: 4px;
+      padding: 16px 18px;
+    }
+
+    .cmd-card h4 { font-size: 13px; font-weight: 600; color: #16191f; margin-bottom: 8px; }
+
+    .cmd-card code {
+      display: block;
+      font-family: "Courier New", monospace;
+      font-size: 11.5px;
+      background: #1e2a3a;
+      color: #a8d8a8;
+      padding: 10px 12px;
+      border-radius: 4px;
+      white-space: pre;
+      overflow-x: auto;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .cmd-card code:hover::after {
+      content: "Copy";
+      position: absolute; top: 6px; right: 8px;
+      font-size: 10px; background: #ff9900; color: #fff;
+      padding: 2px 6px; border-radius: 3px;
+    }
+
+    .info-box {
+      background: #fdf3e3;
+      border: 1px solid #f5cba7;
+      border-left: 4px solid #ff9900;
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #16191f;
+      line-height: 1.6;
+    }
+
+    footer {
+      text-align: center; padding: 32px;
+      font-size: 12px; color: #aab7b8;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="left">
+    <div>
+      <div class="logo">&#9830; Floci</div>
+      <div class="subtitle">Local AWS Emulator</div>
+    </div>
+  </div>
+  <a class="back" href="index.html">&#8592; Dashboard</a>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#128232;</div>
+  <div>
+    <h1>Amazon SQS</h1>
+    <p>Simple Queue Service — decouple and scale microservices using message queues.<br/>
+       Supports standard queues and FIFO queues with exactly-once processing.</p>
+  </div>
+</div>
+
+<div class="banner">
+  Endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
+  Region: <span>us-east-1</span> &nbsp;|&nbsp;
+  Access Key: <span>test</span>
+</div>
+
+<main>
+
+  <div class="section">
+    <h2>Queue Management</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>Create standard queue</h4>
+        <code onclick="copyCmd(this)">aws sqs create-queue \
+  --queue-name my-queue \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Create FIFO queue</h4>
+        <code onclick="copyCmd(this)">aws sqs create-queue \
+  --queue-name my-queue.fifo \
+  --attributes FifoQueue=true \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List queues</h4>
+        <code onclick="copyCmd(this)">aws sqs list-queues \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Get queue URL</h4>
+        <code onclick="copyCmd(this)">aws sqs get-queue-url \
+  --queue-name my-queue \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Get queue attributes</h4>
+        <code onclick="copyCmd(this)">aws sqs get-queue-attributes \
+  --queue-url &lt;queue-url&gt; \
+  --attribute-names All \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Delete queue</h4>
+        <code onclick="copyCmd(this)">aws sqs delete-queue \
+  --queue-url &lt;queue-url&gt; \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Messages</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>Send message</h4>
+        <code onclick="copyCmd(this)">aws sqs send-message \
+  --queue-url &lt;queue-url&gt; \
+  --message-body "Hello from SQS" \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Receive message</h4>
+        <code onclick="copyCmd(this)">aws sqs receive-message \
+  --queue-url &lt;queue-url&gt; \
+  --max-number-of-messages 10 \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Delete message</h4>
+        <code onclick="copyCmd(this)">aws sqs delete-message \
+  --queue-url &lt;queue-url&gt; \
+  --receipt-handle &lt;handle&gt; \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Purge all messages</h4>
+        <code onclick="copyCmd(this)">aws sqs purge-queue \
+  --queue-url &lt;queue-url&gt; \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Dead Letter Queue</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>Create DLQ</h4>
+        <code onclick="copyCmd(this)">aws sqs create-queue \
+  --queue-name my-queue-dlq \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Attach DLQ to queue</h4>
+        <code onclick="copyCmd(this)">aws sqs set-queue-attributes \
+  --queue-url &lt;queue-url&gt; \
+  --attributes '{
+    "RedrivePolicy": "{
+      \"deadLetterTargetArn\":\"&lt;dlq-arn&gt;\",
+      \"maxReceiveCount\":\"3\"}"
+  }' \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="info-box">
+      <strong>Floci SQS endpoint:</strong> <code style="background:transparent;padding:0">http://localhost:4566</code><br/>
+      Queue URLs follow the pattern:
+      <code style="background:transparent;padding:0">http://localhost:4566/000000000000/&lt;queue-name&gt;</code>
+    </div>
+  </div>
+
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+  function copyCmd(el) {
+    navigator.clipboard.writeText(el.innerText).catch(() => {});
+  }
+</script>
+
+</body>
+</html>

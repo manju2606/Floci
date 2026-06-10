@@ -96,6 +96,7 @@
     .card-icon.s3     { background: #e8f4fd; }
     .card-icon.dynamo { background: #fdf3e3; }
     .card-icon.k8s    { background: #e8eefb; }
+    .card-icon.sqs    { background: #fff3e0; }
 
     .card h3 {
       font-size: 16px;
@@ -184,6 +185,14 @@
       <div class="endpoint">kubectl</div>
       <a class="open-btn" href="kubernetes.html" style="margin-right:8px">Open K8s Page</a>
       <a class="open-btn" href="http://localhost:8002/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/" target="_blank" style="background:#326ce5">Open K8s Dashboard</a>
+    </div>
+
+    <div class="card" onclick="location.href='sqs.html'">
+      <div class="card-icon sqs">&#128232;</div>
+      <h3>Amazon SQS</h3>
+      <p>Simple Queue Service — decouple microservices using standard and FIFO queues.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="sqs.html">Open SQS Page</a>
     </div>
 
   </div>
