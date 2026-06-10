@@ -46,6 +46,12 @@
     .loading { color:#687078; font-size:13px; padding:16px; text-align:center; }
     .error-box { background:#fadbd8; border:1px solid #f1948a; border-radius:4px; padding:12px 16px; font-size:13px; color:#922b21; margin-bottom:16px; }
 
+    .cluster-info { background:#fff; border:1px solid #d5dbdb; border-radius:4px; padding:20px 24px; margin-bottom:28px; }
+    .cluster-info h2 { font-size:16px; font-weight:600; margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid #d5dbdb; color:#16191f; }
+    .info-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
+    .info-item .key { font-size:11px; color:#687078; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+    .info-item .val { font-size:14px; font-weight:600; color:#16191f; }
+
     footer { text-align:center; padding:32px; font-size:12px; color:#aab7b8; }
   </style>
 </head>
@@ -70,6 +76,20 @@
 
 <main>
   <div id="error-container"></div>
+
+  <div class="cluster-info">
+    <h2>&#127760; Cluster Info</h2>
+    <div class="info-grid" id="cluster-info-grid">
+      <div class="info-item"><div class="key">Cluster Name</div><div class="val" id="ci-name">—</div></div>
+      <div class="info-item"><div class="key">Kubernetes Version</div><div class="val" id="ci-version">—</div></div>
+      <div class="info-item"><div class="key">Platform</div><div class="val" id="ci-platform">—</div></div>
+      <div class="info-item"><div class="key">API Server</div><div class="val" id="ci-apiserver">—</div></div>
+      <div class="info-item"><div class="key">Git Version</div><div class="val" id="ci-git">—</div></div>
+      <div class="info-item"><div class="key">Build Date</div><div class="val" id="ci-build">—</div></div>
+      <div class="info-item"><div class="key">OS / Arch</div><div class="val" id="ci-os">—</div></div>
+      <div class="info-item"><div class="key">Go Version</div><div class="val" id="ci-go">—</div></div>
+    </div>
+  </div>
 
   <div class="status-bar">
     <div class="stat-card"><div class="num" id="count-nodes">—</div><div class="label">Nodes</div></div>
@@ -137,6 +157,18 @@
     document.getElementById('error-container').innerHTML =
       `<div class="error-box">&#9888; kubectl proxy not reachable. Ensure it is running: <code>kubectl proxy --port=8002</code><br/>${msg}</div>`;
     document.getElementById('proxy-status').textContent = 'proxy offline';
+  }
+
+  async function loadClusterInfo() {
+    const v = await fetchK8s('/version');
+    document.getElementById('ci-name').textContent    = 'desktop';
+    document.getElementById('ci-version').textContent = v.major + '.' + v.minor;
+    document.getElementById('ci-platform').textContent= v.platform || 'linux/amd64';
+    document.getElementById('ci-apiserver').textContent = window.location.hostname + ':8002';
+    document.getElementById('ci-git').textContent     = v.gitVersion || '—';
+    document.getElementById('ci-build').textContent   = v.buildDate ? v.buildDate.split('T')[0] : '—';
+    document.getElementById('ci-os').textContent      = (v.goOs || 'linux') + ' / ' + (v.goArch || 'amd64');
+    document.getElementById('ci-go').textContent      = v.goVersion || '—';
   }
 
   async function loadNodes() {
@@ -243,7 +275,7 @@
   async function loadAll() {
     document.getElementById('error-container').innerHTML = '';
     try {
-      await Promise.all([loadNodes(), loadPods(), loadDeployments(), loadServices(), loadNamespaces()]);
+      await Promise.all([loadClusterInfo(), loadNodes(), loadPods(), loadDeployments(), loadServices(), loadNamespaces()]);
       document.getElementById('proxy-status').textContent = 'connected ✓';
     } catch(e) {
       showError(e.message);
