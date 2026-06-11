@@ -10,15 +10,15 @@
       --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
       --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
       --th-bg: #f2f3f3; --tr-hover: #fafafa; --td-border: #eaeded;
-      --tab-bg: #fff; --stat-bg: #fff;
       --offline-bg: #fdf3e3; --offline-border: #f5cba7; --offline-text: #784212;
+      --sub-sys-bg: #f9f9f9;
     }
     [data-theme="dark"] {
       --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
       --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
       --th-bg: #1c2128; --tr-hover: #21262d; --td-border: #21262d;
-      --tab-bg: #161b22; --stat-bg: #161b22;
       --offline-bg: #1c1610; --offline-border: #7a5c1e; --offline-text: #d4a853;
+      --sub-sys-bg: #111820;
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
@@ -42,11 +42,12 @@
 
     main{max-width:1200px;margin:28px auto;padding:0 24px}
 
+    /* Cluster tabs */
     .cluster-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
-    .cluster-tab{padding:8px 16px;border-radius:4px;border:1px solid var(--border);background:var(--tab-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;transition:all .15s;color:var(--text-primary)}
+    .cluster-tab{padding:8px 16px;border-radius:4px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;transition:all .15s;color:var(--text-primary)}
     .cluster-tab:hover{border-color:#326ce5;color:#326ce5}
     .cluster-tab.active{background:#326ce5;color:#fff;border-color:#326ce5}
-    .cluster-tab.offline{border-color:#e8a09e;color:#922b21;background:var(--tab-bg)}
+    .cluster-tab.offline{border-color:#e8a09e;color:#922b21;background:var(--card-bg)}
     .cluster-tab.offline.active{background:#c0392b;border-color:#c0392b;color:#fff}
     .cluster-tab .dot{width:8px;height:8px;border-radius:50%;background:#27ae60;flex-shrink:0}
     .cluster-tab.offline .dot{background:#e74c3c}
@@ -56,33 +57,67 @@
     .cluster-panel{display:none}
     .cluster-panel.active{display:block}
 
-    .cluster-info{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 24px;margin-bottom:20px;transition:background .2s}
+    /* Cluster info */
+    .cluster-info{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 24px;margin-bottom:20px}
     .cluster-info h2{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
     .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
     .info-item .key{font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
     .info-item .val{font-size:14px;font-weight:600;color:var(--text-primary)}
 
+    /* Stat bar */
     .stat-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-    .stat-card{background:var(--stat-bg);border:1px solid var(--border);border-radius:4px;padding:12px 20px;flex:1;min-width:110px;text-align:center;transition:background .2s}
+    .stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:12px 20px;flex:1;min-width:110px;text-align:center}
     .stat-card .num{font-size:26px;font-weight:700;color:#326ce5}
     .stat-card .lbl{font-size:11px;color:var(--text-secondary);margin-top:2px}
 
-    .section{margin-bottom:20px}
-    .section h3{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:6px}
-    .section h3 .badge{font-size:10px;background:#326ce5;color:#fff;padding:1px 7px;border-radius:10px}
+    /* Collapsible section */
+    .section{margin-bottom:16px}
+    .sec-hdr{
+      display:flex;align-items:center;gap:8px;
+      font-size:14px;font-weight:600;color:var(--text-primary);
+      padding:10px 14px;margin-bottom:0;
+      border:1px solid var(--border);border-radius:4px;
+      background:var(--card-bg);cursor:pointer;user-select:none;
+      transition:border-color .15s,background .2s;
+    }
+    .sec-hdr:hover{border-color:#326ce5}
+    .sec-hdr .arrow{font-size:11px;color:var(--text-muted);width:14px;flex-shrink:0}
+    .sec-hdr .badge{font-size:10px;background:#326ce5;color:#fff;padding:1px 7px;border-radius:10px;margin-left:auto}
+    .sec-body{border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;overflow:hidden}
 
-    table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;font-size:12.5px;transition:background .2s}
+    /* Sub-section */
+    .sub-hdr{
+      display:flex;align-items:center;gap:8px;
+      padding:8px 14px;font-size:12.5px;font-weight:600;
+      cursor:pointer;user-select:none;
+      color:var(--text-primary);background:var(--th-bg);
+      border-bottom:1px solid var(--border);
+      transition:background .15s;
+    }
+    .sub-hdr:hover{background:var(--tr-hover)}
+    .sub-hdr .arrow{font-size:10px;color:var(--text-muted);width:12px;flex-shrink:0}
+    .sub-hdr .sub-badge{font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px}
+    .sub-hdr .usr-badge{background:#326ce5;color:#fff}
+    .sub-hdr .sys-badge{background:var(--text-muted);color:#fff}
+
+    .sys-hdr{color:var(--text-secondary)}
+    .sys-body{background:var(--sub-sys-bg)}
+
+    /* Tables */
+    table{width:100%;border-collapse:collapse;background:var(--card-bg);font-size:12.5px}
     th{background:var(--th-bg);padding:8px 12px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
     td{padding:8px 12px;border-bottom:1px solid var(--td-border);color:var(--text-primary)}
     tr:last-child td{border-bottom:none}
     tr:hover td{background:var(--tr-hover)}
 
+    /* Badges */
     .bg{background:#d5f5e3;color:#1e8449;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .by{background:#fef9e7;color:#b7950b;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .br{background:#fadbd8;color:#922b21;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .bk{background:var(--th-bg);color:var(--text-muted);padding:2px 7px;border-radius:10px;font-size:11px}
 
-    .loading{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center}
+    .loading{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg)}
+    .empty-sub{padding:10px 14px;font-size:12px;color:var(--text-secondary);font-style:italic;background:var(--card-bg)}
     .offline-msg{background:var(--offline-bg);border:1px solid var(--offline-border);border-left:4px solid #e67e22;border-radius:4px;padding:14px 18px;font-size:13px;color:var(--offline-text)}
     .error-box{background:#fadbd8;border:1px solid #f1948a;border-radius:4px;padding:12px 16px;font-size:13px;color:#922b21;margin-bottom:16px}
 
@@ -117,6 +152,7 @@
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
+// ── Theme ────────────────────────────────────────────────────────────────────
 function toggleTheme() {
   const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
@@ -126,6 +162,29 @@ function toggleTheme() {
 document.getElementById('theme-btn').textContent =
   document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
 
+// ── Collapse state ────────────────────────────────────────────────────────────
+function getCS(key, def) {
+  try { const s = JSON.parse(localStorage.getItem('floci-k8s-cs') || '{}'); return key in s ? s[key] : def; }
+  catch { return def; }
+}
+function setCS(key, val) {
+  try { const s = JSON.parse(localStorage.getItem('floci-k8s-cs') || '{}'); s[key] = val; localStorage.setItem('floci-k8s-cs', JSON.stringify(s)); }
+  catch {}
+}
+function toggle(cId, aId, key) {
+  const el = document.getElementById(cId);
+  const ar = document.getElementById(aId);
+  if (!el || !ar) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  ar.textContent = open ? '▼' : '▶';
+  setCS(key, open);
+}
+
+// ── System namespace set ──────────────────────────────────────────────────────
+const SYSTEM_NS = new Set(['kube-system','kube-public','kube-node-lease','local-path-storage']);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function age(ts) {
   if (!ts) return '—';
   const s = Math.floor((Date.now() - new Date(ts)) / 1000);
@@ -134,7 +193,6 @@ function age(ts) {
   if (s < 86400) return Math.floor(s/3600) + 'h';
   return Math.floor(s/86400) + 'd';
 }
-
 function badge(s) {
   if (!s) return `<span class="bk">—</span>`;
   const l = s.toLowerCase();
@@ -142,13 +200,11 @@ function badge(s) {
   if (['pending','containercreating','crashloopbackoff'].includes(l)) return `<span class="by">${s}</span>`;
   return `<span class="br">${s}</span>`;
 }
-
 async function apiFetch(path) {
   const r = await fetch(path);
   if (!r.ok) { const e = await r.json(); throw new Error(e.error || r.statusText); }
   return r.json();
 }
-
 function clusterTag(name) {
   if (name.includes('aks')) return 'AKS';
   if (name.includes('eks') || name.includes('arn:aws')) return 'EKS';
@@ -157,79 +213,87 @@ function clusterTag(name) {
   return 'K8s';
 }
 
-function renderNodes(items) {
-  if (!items?.length) return '<p class="loading">No nodes</p>';
-  const rows = items.map(n => {
-    const ready = n.status.conditions?.find(c=>c.type==='Ready')?.status==='True' ? 'Ready' : 'NotReady';
-    return `<tr>
-      <td>${n.metadata.name}</td>
-      <td>${n.metadata.labels?.['node-role.kubernetes.io/control-plane']!==undefined?'control-plane':'worker'}</td>
-      <td>${badge(ready)}</td>
-      <td>${n.status.capacity?.cpu||'—'}</td>
-      <td>${n.status.capacity?.memory||'—'}</td>
-      <td>${n.status.nodeInfo?.kubeletVersion||'—'}</td>
-      <td>${age(n.metadata.creationTimestamp)}</td>
-    </tr>`;
-  }).join('');
-  return `<table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>CPU</th><th>Memory</th><th>Version</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
+// ── Row renderers (no wrapper table — called per sub-group) ───────────────────
+function nodeRows(items) {
+  if (!items.length) return '<p class="empty-sub">None</p>';
+  return `<table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>CPU</th><th>Memory</th><th>Version</th><th>Age</th></tr></thead><tbody>` +
+    items.map(n => {
+      const ready = n.status.conditions?.find(c=>c.type==='Ready')?.status==='True' ? 'Ready' : 'NotReady';
+      const role  = n.metadata.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ? 'control-plane' : 'worker';
+      return `<tr><td>${n.metadata.name}</td><td>${role}</td><td>${badge(ready)}</td><td>${n.status.capacity?.cpu||'—'}</td><td>${n.status.capacity?.memory||'—'}</td><td>${n.status.nodeInfo?.kubeletVersion||'—'}</td><td>${age(n.metadata.creationTimestamp)}</td></tr>`;
+    }).join('') + `</tbody></table>`;
+}
+function podRows(items) {
+  if (!items.length) return '<p class="empty-sub">None</p>';
+  return `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead><tbody>` +
+    items.map(p => `<tr><td>${p.metadata.name}</td><td><span class="bk">${p.metadata.namespace}</span></td><td>${badge(p.status.phase)}</td><td>${(p.status.containerStatuses?.filter(c=>c.ready).length||0)}/${p.spec.containers?.length||0}</td><td>${p.status.containerStatuses?.reduce((a,c)=>a+c.restartCount,0)||0}</td><td>${p.spec.nodeName||'—'}</td><td>${age(p.metadata.creationTimestamp)}</td></tr>`).join('') + `</tbody></table>`;
+}
+function deployRows(items) {
+  if (!items.length) return '<p class="empty-sub">None</p>';
+  return `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
+    items.map(d => `<tr><td>${d.metadata.name}</td><td><span class="bk">${d.metadata.namespace}</span></td><td>${badge(d.status.readyReplicas===d.spec.replicas?'Ready':'Pending')}</td><td>${d.status.readyReplicas||0}/${d.spec.replicas||0}</td><td>${age(d.metadata.creationTimestamp)}</td></tr>`).join('') + `</tbody></table>`;
+}
+function svcRows(items) {
+  if (!items.length) return '<p class="empty-sub">None</p>';
+  return `<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster-IP</th><th>Ports</th><th>Age</th></tr></thead><tbody>` +
+    items.map(s => `<tr><td>${s.metadata.name}</td><td><span class="bk">${s.metadata.namespace}</span></td><td>${s.spec.type}</td><td>${s.spec.clusterIP}</td><td>${s.spec.ports?.map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}`).join(', ')||'—'}</td><td>${age(s.metadata.creationTimestamp)}</td></tr>`).join('') + `</tbody></table>`;
+}
+function nsRows(items) {
+  if (!items.length) return '<p class="empty-sub">None</p>';
+  return `<table><thead><tr><th>Name</th><th>Status</th><th>Age</th></tr></thead><tbody>` +
+    items.map(n => `<tr><td>${n.metadata.name}</td><td>${badge(n.status.phase)}</td><td>${age(n.metadata.creationTimestamp)}</td></tr>`).join('') + `</tbody></table>`;
 }
 
-function renderPods(items) {
-  if (!items?.length) return '<p class="loading">No pods</p>';
-  const rows = items.map(p => `<tr>
-    <td>${p.metadata.name}</td>
-    <td><span class="bk">${p.metadata.namespace}</span></td>
-    <td>${badge(p.status.phase)}</td>
-    <td>${(p.status.containerStatuses?.filter(c=>c.ready).length||0)}/${p.spec.containers?.length||0}</td>
-    <td>${p.status.containerStatuses?.reduce((a,c)=>a+c.restartCount,0)||0}</td>
-    <td>${p.spec.nodeName||'—'}</td>
-    <td>${age(p.metadata.creationTimestamp)}</td>
-  </tr>`).join('');
-  return `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
+// ── Split collapsible section builder ────────────────────────────────────────
+function splitSection(panelId, key, icon, title, allItems, isSysFn, rowsFn) {
+  const usr = allItems.filter(i => !isSysFn(i));
+  const sys = allItems.filter(i =>  isSysFn(i));
+
+  const sk = `${panelId}-${key}`;
+  const uk = `${sk}-usr`;
+  const yk = `${sk}-sys`;
+
+  const sOpen = getCS(sk,  true);
+  const uOpen = getCS(uk,  true);
+  const yOpen = getCS(yk, false);  // system collapsed by default
+
+  let html = `
+    <div class="section">
+      <div class="sec-hdr" onclick="toggle('${sk}-c','${sk}-a','${sk}')">
+        <span class="arrow" id="${sk}-a">${sOpen ? '▼' : '▶'}</span>
+        ${icon} ${title}
+        <span class="badge">${allItems.length}</span>
+      </div>
+      <div id="${sk}-c" style="display:${sOpen ? '' : 'none'}">
+        <div class="sec-body">`;
+
+  // Your Services sub-section
+  html += `
+          <div class="sub-hdr" onclick="toggle('${uk}-c','${uk}-a','${uk}')">
+            <span class="arrow" id="${uk}-a">${uOpen ? '▼' : '▶'}</span>
+            &#128100; Your Services
+            <span class="sub-badge usr-badge">${usr.length}</span>
+          </div>
+          <div id="${uk}-c" style="display:${uOpen ? '' : 'none'}">
+            ${rowsFn(usr)}
+          </div>`;
+
+  // System sub-section
+  html += `
+          <div class="sub-hdr sys-hdr" onclick="toggle('${yk}-c','${yk}-a','${yk}')">
+            <span class="arrow" id="${yk}-a">${yOpen ? '▼' : '▶'}</span>
+            &#9881; System
+            <span class="sub-badge sys-badge">${sys.length}</span>
+          </div>
+          <div id="${yk}-c" class="sys-body" style="display:${yOpen ? '' : 'none'}">
+            ${rowsFn(sys)}
+          </div>`;
+
+  html += `</div></div></div>`;
+  return html;
 }
 
-function renderDeployments(items) {
-  if (!items?.length) return '<p class="loading">No deployments</p>';
-  const rows = items.map(d => `<tr>
-    <td>${d.metadata.name}</td>
-    <td><span class="bk">${d.metadata.namespace}</span></td>
-    <td>${badge(d.status.readyReplicas===d.spec.replicas?'Ready':'Pending')}</td>
-    <td>${d.status.readyReplicas||0}/${d.spec.replicas||0}</td>
-    <td>${age(d.metadata.creationTimestamp)}</td>
-  </tr>`).join('');
-  return `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function renderServices(items) {
-  if (!items?.length) return '<p class="loading">No services</p>';
-  const rows = items.map(s => `<tr>
-    <td>${s.metadata.name}</td>
-    <td><span class="bk">${s.metadata.namespace}</span></td>
-    <td>${s.spec.type}</td>
-    <td>${s.spec.clusterIP}</td>
-    <td>${s.spec.ports?.map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}`).join(', ')||'—'}</td>
-    <td>${age(s.metadata.creationTimestamp)}</td>
-  </tr>`).join('');
-  return `<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster-IP</th><th>Ports</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function renderNamespaces(items) {
-  if (!items?.length) return '<p class="loading">No namespaces</p>';
-  const rows = items.map(n => `<tr>
-    <td>${n.metadata.name}</td>
-    <td>${badge(n.status.phase)}</td>
-    <td>${age(n.metadata.creationTimestamp)}</td>
-  </tr>`).join('');
-  return `<table><thead><tr><th>Name</th><th>Status</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function section(title, id, content) {
-  return `<div class="section">
-    <h3>${title} <span class="badge" id="${id}-badge">—</span></h3>
-    <div id="${id}">${content}</div>
-  </div>`;
-}
-
+// ── Load cluster data ────────────────────────────────────────────────────────
 async function loadCluster(ctx, panelId) {
   const panel = document.getElementById(panelId);
   const enc = encodeURIComponent(ctx.name);
@@ -252,7 +316,13 @@ async function loadCluster(ctx, panelId) {
     return;
   }
 
-  const v = ver.value || {};
+  const v         = ver.value || {};
+  const nodeItems = nodes.value?.items || [];
+  const podItems  = pods.value?.items  || [];
+  const depItems  = deps.value?.items  || [];
+  const svcItems  = svcs.value?.items  || [];
+  const nsItems   = nss.value?.items   || [];
+
   const clusterInfo = `<div class="cluster-info">
     <h2>Cluster Info</h2>
     <div class="info-grid">
@@ -264,12 +334,6 @@ async function loadCluster(ctx, panelId) {
     </div>
   </div>`;
 
-  const nodeItems = nodes.value?.items || [];
-  const podItems  = pods.value?.items  || [];
-  const depItems  = deps.value?.items  || [];
-  const svcItems  = svcs.value?.items  || [];
-  const nsItems   = nss.value?.items   || [];
-
   const stats = `<div class="stat-bar">
     <div class="stat-card"><div class="num">${nodeItems.length}</div><div class="lbl">Nodes</div></div>
     <div class="stat-card"><div class="num">${podItems.length}</div><div class="lbl">Pods</div></div>
@@ -278,18 +342,19 @@ async function loadCluster(ctx, panelId) {
     <div class="stat-card"><div class="num">${nsItems.length}</div><div class="lbl">Namespaces</div></div>
   </div>`;
 
-  panel.innerHTML = clusterInfo + stats +
-    section('&#128196; Nodes',       `${panelId}-nodes`,       renderNodes(nodeItems)) +
-    section('&#128230; Pods',        `${panelId}-pods`,        renderPods(podItems)) +
-    section('&#9881; Deployments',   `${panelId}-deployments`, renderDeployments(depItems)) +
-    section('&#127760; Services',    `${panelId}-services`,    renderServices(svcItems)) +
-    section('&#128193; Namespaces',  `${panelId}-namespaces`,  renderNamespaces(nsItems));
+  // Split functions
+  const isSysNode  = n => n.metadata.labels?.['node-role.kubernetes.io/control-plane'] !== undefined;
+  const isSysNs    = i => SYSTEM_NS.has(i.metadata.namespace || i.metadata.name);
 
-  [[`${panelId}-nodes`,nodeItems],[`${panelId}-pods`,podItems],[`${panelId}-deployments`,depItems],
-   [`${panelId}-services`,svcItems],[`${panelId}-namespaces`,nsItems]]
-    .forEach(([id,items]) => { const b = document.getElementById(id+'-badge'); if(b) b.textContent=items.length; });
+  panel.innerHTML = clusterInfo + stats +
+    splitSection(panelId, 'nodes', '&#128196;', 'Nodes',       nodeItems, isSysNode, nodeRows) +
+    splitSection(panelId, 'pods',  '&#128230;', 'Pods',        podItems,  isSysNs,   podRows) +
+    splitSection(panelId, 'deps',  '&#9881;',   'Deployments', depItems,  isSysNs,   deployRows) +
+    splitSection(panelId, 'svcs',  '&#127760;', 'Services',    svcItems,  isSysNs,   svcRows) +
+    splitSection(panelId, 'nss',   '&#128193;', 'Namespaces',  nsItems,   isSysNs,   nsRows);
 }
 
+// ── Init ──────────────────────────────────────────────────────────────────────
 let allContexts = [];
 
 async function init() {
@@ -301,7 +366,7 @@ async function init() {
 
     const tabsEl   = document.getElementById('cluster-tabs');
     const panelsEl = document.getElementById('cluster-panels');
-    tabsEl.innerHTML = '';
+    tabsEl.innerHTML   = '';
     panelsEl.innerHTML = '';
 
     allContexts.forEach((ctx, i) => {
