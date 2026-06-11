@@ -53,6 +53,9 @@
     .cluster-tab.offline .dot{background:#e74c3c}
     .cluster-tab .tag{font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(128,128,128,.2);font-weight:400}
     .cluster-tab.active .tag{background:rgba(255,255,255,.2)}
+    .cluster-tab .warn-badge{font-size:10px;padding:1px 7px;border-radius:10px;background:#e74c3c;color:#fff;font-weight:700;flex-shrink:0;animation:wbpulse 2s ease-in-out infinite}
+    .cluster-tab.active .warn-badge{background:rgba(255,255,255,.9);color:#c0392b}
+    @keyframes wbpulse{0%,100%{opacity:1}50%{opacity:.7}}
 
     .cluster-panel{display:none}
     .cluster-panel.active{display:block}
@@ -386,6 +389,27 @@ function isPodHealthy(s) {
   return l === 'running' || l === 'succeeded' || l === 'completed';
 }
 
+function updateTabHealth(ctxName, nodeItems, podItems) {
+  const badNodes = nodeItems.filter(n =>
+    n.status.conditions?.find(c => c.type === 'Ready')?.status !== 'True'
+  ).length;
+  const badPods = podItems.filter(p => !isPodHealthy(podStatusStr(p))).length;
+  const total   = badNodes + badPods;
+
+  const tab = document.querySelector(`[data-ctx="${CSS.escape(ctxName)}"]`);
+  if (!tab) return;
+
+  let badge = tab.querySelector('.warn-badge');
+  if (total === 0) { if (badge) badge.remove(); return; }
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'warn-badge';
+    tab.appendChild(badge);
+  }
+  badge.textContent = `⚠ ${total}`;
+  badge.title = `${badPods} unhealthy pod${badPods!==1?'s':''}, ${badNodes} unhealthy node${badNodes!==1?'s':''}`;
+}
+
 function podBadge(s) {
   const l = (s || '').toLowerCase();
   if (l === 'running')                                   return `<span class="bg">${s}</span>`;
@@ -566,6 +590,7 @@ async function loadCluster(ctx, panelId) {
     splitSection(panelId, 'deps',  '&#9881;',   'Deployments', depItems,  isSysNs,   deployRows) +
     splitSection(panelId, 'svcs',  '&#127760;', 'Services',    svcItems,  isSysNs,   svcRows) +
     splitSection(panelId, 'nss',   '&#128193;', 'Namespaces',  nsItems,   isSysNs,   nsRows);
+  updateTabHealth(ctx.name, nodeItems, podItems);
   startPolling(ctx.name, panelId);
 }
 
