@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>K8s Investigation Agent — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+      --th-bg: #f2f3f3; --tr-hover: #fafafa; --td-border: #eaeded;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+      --th-bg: #1c2128; --tr-hover: #21262d; --td-border: #21262d;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#326ce5;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    header a.back.k8s{border-color:#326ce5;color:#326ce5}
+    header a.back.k8s:hover{background:#326ce5;color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+
+    .hero{background:linear-gradient(135deg,#0d1b2a,#1a2e4a);padding:40px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#326ce5;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero-text{flex:1;min-width:200px}
+    .hero h1{font-size:26px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .hero .badge-ro{display:inline-block;margin-top:8px;font-size:11px;background:rgba(39,174,96,.2);color:#2ecc71;border:1px solid rgba(46,204,113,.3);padding:2px 10px;border-radius:10px;font-weight:600}
+
+    .controls{background:#1a2332;padding:20px 32px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid #2d3a4a}
+    .ctrl-group{display:flex;flex-direction:column;gap:5px}
+    .ctrl-group label{font-size:11px;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .ctrl-group select,.ctrl-group input{padding:7px 12px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:13px;min-width:200px}
+    .ctrl-group select:focus,.ctrl-group input:focus{outline:none;border-color:#326ce5}
+    .run-btn{padding:9px 24px;background:#326ce5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;align-self:flex-end}
+    .run-btn:hover{background:#2554c7}
+    .run-btn:disabled{background:#4a5568;cursor:not-allowed}
+    .run-btn .spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    .run-btn.running .spin{display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .status-strip{background:#161b22;border-bottom:1px solid #30363d;padding:8px 32px;font-size:12px;color:#8b949e;display:flex;align-items:center;gap:12px;min-height:36px}
+    .status-strip .dot{width:8px;height:8px;border-radius:50%;background:#4a5568;flex-shrink:0}
+    .status-strip .dot.ok{background:#27ae60}
+    .status-strip .dot.warn{background:#e74c3c;animation:pulse 1.5s ease-in-out infinite}
+    .status-strip .dot.running{background:#f39c12;animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    main{max-width:1200px;margin:32px auto;padding:0 24px}
+
+    .section{margin-bottom:28px}
+    .section-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none}
+    .section-hdr h2{font-size:16px;font-weight:700;color:var(--text-primary);flex:1}
+    .section-hdr .count{font-size:11px;padding:2px 9px;border-radius:10px;font-weight:600}
+    .count.ok{background:#d5f5e3;color:#1e8449}
+    .count.bad{background:#fadbd8;color:#922b21}
+    .count.warn{background:#fef9e7;color:#b7950b}
+    .count.neutral{background:var(--th-bg);color:var(--text-muted)}
+    .toggle-arrow{font-size:13px;color:var(--text-muted);transition:transform .2s}
+    .section-body{overflow:hidden;transition:max-height .25s ease}
+
+    .empty-state{color:var(--text-secondary);font-size:13px;padding:16px;text-align:center;font-style:italic;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
+    .placeholder{color:var(--text-secondary);font-size:13px;padding:32px;text-align:center;background:var(--card-bg);border:1px dashed var(--border);border-radius:4px}
+
+    table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;font-size:13px}
+    th{background:var(--th-bg);padding:9px 14px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
+    td{padding:9px 14px;border-bottom:1px solid var(--td-border);color:var(--text-primary);vertical-align:top}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:var(--tr-hover)}
+    tr.row-bad td{background:rgba(231,76,60,.06)}
+    tr.row-bad td:first-child{border-left:3px solid #e74c3c}
+
+    .bg{background:#d5f5e3;color:#1e8449;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
+    .br{background:#fadbd8;color:#922b21;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
+    .by{background:#fef9e7;color:#b7950b;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
+    .bk{background:#eaf0fb;color:#326ce5;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
+
+    .log-block{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:12px;font-family:"Courier New",monospace;font-size:11.5px;color:#a8d8a8;max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-top:6px}
+    .log-key{font-weight:700;color:var(--text-secondary);margin-top:10px;font-size:12px}
+    .log-key:first-child{margin-top:0}
+
+    .event-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:12px 16px;margin-bottom:8px;border-left:3px solid #e74c3c}
+    .event-card .ev-hdr{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+    .event-card .ev-msg{font-size:12px;color:var(--text-secondary);line-height:1.5}
+    .event-card .ev-meta{font-size:11px;color:var(--text-muted);margin-top:4px}
+
+    .net-issue{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:12px 16px;margin-bottom:8px;border-left:3px solid #e67e22}
+    .net-issue .ni-name{font-weight:600;font-size:13px}
+    .net-issue .ni-detail{font-size:12px;color:var(--text-secondary);margin-top:3px}
+
+    .summary-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+    .sum-card{flex:1;min-width:130px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:14px 18px;text-align:center}
+    .sum-card .sv{font-size:28px;font-weight:700;line-height:1}
+    .sum-card .sl{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+    .sum-card.bad .sv{color:#e74c3c}
+    .sum-card.ok .sv{color:#27ae60}
+    .sum-card.warn .sv{color:#e67e22}
+    .sum-card.neutral .sv{color:var(--text-secondary)}
+
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">K8s Investigation Agent</div></div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back k8s" href="kubernetes.html">&#9096; K8s Dashboard</a>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#128269;</div>
+  <div class="hero-text">
+    <h1>Kubernetes Investigation Agent</h1>
+    <p>Evidence-gathering layer — inspects pods, logs, events, deployments, and network endpoints.<br/>
+       Surfaces what is broken without making any changes.</p>
+    <span class="badge-ro">&#10003; Read-only &nbsp;·&nbsp; No fixes &nbsp;·&nbsp; No AI (yet)</span>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Cluster / Context</label>
+    <select id="ctx-select" onchange="onContextChange()"><option value="">Loading contexts…</option></select>
+  </div>
+  <div class="ctrl-group">
+    <label>Namespace</label>
+    <select id="ns-select" disabled><option value="">— all namespaces —</option></select>
+  </div>
+  <button class="run-btn" id="run-btn" onclick="runInvestigation()">
+    <span class="spin"></span>&#128269; Run Investigation
+  </button>
+</div>
+
+<div class="status-strip" id="status-strip">
+  <span class="dot" id="status-dot"></span>
+  <span id="status-msg">Ready — select a context and click Run Investigation.</span>
+</div>
+
+<main id="main-content">
+  <div class="placeholder">&#128269; No investigation run yet.<br/>Select a context above and click <strong>Run Investigation</strong>.</div>
+</main>
+
+<footer>Floci &mdash; K8s Investigation Agent &mdash; Evidence only, no fixes</footer>
+
+<script>
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+// ── Load contexts from the always-running k8s-backend ────────────────────────
+async function loadContexts() {
+  try {
+    const r = await fetch('/api/contexts');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const sel = document.getElementById('ctx-select');
+    sel.innerHTML = '<option value="">— select a cluster —</option>' +
+      data.contexts.map(c =>
+        `<option value="${c.name}" ${c.current ? 'selected' : ''}>${c.name}${c.current ? ' ✓' : ''}</option>`
+      ).join('');
+    // Auto-load namespaces for the pre-selected current context
+    const current = data.contexts.find(c => c.current);
+    if (current) onContextChange();
+    setStatus('', 'Ready — select a cluster and namespace, then click Run Investigation.');
+  } catch(e) {
+    document.getElementById('ctx-select').innerHTML =
+      '<option value="">Cannot reach backend</option>';
+    setStatus('warn', 'Cannot reach k8s backend at /api/contexts — is the stack running?');
+  }
+}
+
+// ── Load namespaces for the selected context ──────────────────────────────────
+async function onContextChange() {
+  const ctx    = document.getElementById('ctx-select').value;
+  const nsSel  = document.getElementById('ns-select');
+  nsSel.innerHTML = '<option value="">— loading… —</option>';
+  nsSel.disabled  = true;
+
+  if (!ctx) {
+    nsSel.innerHTML = '<option value="">— all namespaces —</option>';
+    return;
+  }
+
+  try {
+    const r = await fetch(`/api/cluster/${encodeURIComponent(ctx)}/namespaces`);
+    const data = await r.json();
+    const items = (data.items || []).map(n => n.metadata.name).sort();
+    nsSel.innerHTML = '<option value="">— all namespaces —</option>' +
+      items.map(n => `<option value="${n}">${n}</option>`).join('');
+    nsSel.disabled = false;
+  } catch(e) {
+    nsSel.innerHTML = '<option value="">— all namespaces —</option>';
+    nsSel.disabled = false;
+  }
+}
+
+// ── Status bar helpers ────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-msg');
+  dot.className = 'dot ' + (state === 'ok' ? 'ok' : state === 'running' ? 'running' : 'warn');
+  txt.textContent = msg;
+}
+
+// ── Section collapse ──────────────────────────────────────────────────────────
+function toggleSection(id) {
+  const body  = document.getElementById('sb-' + id);
+  const arrow = document.getElementById('ar-' + id);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  arrow.textContent  = open ? '▶' : '▼';
+}
+
+// ── Badge helpers ─────────────────────────────────────────────────────────────
+function statusBadge(s) {
+  if (!s) return '—';
+  const l = s.toLowerCase();
+  if (l === 'running' || l === 'succeeded' || l === 'completed') return `<span class="bg">${s}</span>`;
+  if (l === 'terminating' || l === 'pending' || l === 'containercreating') return `<span class="by">${s}</span>`;
+  if (l === 'unknown') return `<span class="bk">${s}</span>`;
+  return `<span class="br">${s}</span>`;
+}
+function healthBadge(ok) {
+  return ok ? '<span class="bg">Healthy</span>' : '<span class="br">Unhealthy</span>';
+}
+function issueBadge(s) {
+  const map = {'missing-endpoints':'Missing Endpoints','empty-endpoints':'No Endpoints','no-selector':'No Selector','external-name':'ExternalName','ok':'OK'};
+  const cls = s === 'ok' ? 'bg' : s === 'no-selector' || s === 'external-name' ? 'bk' : 'br';
+  return `<span class="${cls}">${map[s]||s}</span>`;
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+function renderSummary(inv) {
+  const pods   = inv.pods   || {};
+  const events = inv.events || {};
+  const deps   = inv.deployments || {};
+  const net    = inv.network || {};
+
+  const badPods  = (pods.problematic_pods  || []).length;
+  const badDeps  = (deps.unhealthy_deployments || []).length;
+  const warnEvts = events.warning_count || 0;
+  const netIssues = net.issue_count || 0;
+  const allOk = badPods === 0 && badDeps === 0 && warnEvts === 0 && netIssues === 0;
+
+  return `<div class="summary-bar">
+    <div class="sum-card ${badPods > 0 ? 'bad' : 'ok'}">
+      <div class="sv">${badPods}</div><div class="sl">Unhealthy Pods</div>
+    </div>
+    <div class="sum-card ${badDeps > 0 ? 'bad' : 'ok'}">
+      <div class="sv">${badDeps}</div><div class="sl">Bad Deployments</div>
+    </div>
+    <div class="sum-card ${warnEvts > 0 ? 'warn' : 'ok'}">
+      <div class="sv">${warnEvts}</div><div class="sl">Warn Events</div>
+    </div>
+    <div class="sum-card ${netIssues > 0 ? 'warn' : 'ok'}">
+      <div class="sv">${netIssues}</div><div class="sl">Network Issues</div>
+    </div>
+    <div class="sum-card ${allOk ? 'ok' : 'bad'}">
+      <div class="sv">${allOk ? '✓' : '✗'}</div><div class="sl">Overall</div>
+    </div>
+  </div>`;
+}
+
+function renderPods(pods) {
+  const all = pods.all_pods || [];
+  const bad = pods.problematic_pods || [];
+  const countCls = bad.length > 0 ? 'bad' : 'ok';
+  const countTxt = bad.length > 0 ? `${bad.length} unhealthy` : `${all.length} healthy`;
+  if (!all.length) return section('pods', 'Pods', countTxt, countCls,
+    `<div class="empty-state">No pods found${pods.error ? ': ' + pods.error : '.'}</div>`);
+  const rows = all.map(p => {
+    const isBad = (pods.problematic_pods||[]).some(b => b.name===p.name && b.namespace===p.namespace);
+    return `<tr class="${isBad?'row-bad':''}">
+      <td>${p.name}</td><td>${p.namespace}</td><td>${statusBadge(p.status)}</td>
+      <td>${p.ready||'—'}</td><td>${p.restarts??'—'}</td><td>${p.node||'—'}</td>
+    </tr>`;
+  }).join('');
+  return section('pods', 'Pods', countTxt, countCls, `<table>
+    <thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th></tr></thead>
+    <tbody>${rows}</tbody></table>`);
+}
+
+function renderLogs(logs) {
+  const keys = Object.keys(logs||{});
+  const withErrors = keys.filter(k => (logs[k].error_count||0) > 0);
+  const countCls = withErrors.length > 0 ? 'bad' : 'ok';
+  const countTxt = withErrors.length > 0 ? `${withErrors.length} with errors` : 'no errors found';
+  if (!keys.length) return section('logs', 'Logs', 'no problematic pods', 'neutral',
+    `<div class="empty-state">No unhealthy pods to collect logs from.</div>`);
+  let html = '';
+  keys.forEach(k => {
+    const entry = logs[k];
+    const lines = entry.error_lines || [];
+    html += `<div class="log-key">${k} — ${entry.error_count||0} error lines (${entry.lines_fetched||0} fetched)</div>`;
+    if (entry.fetch_error) {
+      html += `<div class="log-block" style="color:#e74c3c">${entry.fetch_error}</div>`;
+    } else if (!lines.length) {
+      html += `<div class="log-block" style="color:#8b949e">No error-keyword lines found in last ${entry.lines_fetched||0} lines.</div>`;
+    } else {
+      html += `<div class="log-block">${lines.map(l=>escHtml(l)).join('\n')}</div>`;
+    }
+  });
+  return section('logs', 'Logs (Error Lines)', countTxt, countCls, html);
+}
+
+function renderEvents(events) {
+  const warns = events.warning_events || [];
+  const countCls = warns.length > 0 ? 'warn' : 'ok';
+  const countTxt = warns.length > 0 ? `${warns.length} warnings` : 'no warnings';
+  if (!warns.length) return section('events', 'Events', countTxt, countCls,
+    `<div class="empty-state">No warning events found.</div>`);
+  const cards = warns.map(e => `
+    <div class="event-card">
+      <div class="ev-hdr">
+        <span class="br">${escHtml(e.reason)}</span>
+        <span class="bk">${escHtml(e.object_kind)}</span>
+        <strong style="font-size:13px">${escHtml(e.object_name)}</strong>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:auto">ns: ${escHtml(e.namespace)} · ×${e.count}</span>
+      </div>
+      <div class="ev-msg">${escHtml(e.message)}</div>
+      <div class="ev-meta">${e.last_time||''}</div>
+    </div>`).join('');
+  return section('events', 'Events', countTxt, countCls, cards);
+}
+
+function renderDeployments(deps) {
+  const all = deps.all_deployments || [];
+  const bad = deps.unhealthy_deployments || [];
+  const countCls = bad.length > 0 ? 'bad' : 'ok';
+  const countTxt = bad.length > 0 ? `${bad.length} unhealthy` : `${all.length} healthy`;
+  if (!all.length) return section('deps', 'Deployments', countTxt, countCls,
+    `<div class="empty-state">No deployments found${deps.error ? ': ' + deps.error : '.'}</div>`);
+  const rows = all.map(d => {
+    const isBad = !d.healthy;
+    return `<tr class="${isBad?'row-bad':''}">
+      <td>${d.name}</td><td>${d.namespace}</td>
+      <td>${d.desired}</td><td>${d.ready}</td><td>${d.available}</td>
+      <td>${healthBadge(d.healthy)}</td>
+    </tr>`;
+  }).join('');
+  return section('deps', 'Deployments', countTxt, countCls, `<table>
+    <thead><tr><th>Name</th><th>Namespace</th><th>Desired</th><th>Ready</th><th>Available</th><th>Health</th></tr></thead>
+    <tbody>${rows}</tbody></table>`);
+}
+
+function renderNetwork(net) {
+  const issues = net.issues || [];
+  const all    = net.all_services || [];
+  const countCls = issues.length > 0 ? 'warn' : 'ok';
+  const countTxt = issues.length > 0 ? `${issues.length} issues` : `${all.length} ok`;
+  if (!all.length) return section('net', 'Network', countTxt, countCls,
+    `<div class="empty-state">No services found${net.error ? ': ' + net.error : '.'}</div>`);
+
+  let html = '';
+  if (issues.length) {
+    html += issues.map(i => `<div class="net-issue">
+      <div class="ni-name">${escHtml(i.namespace)}/${escHtml(i.name)} <span class="bk">${i.type}</span> ${issueBadge(i.issue)}</div>
+      <div class="ni-detail">Selector: ${JSON.stringify(i.selector||{})}</div>
+    </div>`).join('');
+    html += '<div style="margin:12px 0 8px;font-size:12px;color:var(--text-muted)">All services:</div>';
+  }
+  const rows = all.map(s => `<tr>
+    <td>${s.name}</td><td>${s.namespace}</td><td>${s.type}</td><td>${issueBadge(s.flag)}</td>
+  </tr>`).join('');
+  html += `<table>
+    <thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+  return section('net', 'Network / Services', countTxt, countCls, html);
+}
+
+function section(id, title, countTxt, countCls, body) {
+  return `<div class="section">
+    <div class="section-hdr" onclick="toggleSection('${id}')">
+      <h2>${title}</h2>
+      <span class="count ${countCls}">${countTxt}</span>
+      <span class="toggle-arrow" id="ar-${id}">▼</span>
+    </div>
+    <div class="section-body" id="sb-${id}">${body}</div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Run investigation ─────────────────────────────────────────────────────────
+async function runInvestigation() {
+  const ctx = document.getElementById('ctx-select').value || null;
+  const ns  = document.getElementById('ns-select').value || null;
+  const btn = document.getElementById('run-btn');
+
+  btn.disabled = true;
+  btn.classList.add('running');
+  btn.querySelector('.spin').style.display = 'inline-block';
+  setStatus('running', `Running investigation${ctx ? ' on context: ' + ctx : ''}${ns ? ', namespace: ' + ns : ' (all namespaces)'}…`);
+  document.getElementById('main-content').innerHTML =
+    '<div class="placeholder" style="padding:48px">&#128269; Investigation in progress…</div>';
+
+  try {
+    const resp = await fetch('/api/investigate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ context: ctx, namespace: ns })
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const data = await resp.json();
+    renderResults(data);
+  } catch(e) {
+    setStatus('warn', 'Investigation failed: ' + e.message);
+    document.getElementById('main-content').innerHTML =
+      `<div class="placeholder" style="border-color:#e74c3c;color:#e74c3c">&#9888; ${escHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('running');
+    btn.querySelector('.spin').style.display = 'none';
+  }
+}
+
+function renderResults(data) {
+  const inv = data.investigation || {};
+  const badCount = [
+    (inv.pods?.problematic_pods||[]).length,
+    (inv.deployments?.unhealthy_deployments||[]).length,
+    inv.events?.warning_count||0,
+    inv.network?.issue_count||0,
+  ].reduce((a,b)=>a+b,0);
+
+  const allOk = badCount === 0;
+  setStatus(
+    allOk ? 'ok' : 'warn',
+    allOk
+      ? `Investigation complete — everything looks healthy (context: ${data.context||'default'}).`
+      : `Investigation complete — ${badCount} issue(s) found (context: ${data.context||'default'}).`
+  );
+
+  document.getElementById('main-content').innerHTML =
+    renderSummary(inv) +
+    renderPods(inv.pods || {}) +
+    renderLogs(inv.logs || {}) +
+    renderEvents(inv.events || {}) +
+    renderDeployments(inv.deployments || {}) +
+    renderNetwork(inv.network || {});
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadContexts();
+</script>
+</body>
+</html>
