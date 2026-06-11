@@ -15,5 +15,33 @@
 
         ❯ `aws eks list-nodegroups --cluster-name my-cluster --endpoint-url $AWS_ENDPOINT_URL`
 
-        
+
+Create cluster  - kind create cluster --name my-cluster
+
+Check cluster info  -  kubectl cluster-info 
+
+Use CONTEXT  -  `kubectl config use-context docker-desktop`
+kubectl config use-context kind-floci-cluster; kubectl get pods -A -o 
+kubectl config use-context docker-desktop; kubectl get pods -A -o 
+
+Create Node 
+aws eks create-nodegroup `
+--cluster-name desktop`
+--nodegroup-name desktop-control-plane-2 `
+--subnets subnet-abc subnet-def `
+--node-role arn:aws:iam::<ACCOUNT_ID>:role/eksNodeRole `
+--scaling-config minSize=1,maxSize=3,desiredSize=2
+
+
+GET Nodes - kubectl get nodes
+
+kubectl create deployment nginx --image=nginx
+kubectl expose deployment nginx --type=NodePort --port=80
+kubectl get svc
+
+Open Kubernetes UI (optional)
+kubectl proxy 
+http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+
+
 

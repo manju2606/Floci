@@ -75,6 +75,7 @@
     .card-icon.k8s    { background: #e8eefb; }
     .card-icon.sqs    { background: #fff3e0; }
     .card-icon.agent  { background: #eaf7f0; }
+    .card-icon.eks    { background: #fff8e6; }
 
     .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: #0073bb; }
     .card p  { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
@@ -153,6 +154,14 @@
       <p>Evidence-gathering layer — inspect pods, logs, events, deployments, and network health. Read-only, no fixes.</p>
       <div class="endpoint">localhost:8002</div>
       <a class="open-btn" href="k8s-agent.html">Open K8s Agent</a>
+    </div>
+
+    <div class="card" onclick="location.href='eks.html'">
+      <div class="card-icon eks">&#9729;</div>
+      <h3>Amazon EKS</h3>
+      <p>Elastic Kubernetes Service — cluster setup, node groups, IAM roles, and workload commands.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="eks.html">Open EKS Commands</a>
     </div>
 
   </div>

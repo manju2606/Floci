@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>EKS Commands — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#ff9900;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+
+    .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:40px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#ff9900;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero h1{font-size:26px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .open-k8s-btn{margin-left:auto;padding:10px 20px;background:#326ce5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none;flex-shrink:0}
+    .open-k8s-btn:hover{background:#2554c7;color:#fff}
+
+    .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px}
+    .banner span{color:#ff9900;font-weight:600}
+
+    main{max-width:1200px;margin:40px auto;padding:0 24px}
+
+    .section{margin-bottom:36px}
+    .section h2{font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
+    .section h2 .badge{font-size:11px;background:#ff9900;color:#fff;padding:2px 8px;border-radius:10px;font-weight:400}
+
+    .cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+    .cmd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 18px;transition:background .2s;border-top:3px solid #ff9900}
+    .cmd-card.green{border-top-color:#27ae60}
+    .cmd-card.warn{border-top-color:#e67e22}
+    .cmd-card.danger{border-top-color:#e74c3c}
+    .cmd-card.blue{border-top-color:#326ce5}
+    .cmd-card h4{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px}
+    .cmd-card p{font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5}
+    .cmd-card code{display:block;font-family:"Courier New",monospace;font-size:11.5px;background:#1e2a3a;color:#a8d8a8;padding:10px 12px;border-radius:4px;white-space:pre;overflow-x:auto;cursor:pointer;position:relative}
+    .cmd-card code:hover::after{content:"Copy";position:absolute;top:6px;right:8px;font-size:10px;background:#ff9900;color:#fff;padding:2px 6px;border-radius:3px}
+    .cmd-card code.copied{outline:2px solid #ff9900}
+
+    .tip{background:var(--card-bg);border:1px solid var(--border);border-left:4px solid #ff9900;border-radius:4px;padding:12px 16px;font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:16px}
+    .tip strong{color:#ff9900}
+
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">Amazon EKS Commands</div></div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back" href="kubernetes.html" style="border-color:#326ce5;color:#326ce5">&#9096; K8s Dashboard</a>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#9729;</div>
+  <div>
+    <h1>Amazon EKS Commands</h1>
+    <p>Elastic Kubernetes Service — manage clusters, node groups, IAM roles, and workloads.<br/>
+       Works with both real AWS and the local Floci emulator at <code style="background:rgba(255,255,255,.1);color:#ff9900;padding:1px 6px;border-radius:3px">localhost:4566</code>.</p>
+  </div>
+  <a class="open-k8s-btn" href="kubernetes.html">&#9096; Open K8s Dashboard</a>
+</div>
+
+<div class="banner">
+  Local endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
+  Set: <span>export AWS_ENDPOINT_URL=http://localhost:4566</span>
+</div>
+
+<main>
+
+  <!-- Cluster Management -->
+  <div class="section">
+    <h2>Cluster Management <span class="badge">EKS</span></h2>
+    <div class="tip"><strong>Tip:</strong> For local Floci use <code style="background:transparent;color:inherit;padding:0">--endpoint-url http://localhost:4566</code> on every AWS CLI command.</div>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Create Kind cluster (local)</h4>
+        <p>Spin up a local Kubernetes cluster with Kind.</p>
+        <code onclick="copyCmd(this)">kind create cluster --name my-cluster</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Describe EKS cluster</h4>
+        <p>Show details of an EKS cluster via Floci.</p>
+        <code onclick="copyCmd(this)">aws eks describe-cluster \
+  --name my-cluster \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List clusters</h4>
+        <p>List all EKS clusters in the region.</p>
+        <code onclick="copyCmd(this)">aws eks list-clusters \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Cluster info</h4>
+        <p>Display addresses of control plane and services.</p>
+        <code onclick="copyCmd(this)">kubectl cluster-info</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context & Config -->
+  <div class="section">
+    <h2>Context &amp; Config</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card blue">
+        <h4>Switch to docker-desktop context</h4>
+        <code onclick="copyCmd(this)">kubectl config use-context docker-desktop</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Switch to floci-cluster context</h4>
+        <code onclick="copyCmd(this)">kubectl config use-context kind-floci-cluster</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>List all contexts</h4>
+        <code onclick="copyCmd(this)">kubectl config get-contexts</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Show current context</h4>
+        <code onclick="copyCmd(this)">kubectl config current-context</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Switch context + list pods</h4>
+        <p>Switch and immediately verify pods across all namespaces.</p>
+        <code onclick="copyCmd(this)">kubectl config use-context kind-floci-cluster && \
+kubectl get pods -A -o wide</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- IAM Roles -->
+  <div class="section">
+    <h2>IAM Roles</h2>
+    <div class="tip"><strong>Note:</strong> Set <code style="background:transparent;color:inherit;padding:0">AWS_ENDPOINT_URL=http://localhost:4566</code> first to target Floci.</div>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Create EKS IAM role</h4>
+        <p>Create the service role EKS needs to manage resources.</p>
+        <code onclick="copyCmd(this)">aws iam create-role \
+  --role-name eks-role \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": { "Service": "eks.amazonaws.com" },
+      "Action": "sts:AssumeRole"
+    }]
+  }' \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List IAM roles</h4>
+        <code onclick="copyCmd(this)">aws iam list-roles \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete IAM role</h4>
+        <code onclick="copyCmd(this)">aws iam delete-role \
+  --role-name eks-role \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node Groups -->
+  <div class="section">
+    <h2>Node Groups</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List node groups</h4>
+        <code onclick="copyCmd(this)">aws eks list-nodegroups \
+  --cluster-name my-cluster \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Create node group</h4>
+        <p>Add a managed node group to a cluster.</p>
+        <code onclick="copyCmd(this)">aws eks create-nodegroup \
+  --cluster-name my-cluster \
+  --nodegroup-name my-nodes \
+  --subnets subnet-abc subnet-def \
+  --node-role arn:aws:iam::000000000000:role/eksNodeRole \
+  --scaling-config minSize=1,maxSize=3,desiredSize=2 \
+  --endpoint-url http://localhost:4566</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Get nodes (kubectl)</h4>
+        <code onclick="copyCmd(this)">kubectl get nodes</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Describe a node</h4>
+        <code onclick="copyCmd(this)">kubectl describe node &lt;node-name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workloads -->
+  <div class="section">
+    <h2>Workloads</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Create nginx deployment</h4>
+        <code onclick="copyCmd(this)">kubectl create deployment nginx --image=nginx</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Expose deployment</h4>
+        <p>Expose as a NodePort service on port 80.</p>
+        <code onclick="copyCmd(this)">kubectl expose deployment nginx \
+  --type=NodePort --port=80</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List services</h4>
+        <code onclick="copyCmd(this)">kubectl get svc</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Get all pods</h4>
+        <code onclick="copyCmd(this)">kubectl get pods -A -o wide</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete deployment</h4>
+        <code onclick="copyCmd(this)">kubectl delete deployment nginx</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kubernetes Dashboard -->
+  <div class="section">
+    <h2>Kubernetes Dashboard UI</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card warn">
+        <h4>Start kubectl proxy</h4>
+        <p>Exposes the API server locally so the dashboard UI is reachable.</p>
+        <code onclick="copyCmd(this)">kubectl proxy</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Open dashboard URL</h4>
+        <p>After running kubectl proxy, open this in a browser.</p>
+        <code onclick="copyCmd(this)">http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/</code>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Floci &mdash; Amazon EKS Commands Reference &mdash; Always Free</footer>
+
+<script>
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function copyCmd(el) {
+  navigator.clipboard.writeText(el.innerText).catch(() => {});
+  el.classList.add('copied');
+  setTimeout(() => el.classList.remove('copied'), 800);
+}
+</script>
+</body>
+</html>
