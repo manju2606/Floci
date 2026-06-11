@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>kubectl Commands — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+      --th-bg: #f2f3f3; --tr-hover: #fafafa; --td-border: #eaeded;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+      --th-bg: #1c2128; --tr-hover: #21262d; --td-border: #21262d;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#326ce5;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    header a.back.k8s{border-color:#326ce5;color:#326ce5}
+    header a.back.k8s:hover{background:#326ce5;color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+
+    .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:40px 32px;display:flex;align-items:center;gap:24px}
+    .hero-icon{font-size:36px;background:#326ce5;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero h1{font-size:26px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+
+    .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px}
+    .banner span{color:#326ce5;font-weight:600}
+
+    main{max-width:1200px;margin:40px auto;padding:0 24px}
+
+    .section{margin-bottom:36px}
+    .section h2{font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
+    .section h2 .badge{font-size:11px;background:#326ce5;color:#fff;padding:2px 8px;border-radius:10px;font-weight:400}
+
+    .cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+    .cmd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 18px;transition:background .2s;border-top:3px solid #326ce5}
+    .cmd-card.warn{border-top-color:#e67e22}
+    .cmd-card.danger{border-top-color:#e74c3c}
+    .cmd-card.green{border-top-color:#27ae60}
+    .cmd-card h4{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px}
+    .cmd-card p{font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5}
+    .cmd-card code{display:block;font-family:"Courier New",monospace;font-size:11.5px;background:#1e2a3a;color:#a8d8a8;padding:10px 12px;border-radius:4px;white-space:pre;overflow-x:auto;cursor:pointer;position:relative}
+    .cmd-card code:hover::after{content:"Copy";position:absolute;top:6px;right:8px;font-size:10px;background:#326ce5;color:#fff;padding:2px 6px;border-radius:3px}
+
+    .tip{background:var(--card-bg);border:1px solid var(--border);border-left:4px solid #326ce5;border-radius:4px;padding:12px 16px;font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:16px}
+    .tip code{background:var(--th-bg);padding:1px 5px;border-radius:3px;font-size:12px;color:#326ce5}
+
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div><div class="logo">&#9096; Floci</div><div class="subtitle">Kubernetes CLI Reference</div></div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back k8s" href="kubernetes.html">&#9096; K8s Dashboard</a>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#128196;</div>
+  <div>
+    <h1>kubectl Commands</h1>
+    <p>Quick reference for managing Kubernetes clusters, pods, deployments, and services.<br/>
+       Click any command to copy it to the clipboard.</p>
+  </div>
+</div>
+
+<div class="banner">
+  Context: <span>kubectl config current-context</span> &nbsp;|&nbsp;
+  Switch: <span>kubectl config use-context &lt;name&gt;</span> &nbsp;|&nbsp;
+  Cluster: <span>kubectl cluster-info</span>
+</div>
+
+<main>
+
+  <!-- Context & Cluster -->
+  <div class="section">
+    <h2>&#127760; Context &amp; Cluster</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List all contexts</h4>
+        <code onclick="copy(this)">kubectl config get-contexts</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Switch context</h4>
+        <code onclick="copy(this)">kubectl config use-context &lt;context-name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Current context</h4>
+        <code onclick="copy(this)">kubectl config current-context</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Cluster info</h4>
+        <code onclick="copy(this)">kubectl cluster-info</code>
+      </div>
+      <div class="cmd-card">
+        <h4>API server version</h4>
+        <code onclick="copy(this)">kubectl version --short</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Available API resources</h4>
+        <code onclick="copy(this)">kubectl api-resources</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nodes -->
+  <div class="section">
+    <h2>&#128196; Nodes</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List all nodes</h4>
+        <code onclick="copy(this)">kubectl get nodes</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Node details (wide)</h4>
+        <code onclick="copy(this)">kubectl get nodes -o wide</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Describe a node</h4>
+        <code onclick="copy(this)">kubectl describe node &lt;node-name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Node resource usage</h4>
+        <code onclick="copy(this)">kubectl top nodes</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Drain node (maintenance)</h4>
+        <p>Evicts all pods before maintenance.</p>
+        <code onclick="copy(this)">kubectl drain &lt;node-name&gt; \
+  --ignore-daemonsets \
+  --delete-emptydir-data</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Uncordon node (restore)</h4>
+        <code onclick="copy(this)">kubectl uncordon &lt;node-name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Namespaces -->
+  <div class="section">
+    <h2>&#128193; Namespaces</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List namespaces</h4>
+        <code onclick="copy(this)">kubectl get namespaces</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Create namespace</h4>
+        <code onclick="copy(this)">kubectl create namespace &lt;name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Set default namespace</h4>
+        <code onclick="copy(this)">kubectl config set-context --current \
+  --namespace=&lt;name&gt;</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete namespace</h4>
+        <p>Deletes all resources inside it.</p>
+        <code onclick="copy(this)">kubectl delete namespace &lt;name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pods -->
+  <div class="section">
+    <h2>&#128230; Pods</h2>
+    <div class="tip">
+      Add <code>-n &lt;namespace&gt;</code> to scope to a namespace, or <code>-A</code> / <code>--all-namespaces</code> for all namespaces.
+    </div>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List pods</h4>
+        <code onclick="copy(this)">kubectl get pods</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List pods (all namespaces)</h4>
+        <code onclick="copy(this)">kubectl get pods -A</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Pod details (wide — shows node &amp; IP)</h4>
+        <code onclick="copy(this)">kubectl get pods -o wide</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Watch pod status live</h4>
+        <code onclick="copy(this)">kubectl get pods -w</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Describe pod</h4>
+        <code onclick="copy(this)">kubectl describe pod &lt;pod-name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Pod logs</h4>
+        <code onclick="copy(this)">kubectl logs &lt;pod-name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Follow pod logs</h4>
+        <code onclick="copy(this)">kubectl logs -f &lt;pod-name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Logs — previous crashed container</h4>
+        <code onclick="copy(this)">kubectl logs &lt;pod-name&gt; --previous</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Exec into pod shell</h4>
+        <code onclick="copy(this)">kubectl exec -it &lt;pod-name&gt; -- /bin/sh</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Run a one-off pod</h4>
+        <code onclick="copy(this)">kubectl run debug --image=busybox \
+  --restart=Never --rm -it -- sh</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Resource usage per pod</h4>
+        <code onclick="copy(this)">kubectl top pods</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete pod</h4>
+        <code onclick="copy(this)">kubectl delete pod &lt;pod-name&gt;</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Force delete stuck pod</h4>
+        <code onclick="copy(this)">kubectl delete pod &lt;pod-name&gt; \
+  --grace-period=0 --force</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deployments -->
+  <div class="section">
+    <h2>&#9881; Deployments</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List deployments</h4>
+        <code onclick="copy(this)">kubectl get deployments</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Create deployment</h4>
+        <code onclick="copy(this)">kubectl create deployment &lt;name&gt; \
+  --image=&lt;image&gt; --replicas=2</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Scale deployment</h4>
+        <code onclick="copy(this)">kubectl scale deployment &lt;name&gt; \
+  --replicas=3</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Update image (rolling)</h4>
+        <code onclick="copy(this)">kubectl set image deployment/&lt;name&gt; \
+  &lt;container&gt;=&lt;new-image&gt;:&lt;tag&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Rollout status</h4>
+        <code onclick="copy(this)">kubectl rollout status deployment/&lt;name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Rollout history</h4>
+        <code onclick="copy(this)">kubectl rollout history deployment/&lt;name&gt;</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Rollback deployment</h4>
+        <code onclick="copy(this)">kubectl rollout undo deployment/&lt;name&gt;</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Restart all pods</h4>
+        <code onclick="copy(this)">kubectl rollout restart deployment/&lt;name&gt;</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete deployment</h4>
+        <code onclick="copy(this)">kubectl delete deployment &lt;name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Services -->
+  <div class="section">
+    <h2>&#127760; Services</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List services</h4>
+        <code onclick="copy(this)">kubectl get services</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Expose deployment as service</h4>
+        <code onclick="copy(this)">kubectl expose deployment &lt;name&gt; \
+  --port=80 --type=ClusterIP</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Port-forward to local machine</h4>
+        <code onclick="copy(this)">kubectl port-forward svc/&lt;name&gt; \
+  8080:80</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Port-forward to pod</h4>
+        <code onclick="copy(this)">kubectl port-forward pod/&lt;pod-name&gt; \
+  8080:80</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Describe service</h4>
+        <code onclick="copy(this)">kubectl describe svc &lt;name&gt;</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete service</h4>
+        <code onclick="copy(this)">kubectl delete svc &lt;name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- ConfigMaps & Secrets -->
+  <div class="section">
+    <h2>&#128274; ConfigMaps &amp; Secrets</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card">
+        <h4>List ConfigMaps</h4>
+        <code onclick="copy(this)">kubectl get configmaps</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Create ConfigMap from file</h4>
+        <code onclick="copy(this)">kubectl create configmap &lt;name&gt; \
+  --from-file=config.properties</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Create ConfigMap from literal</h4>
+        <code onclick="copy(this)">kubectl create configmap &lt;name&gt; \
+  --from-literal=key=value</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List Secrets</h4>
+        <code onclick="copy(this)">kubectl get secrets</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Create Secret (generic)</h4>
+        <code onclick="copy(this)">kubectl create secret generic &lt;name&gt; \
+  --from-literal=password=mypass</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Decode Secret value</h4>
+        <code onclick="copy(this)">kubectl get secret &lt;name&gt; \
+  -o jsonpath='{.data.password}' | base64 -d</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Apply & Manage -->
+  <div class="section">
+    <h2>&#128196; Apply &amp; Manage</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Apply manifest</h4>
+        <code onclick="copy(this)">kubectl apply -f &lt;file.yaml&gt;</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Apply directory of manifests</h4>
+        <code onclick="copy(this)">kubectl apply -f ./k8s/</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Dry-run (validate only)</h4>
+        <code onclick="copy(this)">kubectl apply -f &lt;file.yaml&gt; \
+  --dry-run=client</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Get resource as YAML</h4>
+        <code onclick="copy(this)">kubectl get deployment &lt;name&gt; -o yaml</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Edit resource live</h4>
+        <code onclick="copy(this)">kubectl edit deployment &lt;name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Patch resource</h4>
+        <code onclick="copy(this)">kubectl patch deployment &lt;name&gt; \
+  -p '{"spec":{"replicas":3}}'</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Delete by manifest</h4>
+        <code onclick="copy(this)">kubectl delete -f &lt;file.yaml&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Label a resource</h4>
+        <code onclick="copy(this)">kubectl label pod &lt;pod-name&gt; env=prod</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Filter by label</h4>
+        <code onclick="copy(this)">kubectl get pods -l app=&lt;name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kind cluster commands -->
+  <div class="section">
+    <h2>&#128640; Kind Clusters (local)</h2>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Create cluster</h4>
+        <code onclick="copy(this)">kind create cluster --name &lt;name&gt;</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Create from config file</h4>
+        <code onclick="copy(this)">kind create cluster \
+  --config kind-cluster.yaml</code>
+      </div>
+      <div class="cmd-card">
+        <h4>List clusters</h4>
+        <code onclick="copy(this)">kind get clusters</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Load local image into cluster</h4>
+        <code onclick="copy(this)">kind load docker-image &lt;image&gt;:&lt;tag&gt; \
+  --name &lt;cluster-name&gt;</code>
+      </div>
+      <div class="cmd-card">
+        <h4>Get kubeconfig</h4>
+        <code onclick="copy(this)">kind get kubeconfig --name &lt;name&gt;</code>
+      </div>
+      <div class="cmd-card danger">
+        <h4>Delete cluster</h4>
+        <code onclick="copy(this)">kind delete cluster --name &lt;name&gt;</code>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+function copy(el) {
+  navigator.clipboard.writeText(el.innerText).catch(() => {});
+  const orig = el.style.outline;
+  el.style.outline = '2px solid #326ce5';
+  setTimeout(() => { el.style.outline = orig; }, 600);
+}
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+</script>
+</body>
+</html>
