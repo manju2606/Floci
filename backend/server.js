@@ -574,7 +574,8 @@ function resolveInvestigation(investigation) {
 }
 
 // ── DynamoDB History Helpers ───────────────────────────────────────────────────
-const K8S_TABLE = 'k8s';
+const K8S_TABLE     = 'k8s';
+const K8S_RES_TABLE = 'k8s-resolutions';
 
 async function ensureK8sTable() {
   try {
@@ -583,6 +584,30 @@ async function ensureK8sTable() {
     if (e.name === 'ResourceNotFoundException') {
       await dynamo.send(new CreateTableCommand({
         TableName: K8S_TABLE,
+        AttributeDefinitions: [
+          { AttributeName: 'cluster', AttributeType: 'S' },
+          { AttributeName: 'run_id',  AttributeType: 'S' },
+        ],
+        KeySchema: [
+          { AttributeName: 'cluster', KeyType: 'HASH'  },
+          { AttributeName: 'run_id',  KeyType: 'RANGE' },
+        ],
+        BillingMode: 'PAY_PER_REQUEST',
+      }));
+      await new Promise(r => setTimeout(r, 600));
+    } else {
+      throw e;
+    }
+  }
+}
+
+async function ensureK8sResTable() {
+  try {
+    await dynamo.send(new DescribeTableCommand({ TableName: K8S_RES_TABLE }));
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') {
+      await dynamo.send(new CreateTableCommand({
+        TableName: K8S_RES_TABLE,
         AttributeDefinitions: [
           { AttributeName: 'cluster', AttributeType: 'S' },
           { AttributeName: 'run_id',  AttributeType: 'S' },
@@ -1056,6 +1081,99 @@ app.get('/api/k8s/clusters', async (req, res) => {
   }
 });
 
+// POST /api/resolution/save — persist a resolution run into k8s-resolutions
+app.post('/api/resolution/save', async (req, res) => {
+  const { cluster, namespace, findings, ai_reasoning } = req.body || {};
+  if (!cluster) return res.status(400).json({ error: 'cluster is required' });
+  try {
+    await ensureK8sResTable();
+    const run_id = new Date().toISOString();
+    const sevCounts = { critical: 0, high: 0, warning: 0, info: 0 };
+    (findings || []).forEach(f => { if (sevCounts[f.severity] !== undefined) sevCounts[f.severity]++; });
+    const topSev = sevCounts.critical > 0 ? 'critical'
+                 : sevCounts.high     > 0 ? 'high'
+                 : sevCounts.warning  > 0 ? 'warning'
+                 : sevCounts.info     > 0 ? 'info'
+                 : (ai_reasoning?.severity || 'info');
+    await dynamo.send(new PutItemCommand({
+      TableName: K8S_RES_TABLE,
+      Item: {
+        cluster:        { S: cluster },
+        run_id:         { S: run_id },
+        namespace:      { S: namespace || 'all' },
+        total_findings: { N: String((findings || []).length) },
+        critical_count: { N: String(sevCounts.critical) },
+        high_count:     { N: String(sevCounts.high) },
+        warning_count:  { N: String(sevCounts.warning) },
+        info_count:     { N: String(sevCounts.info) },
+        ai_severity:    { S: topSev },
+        ai_confidence:  { N: String(ai_reasoning?.confidence || 0) },
+        ai_summary:     { S: (ai_reasoning?.summary || '').slice(0, 1000) },
+        findings_json:  { S: JSON.stringify(findings || []) },
+      }
+    }));
+    res.json({ run_id });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/resolution-history/:ctx — list last 50 resolution runs for a cluster
+app.get('/api/resolution-history/:ctx', async (req, res) => {
+  const ctx = decodeURIComponent(req.params.ctx);
+  try {
+    const data = await dynamo.send(new QueryCommand({
+      TableName: K8S_RES_TABLE,
+      KeyConditionExpression: 'cluster = :c',
+      ExpressionAttributeValues: { ':c': { S: ctx } },
+      ScanIndexForward: false,
+      Limit: 50,
+    }));
+    const items = (data.Items || []).map(i => ({
+      run_id:         i.run_id.S,
+      cluster:        i.cluster.S,
+      namespace:      i.namespace?.S || 'all',
+      total_findings: parseInt(i.total_findings?.N || '0'),
+      critical_count: parseInt(i.critical_count?.N || '0'),
+      high_count:     parseInt(i.high_count?.N || '0'),
+      warning_count:  parseInt(i.warning_count?.N || '0'),
+      info_count:     parseInt(i.info_count?.N || '0'),
+      ai_severity:    i.ai_severity?.S || 'info',
+      ai_confidence:  parseInt(i.ai_confidence?.N || '0'),
+      ai_summary:     i.ai_summary?.S || '',
+    }));
+    res.json({ items });
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') return res.json({ items: [] });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/k8s-resolutions/clusters — list unique clusters in the k8s-resolutions table
+app.get('/api/k8s-resolutions/clusters', async (req, res) => {
+  try {
+    const data = await dynamo.send(new ScanCommand({ TableName: K8S_RES_TABLE }));
+    const map = {};
+    (data.Items || []).forEach(item => {
+      const c = item.cluster?.S;
+      if (!c) return;
+      if (!map[c]) map[c] = { cluster: c, run_count: 0, last_run: '', last_severity: 'info', last_findings: 0 };
+      map[c].run_count++;
+      const rid = item.run_id?.S || '';
+      if (rid > map[c].last_run) {
+        map[c].last_run      = rid;
+        map[c].last_severity = item.ai_severity?.S || 'info';
+        map[c].last_findings = parseInt(item.total_findings?.N || '0');
+      }
+    });
+    const clusters = Object.values(map).sort((a, b) => b.last_run.localeCompare(a.last_run));
+    res.json({ clusters });
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') return res.json({ clusters: [] });
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/dynamo/table/:name/items — browse table items
 // For the k8s table: supports ?cluster= to query a specific partition
 app.get('/api/dynamo/table/:name/items', async (req, res) => {
@@ -1063,9 +1181,10 @@ app.get('/api/dynamo/table/:name/items', async (req, res) => {
   const cluster   = req.query.cluster;
   try {
     let data;
-    if (tableName === K8S_TABLE && cluster) {
+    const isClusterTable = tableName === K8S_TABLE || tableName === K8S_RES_TABLE;
+    if (isClusterTable && cluster) {
       data = await dynamo.send(new QueryCommand({
-        TableName: K8S_TABLE,
+        TableName: tableName,
         KeyConditionExpression: 'cluster = :c',
         ExpressionAttributeValues: { ':c': { S: cluster } },
         ScanIndexForward: false,
@@ -1075,7 +1194,7 @@ app.get('/api/dynamo/table/:name/items', async (req, res) => {
       data = await dynamo.send(new ScanCommand({ TableName: tableName, Limit: 100 }));
     }
     // Convert DynamoDB typed values to plain scalars (omit large JSON blobs)
-    const SKIP = new Set(['investigation_json', 'ai_reasoning_json']);
+    const SKIP = new Set(['investigation_json', 'ai_reasoning_json', 'findings_json']);
     const items = (data.Items || []).map(item => {
       const obj = {};
       for (const [k, v] of Object.entries(item)) {

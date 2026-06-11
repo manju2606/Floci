@@ -9,10 +9,12 @@
     :root {
       --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
       --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+      --th-bg: #f2f3f3; --tr-hover: #fafafa; --td-border: #eaeded;
     }
     [data-theme="dark"] {
       --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
       --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+      --th-bg: #1c2128; --tr-hover: #21262d; --td-border: #21262d;
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
@@ -142,6 +144,41 @@
 
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
 
+    /* ── Resolution history panel ─────────────────────────────────────── */
+    .res-history{max-width:1300px;margin:24px auto 0;padding:0 24px}
+    .rh-card{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+    .rh-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--th-bg);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+    .rh-hdr h3{font-size:13px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px}
+    .rh-hdr .rh-badge{font-size:11px;background:#8e44ad;color:#fff;padding:2px 8px;border-radius:10px}
+    .rh-hdr .rh-toggle{font-size:13px;color:var(--text-muted)}
+    .rh-body{display:none;overflow-x:auto}
+    .rh-body.open{display:block}
+    .rh-table{width:100%;border-collapse:collapse;font-size:12px}
+    .rh-table th{background:var(--th-bg);padding:8px 12px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
+    .rh-table td{padding:8px 12px;border-bottom:1px solid var(--td-border);vertical-align:middle}
+    .rh-table tr:last-child td{border-bottom:none}
+    .rh-table tr:hover td{background:var(--tr-hover)}
+    .rh-sev{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase}
+    .rh-sev.critical{background:#fadbd8;color:#922b21}
+    .rh-sev.high    {background:#fdebd0;color:#784212}
+    .rh-sev.warning {background:#fef9e7;color:#7d6608}
+    .rh-sev.healthy {background:#d5f5e3;color:#1e8449}
+    .rh-sev.info    {background:#eaf4fb;color:#1a5276}
+    .rh-conf-wrap{display:inline-flex;align-items:center;gap:6px}
+    .rh-conf-bar{width:50px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+    [data-theme="dark"] .rh-conf-bar{background:#21262d}
+    .rh-conf-fill{height:100%;border-radius:3px}
+    .rh-conf-fill.high{background:#27ae60}
+    .rh-conf-fill.med {background:#f39c12}
+    .rh-conf-fill.low {background:#e74c3c}
+    .rh-sev-counts{display:inline-flex;gap:4px;flex-wrap:wrap}
+    .rh-count{font-size:10px;padding:1px 6px;border-radius:8px;font-weight:700}
+    .rh-count.c{background:#fadbd8;color:#922b21}
+    .rh-count.h{background:#fdebd0;color:#784212}
+    .rh-count.w{background:#fef9e7;color:#7d6608}
+    .rh-view-btn{font-size:11px;padding:3px 10px;background:#8e44ad;color:#fff;border:none;border-radius:3px;cursor:pointer;white-space:nowrap}
+    .rh-view-btn:hover{background:#7d3c98}
+    .rh-empty{padding:16px;text-align:center;color:var(--text-muted);font-size:13px;font-style:italic}
     /* ── AI Reasoning card ──────────────────────────────────────────────── */
     .ai-wrap{max-width:1300px;margin:20px auto 0;padding:0 24px}
     .ai-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:20px;font-family:"Courier New",monospace}
@@ -195,6 +232,18 @@
     <p>Problem-by-problem breakdown — what is happening, why it is happening, and exactly how to fix it.</p>
     <div class="ctx-pill" id="ctx-pill" style="display:none">
       Context: <span id="ctx-label">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="res-history" id="res-history" style="display:none">
+  <div class="rh-card">
+    <div class="rh-hdr" onclick="toggleResHistory()">
+      <h3>&#128202; Resolution History <span class="rh-badge" id="rh-count">0</span></h3>
+      <span class="rh-toggle" id="rh-toggle">&#9660;</span>
+    </div>
+    <div class="rh-body" id="rh-body">
+      <div class="rh-empty" id="rh-content">Loading…</div>
     </div>
   </div>
 </div>
@@ -285,6 +334,70 @@ function copyCmd(el) {
 // ── Load investigation from sessionStorage ────────────────────────────────────
 let findings   = [];
 let currentIdx = 0;
+let _resHistoryOpen = false;
+
+function toggleResHistory() {
+  _resHistoryOpen = !_resHistoryOpen;
+  document.getElementById('rh-body').classList.toggle('open', _resHistoryOpen);
+  document.getElementById('rh-toggle').textContent = _resHistoryOpen ? '▲' : '▼';
+}
+
+async function loadResolutionHistory(ctx) {
+  try {
+    const data = await fetch(`/api/resolution-history/${encodeURIComponent(ctx)}`).then(r => r.json());
+    const items = data.items || [];
+    document.getElementById('rh-count').textContent = items.length;
+    const panel = document.getElementById('res-history');
+    panel.style.display = 'block';
+
+    if (!items.length) {
+      document.getElementById('rh-content').textContent = 'No resolution history yet for this cluster.';
+      return;
+    }
+
+    const rows = items.map(item => {
+      const d   = new Date(item.run_id || '');
+      const ts  = isNaN(d) ? escHtml(item.run_id||'—') : escHtml(d.toLocaleString());
+      const sev = item.ai_severity || 'info';
+      const conf = parseInt(item.ai_confidence || '0');
+      const confClass = conf >= 70 ? 'high' : conf >= 45 ? 'med' : 'low';
+      const total = item.total_findings || 0;
+      const summary = (item.ai_summary || '—').slice(0, 80) + ((item.ai_summary||'').length > 80 ? '…' : '');
+      const counts = [
+        item.critical_count > 0 ? `<span class="rh-count c">C: ${item.critical_count}</span>` : '',
+        item.high_count     > 0 ? `<span class="rh-count h">H: ${item.high_count}</span>`     : '',
+        item.warning_count  > 0 ? `<span class="rh-count w">W: ${item.warning_count}</span>`  : '',
+      ].filter(Boolean).join('');
+
+      return `<tr>
+        <td style="white-space:nowrap">${ts}</td>
+        <td>${escHtml(item.namespace || 'all')}</td>
+        <td style="font-weight:700;${total > 0 ? 'color:#e74c3c' : 'color:#27ae60'}">${total}</td>
+        <td><span class="rh-sev ${sev}">${sev}</span></td>
+        <td><span class="rh-conf-wrap">
+          <div class="rh-conf-bar"><div class="rh-conf-fill ${confClass}" style="width:${conf}%"></div></div>
+          ${conf}%
+        </span></td>
+        <td><div class="rh-sev-counts">${counts || '<span style="color:var(--text-muted)">—</span>'}</div></td>
+        <td style="color:var(--text-secondary);font-size:11px">${escHtml(summary)}</td>
+        <td><button class="rh-view-btn" onclick="window.location.href='dynamodb.html?table=k8s-resolutions&cluster=${encodeURIComponent(ctx)}'">
+          View in DynamoDB
+        </button></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('rh-content').outerHTML =
+      `<table class="rh-table">
+         <thead><tr>
+           <th>Timestamp</th><th>Namespace</th><th>Findings</th>
+           <th>Severity</th><th>Confidence</th><th>Breakdown</th><th>Summary</th><th></th>
+         </tr></thead>
+         <tbody>${rows}</tbody>
+       </table>`;
+  } catch(e) {
+    console.error('[resolution-history]', e.message);
+  }
+}
 
 async function init() {
   const raw = sessionStorage.getItem('floci-investigation');
@@ -316,6 +429,23 @@ async function init() {
       `<div class="no-data" style="width:100%">&#9888; Failed to load resolution: ${escHtml(e.message)}<br/><a href="k8s-agent.html" style="color:#326ce5;margin-top:12px;display:inline-block">&#8592; Back to Investigation</a></div>`;
     document.getElementById('no-data').style.display = 'block';
     return;
+  }
+
+  // Save resolution run to DynamoDB (fire-and-forget)
+  if (stored.context) {
+    fetch('/api/resolution/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cluster:      stored.context,
+        namespace:    stored.namespace || null,
+        findings,
+        ai_reasoning: stored.ai_reasoning || null,
+      })
+    }).catch(e => console.error('[resolution save]', e.message));
+
+    // Load history (delay slightly so the save above completes first)
+    setTimeout(() => loadResolutionHistory(stored.context), 1200);
   }
 
   // Render AI Reasoning section if available

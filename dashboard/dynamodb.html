@@ -329,20 +329,16 @@ function goTables() {
 function goTable() {
   if (!_currentTable) return;
   _currentCluster = null;
-  if (_currentTable === 'k8s') {
-    openK8sTable();
-  } else {
-    openGenericTable(_currentTable);
-  }
+  if (_currentTable === 'k8s')             openK8sTable();
+  else if (_currentTable === 'k8s-resolutions') openK8sResTable();
+  else openGenericTable(_currentTable);
 }
 
 async function openTable(name) {
   _currentTable = name;
-  if (name === 'k8s') {
-    openK8sTable();
-  } else {
-    openGenericTable(name);
-  }
+  if (name === 'k8s')             openK8sTable();
+  else if (name === 'k8s-resolutions') openK8sResTable();
+  else openGenericTable(name);
 }
 
 // ── View 2: k8s → cluster list ─────────────────────────────────────────────────
@@ -386,64 +382,148 @@ async function openK8sTable() {
   }
 }
 
-// ── View 3: cluster → investigation runs ───────────────────────────────────────
+// ── View 2b: k8s-resolutions → cluster list ────────────────────────────────────
+async function openK8sResTable() {
+  _currentCluster = null;
+  setBreadcrumb('k8s-resolutions', null);
+  showOnly('view-clusters');
+  document.getElementById('cluster-count').textContent = '…';
+  document.getElementById('cluster-list').innerHTML = '<div class="loading">Loading clusters…</div>';
+
+  try {
+    const data = await fetch('/api/k8s-resolutions/clusters').then(r => r.json());
+    const clusters = data.clusters || [];
+    document.getElementById('cluster-count').textContent = clusters.length;
+
+    if (!clusters.length) {
+      document.getElementById('cluster-list').innerHTML =
+        '<div class="empty">No resolution runs recorded yet. Run an investigation and visit the Resolve Issues page.</div>';
+      return;
+    }
+
+    const cards = clusters.map(c => {
+      const d   = new Date(c.last_run);
+      const ts  = isNaN(d) ? '—' : d.toLocaleString();
+      const sev = c.last_severity || 'info';
+      return `
+        <div class="cluster-card" onclick="openCluster('${escHtml(c.cluster)}')">
+          <div class="cc-icon">&#128270;</div>
+          <div class="cc-name">${escHtml(c.cluster)}</div>
+          <div class="cc-meta">
+            <span><span class="cc-runs">${c.run_count}</span> run${c.run_count !== 1 ? 's' : ''}</span>
+            <span class="sev-badge ${sev}">${sev}</span>
+            <span>Last: ${escHtml(ts)}</span>
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('cluster-list').innerHTML = `<div class="cluster-grid">${cards}</div>`;
+  } catch(e) {
+    document.getElementById('cluster-list').innerHTML =
+      `<div class="error-box">&#9888; ${escHtml(e.message)}</div>`;
+  }
+}
+
+// ── View 3: cluster → runs (table-aware) ───────────────────────────────────────
 async function openCluster(cluster) {
   _currentCluster = cluster;
-  setBreadcrumb('k8s', cluster);
+  const isRes = _currentTable === 'k8s-resolutions';
+  setBreadcrumb(_currentTable, cluster);
   showOnly('view-runs');
+
+  const label = isRes ? 'Resolution Runs' : 'Investigation Runs';
   document.getElementById('runs-title').innerHTML =
     `<span style="font-family:monospace;font-size:15px">${escHtml(cluster)}</span>
-     &nbsp;<span style="font-size:13px;font-weight:400;color:var(--text-muted)">— Investigation Runs</span>
+     &nbsp;<span style="font-size:13px;font-weight:400;color:var(--text-muted)">— ${label}</span>
      <span class="badge" id="run-count">…</span>`;
   document.getElementById('run-list').innerHTML = '<div class="loading">Loading runs…</div>';
 
   try {
     const data = await fetch(
-      `/api/dynamo/table/k8s/items?cluster=${encodeURIComponent(cluster)}`
+      `/api/dynamo/table/${encodeURIComponent(_currentTable)}/items?cluster=${encodeURIComponent(cluster)}`
     ).then(r => r.json());
     const items = data.items || [];
     document.getElementById('run-count').textContent = items.length;
 
     if (!items.length) {
       document.getElementById('run-list').innerHTML =
-        '<div class="empty">No investigation runs found for this cluster.</div>';
+        `<div class="empty">No ${label.toLowerCase()} found for this cluster.</div>`;
       return;
     }
 
-    const rows = items.map(item => {
-      const d   = new Date(item.run_id || '');
-      const ts  = isNaN(d) ? escHtml(item.run_id||'—') : escHtml(d.toLocaleString());
-      const sev = item.ai_severity || 'info';
-      const conf = parseInt(item.ai_confidence || '0');
-      const confClass = conf >= 70 ? 'high' : conf >= 45 ? 'med' : 'low';
-      const issues = parseInt(item.total_issues || '0');
-      const summary = (item.ai_summary || '—').slice(0, 100) + ((item.ai_summary||'').length > 100 ? '…' : '');
-      return `<tr>
-        <td style="white-space:nowrap;font-size:12px">${ts}</td>
-        <td style="font-size:12px">${escHtml(item.namespace||'all')}</td>
-        <td><span class="issues-num ${issues > 0 ? 'bad' : 'ok'}">${issues}</span></td>
-        <td><span class="sev-badge ${sev}">${sev}</span></td>
-        <td><span class="conf-wrap">
-          <div class="conf-bar"><div class="conf-fill ${confClass}" style="width:${conf}%"></div></div>
-          ${conf}%
-        </span></td>
-        <td style="font-size:12px;color:var(--text-secondary)">${escHtml(summary)}</td>
-        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">
-          pods: <strong style="color:var(--text-primary)">${item.pods_unhealthy||0}</strong> &nbsp;
-          deps: <strong style="color:var(--text-primary)">${item.deployments_unhealthy||0}</strong> &nbsp;
-          evts: <strong style="color:var(--text-primary)">${item.events_warnings||0}</strong> &nbsp;
-          net: <strong style="color:var(--text-primary)">${item.network_issues||0}</strong>
-        </td>
-      </tr>`;
-    }).join('');
+    let tableHtml;
+    if (isRes) {
+      const rows = items.map(item => {
+        const d   = new Date(item.run_id || '');
+        const ts  = isNaN(d) ? escHtml(item.run_id||'—') : escHtml(d.toLocaleString());
+        const sev = item.ai_severity || 'info';
+        const conf = parseInt(item.ai_confidence || '0');
+        const confClass = conf >= 70 ? 'high' : conf >= 45 ? 'med' : 'low';
+        const total = parseInt(item.total_findings || '0');
+        const summary = (item.ai_summary || '—').slice(0, 100) + ((item.ai_summary||'').length > 100 ? '…' : '');
+        const c_c = parseInt(item.critical_count||'0');
+        const h_c = parseInt(item.high_count||'0');
+        const w_c = parseInt(item.warning_count||'0');
+        return `<tr>
+          <td style="white-space:nowrap;font-size:12px">${ts}</td>
+          <td style="font-size:12px">${escHtml(item.namespace||'all')}</td>
+          <td><span class="issues-num ${total > 0 ? 'bad' : 'ok'}">${total}</span></td>
+          <td><span class="sev-badge ${sev}">${sev}</span></td>
+          <td><span class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill ${confClass}" style="width:${conf}%"></div></div>
+            ${conf}%
+          </span></td>
+          <td style="font-size:12px;color:var(--text-secondary)">${escHtml(summary)}</td>
+          <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">
+            crit: <strong style="color:${c_c>0?'#e74c3c':'var(--text-primary)'}">${c_c}</strong> &nbsp;
+            high: <strong style="color:${h_c>0?'#e67e22':'var(--text-primary)'}">${h_c}</strong> &nbsp;
+            warn: <strong style="color:${w_c>0?'#f39c12':'var(--text-primary)'}">${w_c}</strong>
+          </td>
+        </tr>`;
+      }).join('');
+      tableHtml = `<table>
+        <thead><tr>
+          <th>Timestamp</th><th>Namespace</th><th>Findings</th>
+          <th>Severity</th><th>Confidence</th><th>AI Summary</th><th>Breakdown</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    } else {
+      const rows = items.map(item => {
+        const d   = new Date(item.run_id || '');
+        const ts  = isNaN(d) ? escHtml(item.run_id||'—') : escHtml(d.toLocaleString());
+        const sev = item.ai_severity || 'info';
+        const conf = parseInt(item.ai_confidence || '0');
+        const confClass = conf >= 70 ? 'high' : conf >= 45 ? 'med' : 'low';
+        const issues = parseInt(item.total_issues || '0');
+        const summary = (item.ai_summary || '—').slice(0, 100) + ((item.ai_summary||'').length > 100 ? '…' : '');
+        return `<tr>
+          <td style="white-space:nowrap;font-size:12px">${ts}</td>
+          <td style="font-size:12px">${escHtml(item.namespace||'all')}</td>
+          <td><span class="issues-num ${issues > 0 ? 'bad' : 'ok'}">${issues}</span></td>
+          <td><span class="sev-badge ${sev}">${sev}</span></td>
+          <td><span class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill ${confClass}" style="width:${conf}%"></div></div>
+            ${conf}%
+          </span></td>
+          <td style="font-size:12px;color:var(--text-secondary)">${escHtml(summary)}</td>
+          <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">
+            pods: <strong style="color:var(--text-primary)">${item.pods_unhealthy||0}</strong> &nbsp;
+            deps: <strong style="color:var(--text-primary)">${item.deployments_unhealthy||0}</strong> &nbsp;
+            evts: <strong style="color:var(--text-primary)">${item.events_warnings||0}</strong> &nbsp;
+            net: <strong style="color:var(--text-primary)">${item.network_issues||0}</strong>
+          </td>
+        </tr>`;
+      }).join('');
+      tableHtml = `<table>
+        <thead><tr>
+          <th>Timestamp</th><th>Namespace</th><th>Issues</th>
+          <th>Severity</th><th>Confidence</th><th>AI Summary</th><th>Breakdown</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
 
-    document.getElementById('run-list').innerHTML = `<table>
-      <thead><tr>
-        <th>Timestamp</th><th>Namespace</th><th>Issues</th>
-        <th>Severity</th><th>Confidence</th><th>AI Summary</th><th>Breakdown</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    document.getElementById('run-list').innerHTML = tableHtml;
   } catch(e) {
     document.getElementById('run-list').innerHTML =
       `<div class="error-box">&#9888; ${escHtml(e.message)}</div>`;
@@ -498,11 +578,15 @@ async function loadTables() {
     const rows = tables.map(t => {
       const keys = (t.keySchema||[]).map(k =>
         `<span class="tag">${k.AttributeName} (${k.KeyType})</span>`).join(' ');
-      const isK8s = t.name === 'k8s';
+      const pillHtml = t.name === 'k8s'
+        ? '<span class="bc-pill k8s" style="margin-left:6px">K8s Investigations</span>'
+        : t.name === 'k8s-resolutions'
+        ? '<span class="bc-pill cluster" style="margin-left:6px">K8s Resolutions</span>'
+        : '';
       return `<tr>
         <td>
           <button class="link-btn" onclick="openTable('${escHtml(t.name)}')">${escHtml(t.name)}</button>
-          ${isK8s ? '<span class="bc-pill k8s" style="margin-left:6px">K8s History</span>' : ''}
+          ${pillHtml}
         </td>
         <td>${statusBadge(t.status)}</td>
         <td>${t.items ?? '—'}</td>
@@ -523,20 +607,24 @@ async function loadTables() {
 }
 
 function onRefresh() {
-  if (_currentCluster) openCluster(_currentCluster);
-  else if (_currentTable === 'k8s') openK8sTable();
-  else if (_currentTable) openGenericTable(_currentTable);
+  if (_currentCluster)                      openCluster(_currentCluster);
+  else if (_currentTable === 'k8s')         openK8sTable();
+  else if (_currentTable === 'k8s-resolutions') openK8sResTable();
+  else if (_currentTable)                   openGenericTable(_currentTable);
   else loadTables();
 }
 
-// ── Init: handle URL params from k8s-agent history links ─────────────────────
+// ── Init: handle URL params (from history panel links) ────────────────────────
 loadTables().then(() => {
   const p   = new URLSearchParams(location.search);
   const tbl = p.get('table');
   const cls = p.get('cluster');
-  if (tbl === 'k8s' && cls) openCluster(cls);
-  else if (tbl === 'k8s')   openK8sTable();
-  else if (tbl)             openGenericTable(tbl);
+  if (tbl && cls) {
+    _currentTable = tbl;
+    openCluster(cls);
+  } else if (tbl === 'k8s')             openK8sTable();
+  else if (tbl === 'k8s-resolutions')   openK8sResTable();
+  else if (tbl)                         openGenericTable(tbl);
 });
 
 // ── Auto-refresh (tables list only) ──────────────────────────────────────────
