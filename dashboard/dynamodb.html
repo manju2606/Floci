@@ -64,6 +64,34 @@
     .bg{background:#d5f5e3;color:#1e8449;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .by{background:#fef9e7;color:#b7950b;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .tag{font-size:11px;background:#fdf3e3;color:#e67e22;padding:2px 7px;border-radius:10px}
+    .browse-btn{padding:3px 11px;background:#0073bb;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;font-weight:600}
+    .browse-btn:hover{background:#005d9e}
+
+    /* Items viewer */
+    .items-section{margin-bottom:36px}
+    .items-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+    .items-hdr h2{font-size:17px;font-weight:600;color:var(--text-primary);flex:1;margin:0}
+    .items-hdr .ih-cluster{font-size:11px;background:#eaf0fb;color:#0073bb;padding:3px 10px;border-radius:10px;font-weight:600}
+    .items-hdr .ih-count{font-size:11px;background:#e67e22;color:#fff;padding:2px 8px;border-radius:10px}
+    .items-hdr .hide-btn{padding:4px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:3px;cursor:pointer;font-size:12px}
+    .items-hdr .hide-btn:hover{border-color:#0073bb;color:#0073bb}
+    /* k8s investigation columns */
+    .sev-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase}
+    .sev-badge.critical{background:#fadbd8;color:#922b21}
+    .sev-badge.high    {background:#fdebd0;color:#784212}
+    .sev-badge.warning {background:#fef9e7;color:#7d6608}
+    .sev-badge.healthy {background:#d5f5e3;color:#1e8449}
+    .sev-badge.info    {background:#eaf4fb;color:#1a5276}
+    .conf-wrap{display:inline-flex;align-items:center;gap:6px}
+    .conf-bar{width:55px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+    [data-theme="dark"] .conf-bar{background:#21262d}
+    .conf-fill{height:100%;border-radius:3px}
+    .conf-fill.high{background:#27ae60}
+    .conf-fill.med {background:#f39c12}
+    .conf-fill.low {background:#e74c3c}
+    .issues-num{font-weight:700}
+    .issues-num.bad{color:#e74c3c}
+    .issues-num.ok {color:#27ae60}
 
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
   </style>
@@ -101,6 +129,16 @@
   <div class="section">
     <h2>Tables <span class="badge" id="table-count">—</span></h2>
     <div id="table-list"><div class="loading">Loading tables...</div></div>
+  </div>
+
+  <div id="items-section" class="items-section" style="display:none">
+    <div class="items-hdr">
+      <h2 id="items-title">Table Items</h2>
+      <span id="items-cluster" class="ih-cluster" style="display:none"></span>
+      <span id="items-count" class="ih-count">0</span>
+      <button class="hide-btn" onclick="hideItems()">&#x2715; Close</button>
+    </div>
+    <div id="items-content"><div class="loading">Loading items…</div></div>
   </div>
 
   <div class="section">
@@ -223,8 +261,106 @@ function statusBadge(s) {
   return s === 'ACTIVE' ? `<span class="bg">${s}</span>` : `<span class="by">${s}</span>`;
 }
 
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hideItems() {
+  document.getElementById('items-section').style.display = 'none';
+}
+
+async function browseTable(name, cluster) {
+  const sec     = document.getElementById('items-section');
+  const title   = document.getElementById('items-title');
+  const clPill  = document.getElementById('items-cluster');
+  const cntEl   = document.getElementById('items-count');
+  const content = document.getElementById('items-content');
+
+  title.textContent = `${name} — Items`;
+  if (cluster) {
+    clPill.textContent = 'cluster: ' + cluster;
+    clPill.style.display = 'inline-block';
+  } else {
+    clPill.style.display = 'none';
+  }
+  cntEl.textContent = '…';
+  content.innerHTML = '<div class="loading">Loading items…</div>';
+  sec.style.display = 'block';
+  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const url = `/api/dynamo/table/${encodeURIComponent(name)}/items` +
+                (cluster ? `?cluster=${encodeURIComponent(cluster)}` : '');
+    const data = await fetch(url).then(r => r.json());
+    cntEl.textContent = data.count + ' item' + (data.count !== 1 ? 's' : '');
+
+    if (!data.items || !data.items.length) {
+      content.innerHTML = '<div class="empty">No items found in this table.</div>';
+      return;
+    }
+
+    if (name === 'k8s') {
+      content.innerHTML = renderK8sItems(data.items);
+    } else {
+      content.innerHTML = renderGenericItems(data.items);
+    }
+  } catch(e) {
+    content.innerHTML = `<div class="error-box">&#9888; Failed to load items: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function renderK8sItems(items) {
+  const rows = items.map(item => {
+    const d   = new Date(item.run_id || '');
+    const ts  = isNaN(d) ? escHtml(item.run_id||'—') : escHtml(d.toLocaleString());
+    const sev = item.ai_severity || 'info';
+    const conf = parseInt(item.ai_confidence || '0');
+    const confClass = conf >= 70 ? 'high' : conf >= 45 ? 'med' : 'low';
+    const issues = parseInt(item.total_issues || '0');
+    const summary = (item.ai_summary || '—').slice(0, 90) + ((item.ai_summary||'').length > 90 ? '…' : '');
+    return `<tr>
+      <td style="white-space:nowrap;font-size:12px">${ts}</td>
+      <td style="font-size:12px">${escHtml(item.cluster||'—')}</td>
+      <td style="font-size:12px">${escHtml(item.namespace||'all')}</td>
+      <td><span class="issues-num ${issues > 0 ? 'bad' : 'ok'}">${issues}</span></td>
+      <td><span class="sev-badge ${sev}">${sev}</span></td>
+      <td><span class="conf-wrap">
+        <div class="conf-bar"><div class="conf-fill ${confClass}" style="width:${conf}%"></div></div>
+        ${conf}%
+      </span></td>
+      <td style="font-size:12px;color:var(--text-secondary)">${escHtml(summary)}</td>
+      <td style="font-size:11px;white-space:nowrap">
+        pods: <strong>${item.pods_unhealthy||0}</strong> &nbsp;
+        deps: <strong>${item.deployments_unhealthy||0}</strong> &nbsp;
+        evts: <strong>${item.events_warnings||0}</strong> &nbsp;
+        net: <strong>${item.network_issues||0}</strong>
+      </td>
+    </tr>`;
+  }).join('');
+  return `<table>
+    <thead><tr>
+      <th>Timestamp</th><th>Cluster</th><th>Namespace</th>
+      <th>Issues</th><th>Severity</th><th>Confidence</th>
+      <th>AI Summary</th><th>Breakdown</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function renderGenericItems(items) {
+  if (!items.length) return '<div class="empty">No items.</div>';
+  const cols = [...new Set(items.flatMap(i => Object.keys(i)))];
+  const rows = items.map(item =>
+    `<tr>${cols.map(c => `<td style="font-size:12px">${escHtml(String(item[c]??''))}</td>`).join('')}</tr>`
+  ).join('');
+  return `<table>
+    <thead><tr>${cols.map(c=>`<th>${escHtml(c)}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
 async function load() {
-  document.getElementById('table-list').innerHTML = '<div class="loading">Loading tables...</div>';
+  document.getElementById('table-list').innerHTML = '<div class="loading">Loading tables…</div>';
   document.getElementById('error-box').innerHTML = '';
   try {
     const tables = await fetch('/api/dynamo/tables').then(r => r.json());
@@ -245,11 +381,12 @@ async function load() {
         <td>${fmtBytes(t.sizeBytes)}</td>
         <td>${keys || '—'}</td>
         <td>${age(t.created)}</td>
+        <td><button class="browse-btn" onclick="browseTable('${t.name}')">Browse</button></td>
       </tr>`;
     }).join('');
     document.getElementById('table-list').innerHTML = `
       <table>
-        <thead><tr><th>Name</th><th>Status</th><th>Items</th><th>Size</th><th>Key Schema</th><th>Age</th></tr></thead>
+        <thead><tr><th>Name</th><th>Status</th><th>Items</th><th>Size</th><th>Key Schema</th><th>Age</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
   } catch(e) {
@@ -259,7 +396,13 @@ async function load() {
   }
 }
 
-load();
+// Load tables then auto-open if URL params present
+load().then(() => {
+  const p = new URLSearchParams(location.search);
+  const tbl = p.get('table');
+  const cls = p.get('cluster');
+  if (tbl) browseTable(tbl, cls || undefined);
+});
 
 // ── Auto-refresh every 30s ────────────────────────────────────────────────────
 (function startAutoRefresh() {

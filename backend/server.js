@@ -3,7 +3,9 @@ const https   = require('https');
 const fs      = require('fs');
 const yaml    = require('js-yaml');
 const { S3Client, ListBucketsCommand, ListObjectsV2Command, GetBucketLocationCommand } = require('@aws-sdk/client-s3');
-const { DynamoDBClient, ListTablesCommand, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, ListTablesCommand, DescribeTableCommand,
+        CreateTableCommand, PutItemCommand, ScanCommand, GetItemCommand,
+        QueryCommand } = require('@aws-sdk/client-dynamodb');
 
 const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
 const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
@@ -571,6 +573,57 @@ function resolveInvestigation(investigation) {
   return { total: findings.length, findings };
 }
 
+// ── DynamoDB History Helpers ───────────────────────────────────────────────────
+const K8S_TABLE = 'k8s';
+
+async function ensureK8sTable() {
+  try {
+    await dynamo.send(new DescribeTableCommand({ TableName: K8S_TABLE }));
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') {
+      await dynamo.send(new CreateTableCommand({
+        TableName: K8S_TABLE,
+        AttributeDefinitions: [
+          { AttributeName: 'cluster', AttributeType: 'S' },
+          { AttributeName: 'run_id',  AttributeType: 'S' },
+        ],
+        KeySchema: [
+          { AttributeName: 'cluster', KeyType: 'HASH'  },
+          { AttributeName: 'run_id',  KeyType: 'RANGE' },
+        ],
+        BillingMode: 'PAY_PER_REQUEST',
+      }));
+      await new Promise(r => setTimeout(r, 600));
+    } else {
+      throw e;
+    }
+  }
+}
+
+async function saveInvestigationRun(ctx, ns, investigation, aiResult, totalIssues) {
+  await ensureK8sTable();
+  const run_id = new Date().toISOString();
+  await dynamo.send(new PutItemCommand({
+    TableName: K8S_TABLE,
+    Item: {
+      cluster:               { S: ctx },
+      run_id:                { S: run_id },
+      namespace:             { S: ns || 'all' },
+      total_issues:          { N: String(totalIssues) },
+      pods_unhealthy:        { N: String((investigation.pods?.problematic_pods||[]).length) },
+      deployments_unhealthy: { N: String((investigation.deployments?.unhealthy_deployments||[]).length) },
+      events_warnings:       { N: String(investigation.events?.warning_count||0) },
+      network_issues:        { N: String(investigation.network?.issue_count||0) },
+      ai_severity:           { S: aiResult?.severity || 'info' },
+      ai_confidence:         { N: String(aiResult?.confidence || 0) },
+      ai_summary:            { S: (aiResult?.summary || '').slice(0, 1000) },
+      investigation_json:    { S: JSON.stringify(investigation) },
+      ai_reasoning_json:     { S: JSON.stringify(aiResult || null) },
+    }
+  }));
+  return run_id;
+}
+
 // ── AI Reasoning Engine ────────────────────────────────────────────────────────
 function reasonAboutInvestigation(inv) {
   const pods    = inv.pods    || {};
@@ -891,12 +944,18 @@ app.get('/api/investigate/stream', async (req, res) => {
                       (evResult.warning_count||0) +
                       (netResult.issue_count||0);
 
+  const investigation = { pods:podResult, logs:logsResult, events:evResult, deployments:depResult, network:netResult };
+
+  // Save to DynamoDB (fire-and-forget — don't block the SSE response)
+  saveInvestigationRun(ctx, ns, investigation, aiResult, totalIssues)
+    .catch(e => console.error('[dynamo] save failed:', e.message));
+
   emit({
     stage:'complete', status:'done', elapsed:elapsed(), total_issues: totalIssues,
     result: {
       status:'success', context:ctx, namespace:ns||null,
       ai_reasoning: aiResult,
-      investigation:{ pods:podResult, logs:logsResult, events:evResult, deployments:depResult, network:netResult }
+      investigation
     }
   });
 
@@ -910,6 +969,102 @@ app.post('/api/resolve', (req, res) => {
   try {
     res.json(resolveInvestigation(investigation));
   } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/history/:ctx — list last 50 runs for a cluster (query by partition key)
+app.get('/api/history/:ctx', async (req, res) => {
+  const ctx = decodeURIComponent(req.params.ctx);
+  try {
+    const data = await dynamo.send(new QueryCommand({
+      TableName: K8S_TABLE,
+      KeyConditionExpression: 'cluster = :c',
+      ExpressionAttributeValues: { ':c': { S: ctx } },
+      ScanIndexForward: false,   // newest first (descending sort key)
+      Limit: 50,
+    }));
+    const items = (data.Items || []).map(i => ({
+      run_id:                i.run_id.S,
+      cluster:               i.cluster.S,
+      namespace:             i.namespace?.S || 'all',
+      total_issues:          parseInt(i.total_issues?.N || '0'),
+      pods_unhealthy:        parseInt(i.pods_unhealthy?.N || '0'),
+      deployments_unhealthy: parseInt(i.deployments_unhealthy?.N || '0'),
+      events_warnings:       parseInt(i.events_warnings?.N || '0'),
+      network_issues:        parseInt(i.network_issues?.N || '0'),
+      ai_severity:           i.ai_severity?.S || 'info',
+      ai_confidence:         parseInt(i.ai_confidence?.N || '0'),
+      ai_summary:            i.ai_summary?.S || '',
+    }));
+    res.json({ items });
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') return res.json({ items: [] });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/history/:ctx/:runId — fetch full payload for one run
+app.get('/api/history/:ctx/:runId', async (req, res) => {
+  const ctx    = decodeURIComponent(req.params.ctx);
+  const run_id = decodeURIComponent(req.params.runId);
+  try {
+    const data = await dynamo.send(new GetItemCommand({
+      TableName: K8S_TABLE,
+      Key: { cluster: { S: ctx }, run_id: { S: run_id } },
+    }));
+    if (!data.Item) return res.status(404).json({ error: 'Run not found' });
+    const i = data.Item;
+    res.json({
+      run_id:        i.run_id.S,
+      cluster:       i.cluster.S,
+      namespace:     i.namespace?.S || 'all',
+      total_issues:  parseInt(i.total_issues?.N || '0'),
+      ai_severity:   i.ai_severity?.S || 'info',
+      ai_confidence: parseInt(i.ai_confidence?.N || '0'),
+      ai_summary:    i.ai_summary?.S || '',
+      investigation: JSON.parse(i.investigation_json?.S || '{}'),
+      ai_reasoning:  JSON.parse(i.ai_reasoning_json?.S || 'null'),
+    });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/dynamo/table/:name/items — browse table items
+// For the k8s table: supports ?cluster= to query a specific partition
+app.get('/api/dynamo/table/:name/items', async (req, res) => {
+  const tableName = req.params.name;
+  const cluster   = req.query.cluster;
+  try {
+    let data;
+    if (tableName === K8S_TABLE && cluster) {
+      data = await dynamo.send(new QueryCommand({
+        TableName: K8S_TABLE,
+        KeyConditionExpression: 'cluster = :c',
+        ExpressionAttributeValues: { ':c': { S: cluster } },
+        ScanIndexForward: false,
+        Limit: 100,
+      }));
+    } else {
+      data = await dynamo.send(new ScanCommand({ TableName: tableName, Limit: 100 }));
+    }
+    // Convert DynamoDB typed values to plain scalars (omit large JSON blobs)
+    const SKIP = new Set(['investigation_json', 'ai_reasoning_json']);
+    const items = (data.Items || []).map(item => {
+      const obj = {};
+      for (const [k, v] of Object.entries(item)) {
+        if (SKIP.has(k)) continue;
+        if (v.S  !== undefined) obj[k] = v.S;
+        else if (v.N !== undefined) obj[k] = v.N;
+        else if (v.BOOL !== undefined) obj[k] = String(v.BOOL);
+        else obj[k] = JSON.stringify(v);
+      }
+      return obj;
+    });
+    res.json({ items, count: items.length });
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') return res.json({ items: [], count: 0 });
     res.status(500).json({ error: e.message });
   }
 });

@@ -158,6 +158,39 @@
     .sum-card.neutral .sv{color:var(--text-secondary)}
 
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+
+    /* ── History panel ─────────────────────────────────────────────────── */
+    .history-panel{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;margin-bottom:28px;overflow:hidden}
+    .history-hdr{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--th-bg);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+    .history-hdr h3{font-size:13px;font-weight:700;color:var(--text-primary);flex:1;margin:0}
+    .history-hdr .h-count{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:#eaf0fb;color:#326ce5}
+    .history-hdr .h-arrow{font-size:12px;color:var(--text-muted);transition:transform .2s}
+    .history-body{overflow:hidden}
+    .history-empty{padding:20px;text-align:center;font-size:13px;color:var(--text-secondary);font-style:italic}
+    .history-table{width:100%;border-collapse:collapse;font-size:12px}
+    .history-table th{padding:8px 14px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11px;background:var(--th-bg);border-bottom:1px solid var(--border)}
+    .history-table td{padding:8px 14px;border-bottom:1px solid var(--td-border);color:var(--text-primary);vertical-align:middle}
+    .history-table tr:last-child td{border-bottom:none}
+    .history-table tr:hover td{background:var(--tr-hover);cursor:pointer}
+    .h-sev{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase}
+    .h-sev.critical{background:#fadbd8;color:#922b21}
+    .h-sev.high    {background:#fdebd0;color:#784212}
+    .h-sev.warning {background:#fef9e7;color:#7d6608}
+    .h-sev.healthy {background:#d5f5e3;color:#1e8449}
+    .h-sev.info    {background:#eaf4fb;color:#1a5276}
+    .h-conf{display:inline-flex;align-items:center;gap:6px}
+    .h-conf-bar{width:60px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+    [data-theme="dark"] .h-conf-bar{background:#21262d}
+    .h-conf-fill{height:100%;border-radius:3px}
+    .h-conf-fill.high{background:#27ae60}
+    .h-conf-fill.med {background:#f39c12}
+    .h-conf-fill.low {background:#e74c3c}
+    .h-issues{font-weight:700}
+    .h-issues.bad{color:#e74c3c}
+    .h-issues.ok {color:#27ae60}
+    .view-btn{padding:3px 10px;background:#0073bb;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;font-weight:600}
+    .view-btn:hover{background:#005d9e}
+    /* ── end history panel ─────────────────────────────────────────────── */
   </style>
 </head>
 <body>
@@ -208,6 +241,15 @@
 <main id="main-content">
   <div id="runtime-panel" style="display:none"></div>
   <div id="results-panel"><div class="placeholder">&#128269; No investigation run yet.<br/>Select a context above and click <strong>Run Investigation</strong>.</div></div>
+  <div id="history-panel" style="display:none" class="history-panel">
+    <div class="history-hdr" onclick="toggleHistory()">
+      <span>&#128337;</span>
+      <h3>Investigation History</h3>
+      <span class="h-count" id="h-count">0 runs</span>
+      <span class="h-arrow" id="h-arrow">&#9660;</span>
+    </div>
+    <div class="history-body" id="history-body"></div>
+  </div>
 </main>
 
 <footer>Floci &mdash; K8s Investigation Agent &mdash; Evidence only, no fixes</footer>
@@ -267,6 +309,8 @@ async function onContextChange() {
     nsSel.innerHTML = '<option value="">— all namespaces —</option>';
     nsSel.disabled = false;
   }
+
+  loadHistory(ctx);
 }
 
 // ── Status bar helpers ────────────────────────────────────────────────────────
@@ -570,9 +614,10 @@ function runInvestigation() {
           ? `Investigation complete — ${ev.total_issues} issue(s) found on ${ctx}`
           : `Investigation complete — everything looks healthy on ${ctx}`);
 
-      // Render results below runtime panel after short pause
+      // Render results, then refresh history (DynamoDB write needs ~1s to land)
       setTimeout(() => {
         renderResults(ev.result);
+        setTimeout(() => loadHistory(ctx), 1200);
       }, 600);
       return;
     }
@@ -654,6 +699,83 @@ function renderResults(data) {
     btn.setAttribute('href', 'k8s-resolution.html');
     // Store payload for resolution page
     sessionStorage.setItem('floci-investigation', JSON.stringify(data));
+  }
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+let historyOpen = true;
+
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  document.getElementById('history-body').style.display = historyOpen ? '' : 'none';
+  document.getElementById('h-arrow').innerHTML = historyOpen ? '&#9660;' : '&#9654;';
+}
+
+async function loadHistory(ctx) {
+  const panel = document.getElementById('history-panel');
+  if (!ctx) { panel.style.display = 'none'; return; }
+  try {
+    const r = await fetch(`/api/history/${encodeURIComponent(ctx)}`);
+    const data = await r.json();
+    const items = data.items || [];
+    document.getElementById('h-count').textContent = `${items.length} run${items.length !== 1 ? 's' : ''}`;
+    const body = document.getElementById('history-body');
+    if (!items.length) {
+      body.innerHTML = '<div class="history-empty">No investigation runs recorded yet for this cluster.</div>';
+    } else {
+      body.innerHTML = `<table class="history-table">
+        <thead><tr>
+          <th>Timestamp</th><th>Namespace</th><th>Issues</th>
+          <th>Severity</th><th>Confidence</th><th>Summary</th><th></th>
+        </tr></thead>
+        <tbody>${items.map(item => {
+          const d   = new Date(item.run_id);
+          const ts  = isNaN(d) ? item.run_id : d.toLocaleString();
+          const confClass = item.ai_confidence >= 70 ? 'high' : item.ai_confidence >= 45 ? 'med' : 'low';
+          const issuesCls = item.total_issues > 0 ? 'bad' : 'ok';
+          const summary   = item.ai_summary ? escHtml(item.ai_summary.slice(0, 80)) + (item.ai_summary.length > 80 ? '…' : '') : '—';
+          const dynUrl = `dynamodb.html?table=k8s&cluster=${encodeURIComponent(ctx)}`;
+          return `<tr onclick="location.href='${dynUrl}'">
+            <td style="white-space:nowrap">${escHtml(ts)}</td>
+            <td>${escHtml(item.namespace)}</td>
+            <td><span class="h-issues ${issuesCls}">${item.total_issues}</span></td>
+            <td><span class="h-sev ${item.ai_severity}">${item.ai_severity}</span></td>
+            <td><span class="h-conf">
+              <div class="h-conf-bar"><div class="h-conf-fill ${confClass}" style="width:${item.ai_confidence}%"></div></div>
+              ${item.ai_confidence}%
+            </span></td>
+            <td style="color:var(--text-secondary)">${summary}</td>
+            <td><a class="view-btn" href="${dynUrl}">View in DynamoDB</a></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    }
+    panel.style.display = 'block';
+    if (!historyOpen) document.getElementById('history-body').style.display = 'none';
+  } catch(e) {
+    document.getElementById('history-panel').style.display = 'none';
+  }
+}
+
+async function viewHistoricRun(ctx, runId) {
+  setStatus('running', `Loading historical run from ${new Date(runId).toLocaleString()}…`);
+  try {
+    const r = await fetch(`/api/history/${encodeURIComponent(ctx)}/${encodeURIComponent(runId)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const payload = {
+      status: 'success',
+      context: data.context,
+      namespace: data.namespace === 'all' ? null : data.namespace,
+      ai_reasoning: data.ai_reasoning,
+      investigation: data.investigation,
+    };
+    // Hide runtime panel, show results
+    document.getElementById('runtime-panel').style.display = 'none';
+    renderResults(payload);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(e) {
+    setStatus('warn', `Failed to load run: ${e.message}`);
   }
 }
 
