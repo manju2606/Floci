@@ -72,6 +72,13 @@
 
     .empty-state{color:var(--text-secondary);font-size:13px;padding:16px;text-align:center;font-style:italic;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
     .placeholder{color:var(--text-secondary);font-size:13px;padding:32px;text-align:center;background:var(--card-bg);border:1px dashed var(--border);border-radius:4px}
+    .resolve-bar{background:#1a2332;border-top:1px solid #30363d;padding:14px 32px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .resolve-bar .rb-msg{font-size:13px;color:#aab7b8;flex:1}
+    .resolve-bar .rb-msg strong{color:#e74c3c}
+    .resolve-btn{padding:10px 28px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap}
+    .resolve-btn:hover{background:#c0392b;color:#fff}
+    .resolve-btn.ok{background:#27ae60}
+    .resolve-btn.ok:hover{background:#1e8449}
 
     table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;font-size:13px}
     th{background:var(--th-bg);padding:9px 14px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
@@ -149,6 +156,11 @@
 <div class="status-strip" id="status-strip">
   <span class="dot" id="status-dot"></span>
   <span id="status-msg">Ready — select a context and click Run Investigation.</span>
+</div>
+
+<div id="resolve-bar" style="display:none" class="resolve-bar">
+  <span class="rb-msg" id="resolve-msg"></span>
+  <a id="resolve-btn" class="resolve-btn" href="k8s-resolution.html">&#128270; Resolve Issues</a>
 </div>
 
 <main id="main-content">
@@ -461,6 +473,25 @@ function renderResults(data) {
     renderEvents(inv.events || {}) +
     renderDeployments(inv.deployments || {}) +
     renderNetwork(inv.network || {});
+
+  // Show resolve bar
+  const bar     = document.getElementById('resolve-bar');
+  const msg     = document.getElementById('resolve-msg');
+  const btn     = document.getElementById('resolve-btn');
+  bar.style.display = 'flex';
+  if (allOk) {
+    msg.innerHTML = '&#10003; Everything looks healthy — no issues to resolve.';
+    btn.className = 'resolve-btn ok';
+    btn.textContent = '✓ All Clear';
+    btn.removeAttribute('href');
+  } else {
+    msg.innerHTML = `<strong>${badCount} issue(s) detected</strong> — click Resolve Issues for a step-by-step explanation and fix guide.`;
+    btn.className = 'resolve-btn';
+    btn.innerHTML = '&#128270; Resolve Issues';
+    btn.setAttribute('href', 'k8s-resolution.html');
+    // Store payload for resolution page
+    sessionStorage.setItem('floci-investigation', JSON.stringify(data));
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

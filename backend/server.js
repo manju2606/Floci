@@ -347,6 +347,241 @@ app.post('/api/investigate', async (req, res) => {
   }
 });
 
+// ── Reasoning / Resolution engine ────────────────────────────────────────────
+const RESOLUTION_KB = {
+  // Pod problems
+  CrashLoopBackOff: {
+    severity: 'critical',
+    title:    'Container is crash-looping',
+    what:     'The container starts, crashes immediately, and Kubernetes keeps restarting it with exponential back-off. This means the process inside the container exits with a non-zero code shortly after launch.',
+    causes:   ['Application exception or panic at startup','Missing required environment variable or config','Wrong container command / entrypoint','Port already in use inside the pod','Out-of-memory on startup'],
+    solution: ['Check the pod logs for the last crash: kubectl logs <pod> --previous -n <ns>','Describe the pod to see exit codes: kubectl describe pod <pod> -n <ns>','Verify all required environment variables are set in the Deployment spec','Check resource limits — if memory limit is too low the OOM killer will terminate it','Confirm the container image runs correctly locally: docker run <image>'],
+    commands: ['kubectl logs {pod} --previous -n {ns}','kubectl describe pod {pod} -n {ns}','kubectl get events -n {ns} --field-selector involvedObject.name={pod}'],
+  },
+  ImagePullBackOff: {
+    severity: 'critical',
+    title:    'Cannot pull container image',
+    what:     'Kubernetes tried to pull the container image from the registry but failed, and is now backing off before retrying. The pod will stay in Pending state until this is resolved.',
+    causes:   ['Image name or tag is misspelled','Image does not exist in the registry','Registry requires authentication (imagePullSecret missing)','Network cannot reach the registry','Private registry URL is wrong'],
+    solution: ['Verify the image name and tag exist: docker pull <image>','Check the image name in the Deployment spec for typos','Add an imagePullSecret if the registry is private','Confirm the node has network access to the registry','Check events: kubectl describe pod <pod> -n <ns>'],
+    commands: ['kubectl describe pod {pod} -n {ns}','kubectl get events -n {ns} --field-selector involvedObject.name={pod}'],
+  },
+  ErrImagePull: {
+    severity: 'critical',
+    title:    'Image pull error (first attempt)',
+    what:     'The first attempt to pull the container image failed. Kubernetes will transition to ImagePullBackOff if this persists.',
+    causes:   ['Same as ImagePullBackOff — wrong image, missing credentials, or network issue'],
+    solution: ['Same steps as ImagePullBackOff — fix the image reference or add imagePullSecret'],
+    commands: ['kubectl describe pod {pod} -n {ns}'],
+  },
+  OOMKilled: {
+    severity: 'critical',
+    title:    'Container killed by Out-Of-Memory',
+    what:     'The Linux kernel OOM killer terminated the container because it exceeded its memory limit. Kubernetes will restart it, often leading to CrashLoopBackOff.',
+    causes:   ['Memory limit set too low for the workload','Memory leak in the application','Sudden traffic spike causing memory spike'],
+    solution: ['Increase the memory limit in the Deployment resources spec','Profile the application for memory leaks','Set a Horizontal Pod Autoscaler so more replicas share the load','Add memory-based alerting to catch this before it becomes critical'],
+    commands: ['kubectl describe pod {pod} -n {ns}','kubectl top pod {pod} -n {ns}'],
+  },
+  Pending: {
+    severity: 'warning',
+    title:    'Pod is stuck in Pending',
+    what:     'The pod has been accepted by the scheduler but no node has been assigned yet. It is waiting for resources or a scheduling condition to be met.',
+    causes:   ['Insufficient CPU or memory on all nodes','Node selector or affinity rules cannot be satisfied','PersistentVolumeClaim not bound','Taint on all nodes with no matching toleration'],
+    solution: ['Check events for the scheduling reason: kubectl describe pod <pod> -n <ns>','Check node capacity: kubectl describe nodes | grep -A5 Allocated','Relax resource requests if they are too high','Check if a PVC is unbound: kubectl get pvc -n <ns>','Add tolerations if nodes are tainted'],
+    commands: ['kubectl describe pod {pod} -n {ns}','kubectl get nodes -o wide','kubectl get pvc -n {ns}'],
+  },
+  Error: {
+    severity: 'high',
+    title:    'Container exited with error',
+    what:     'The container process exited with a non-zero exit code, indicating failure. This is different from CrashLoopBackOff — the container ran and then failed rather than failing immediately on startup.',
+    causes:   ['Application runtime error','Script or job returned a failure exit code','Dependency (database, API) not reachable'],
+    solution: ['Read the pod logs to find the error: kubectl logs <pod> -n <ns>','Check exit code in kubectl describe pod output','Verify all downstream dependencies are reachable from inside the pod'],
+    commands: ['kubectl logs {pod} -n {ns}','kubectl describe pod {pod} -n {ns}'],
+  },
+  Terminating: {
+    severity: 'info',
+    title:    'Pod is being terminated',
+    what:     'The pod has received a deletion signal and is in the process of shutting down. This is usually normal unless it has been stuck in Terminating for a long time.',
+    causes:   ['Normal rolling update or scale-down','Stuck finalizer preventing deletion','Node went offline while pod was running'],
+    solution: ['If stuck for >5 minutes, force-delete: kubectl delete pod <pod> -n <ns> --grace-period=0 --force','Check for finalizers: kubectl get pod <pod> -n <ns> -o jsonpath=\'{.metadata.finalizers}\''],
+    commands: ['kubectl delete pod {pod} -n {ns} --grace-period=0 --force'],
+  },
+  // Deployment problems
+  UnavailableReplicas: {
+    severity: 'high',
+    title:    'Deployment has unavailable replicas',
+    what:     'One or more desired replicas are not ready. The deployment is degraded — traffic may be served by fewer instances than expected, or not at all.',
+    causes:   ['Pod crash-looping (see pod issues above)','Image pull failure','Insufficient cluster resources to schedule new pods','Readiness probe failing'],
+    solution: ['Check pods in the deployment: kubectl get pods -n <ns> -l app=<name>','Look at pod logs and events for the root cause','Verify readiness probe path and port in the Deployment spec','Scale up nodes if resource pressure is the cause'],
+    commands: ['kubectl get pods -n {ns}','kubectl describe deployment {dep} -n {ns}','kubectl rollout status deployment/{dep} -n {ns}'],
+  },
+  ProgressDeadlineExceeded: {
+    severity: 'critical',
+    title:    'Rollout deadline exceeded',
+    what:     'A rolling update started but did not complete within the progressDeadlineSeconds window (default 600s). The new version pods are not becoming ready.',
+    causes:   ['New image fails to start (crash or pull error)','Readiness probe never passing on new pods','Insufficient resources to run old and new pods simultaneously'],
+    solution: ['Roll back immediately: kubectl rollout undo deployment/<name> -n <ns>','Check the new pods: kubectl describe pod <new-pod> -n <ns>','Fix the root cause then re-deploy','Consider reducing maxUnavailable / maxSurge in the rollout strategy'],
+    commands: ['kubectl rollout undo deployment/{dep} -n {ns}','kubectl rollout status deployment/{dep} -n {ns}'],
+  },
+  // Network problems
+  'empty-endpoints': {
+    severity: 'high',
+    title:    'Service has no matching pod endpoints',
+    what:     'The Service exists and has a selector, but no running pods match that selector. Traffic sent to this Service will get no response (connection refused or timeout).',
+    causes:   ['All pods for this service are down or not Ready','Label selector in the Service does not match pod labels','Pods are in a different namespace than the Service'],
+    solution: ['Check the pods the service should select: kubectl get pods -n <ns> -l <selector>','Compare service selector with pod labels: kubectl describe svc <name> -n <ns>','Ensure pods are Running and Ready','Fix label mismatch in Service spec or Deployment template'],
+    commands: ['kubectl describe svc {svc} -n {ns}','kubectl get pods -n {ns} --show-labels','kubectl get endpoints {svc} -n {ns}'],
+  },
+  'missing-endpoints': {
+    severity: 'high',
+    title:    'Service has no endpoints object',
+    what:     'There is no Endpoints resource for this Service at all. This usually means the Service was just created or the pods were never created.',
+    causes:   ['Deployment for this service was never created','Namespace mismatch between Service and pods','Endpoints controller not reconciling'],
+    solution: ['Create the backing Deployment/pods for this Service','Verify namespace: kubectl get all -n <ns>','Check if the endpoints object exists: kubectl get endpoints -n <ns>'],
+    commands: ['kubectl get endpoints -n {ns}','kubectl get pods -n {ns} --show-labels'],
+  },
+  // Events
+  FailedScheduling: {
+    severity: 'high',
+    title:    'Pod cannot be scheduled onto any node',
+    what:     'The Kubernetes scheduler tried all nodes and could not find one that satisfies the pod\'s requirements. The pod will remain Pending.',
+    causes:   ['All nodes lack sufficient CPU or memory','Node selector / affinity rules not satisfied','All nodes are tainted and pod has no matching toleration','Pod disruption budget blocking eviction'],
+    solution: ['kubectl describe pod <pod> -n <ns> — look at Events section for exact reason','Add more nodes or increase node size','Reduce resource requests in the pod spec','Add node tolerations if nodes are tainted'],
+    commands: ['kubectl describe pod {pod} -n {ns}','kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory'],
+  },
+  BackOff: {
+    severity: 'warning',
+    title:    'Kubernetes is backing off restarting container',
+    what:     'The container keeps crashing and Kubernetes is applying exponential back-off before each restart attempt. Restart intervals grow: 10s → 20s → 40s → 80s → 160s → 300s (max).',
+    causes:   ['Application panics or exits immediately on startup','Missing config or environment variable','See CrashLoopBackOff causes'],
+    solution: ['Same as CrashLoopBackOff — fix the application startup error','Check kubectl logs <pod> --previous -n <ns>'],
+    commands: ['kubectl logs {pod} --previous -n {ns}','kubectl describe pod {pod} -n {ns}'],
+  },
+  Unhealthy: {
+    severity: 'warning',
+    title:    'Liveness or readiness probe failing',
+    what:     'The kubelet ran the probe (HTTP, TCP, or exec) and it failed. A failing liveness probe causes the container to be restarted; a failing readiness probe removes the pod from Service endpoints.',
+    causes:   ['Application not yet started when probe fires (startupProbe missing)','Wrong probe port or path configured','Application is slow and probe times out','Application has a health-check bug'],
+    solution: ['Check probe configuration: kubectl describe pod <pod> -n <ns>','Add initialDelaySeconds to give the app time to start','Increase timeoutSeconds and failureThreshold for slow apps','Test the probe endpoint manually from inside the pod: kubectl exec <pod> -n <ns> -- curl localhost:<port>/health'],
+    commands: ['kubectl describe pod {pod} -n {ns}','kubectl exec {pod} -n {ns} -- wget -qO- localhost:8080/health'],
+  },
+};
+
+function resolveInvestigation(investigation) {
+  const findings = [];
+  const inv = investigation || {};
+  const pods        = inv.pods        || {};
+  const events      = inv.events      || {};
+  const deployments = inv.deployments || {};
+  const network     = inv.network     || {};
+  const logs        = inv.logs        || {};
+
+  // ── Pod problems ──────────────────────────────────────────────────────────
+  for (const pod of (pods.problematic_pods || [])) {
+    const kb = RESOLUTION_KB[pod.status] || {
+      severity: 'warning',
+      title:    `Pod status: ${pod.status}`,
+      what:     `The pod is in an unexpected state: ${pod.status}.`,
+      causes:   ['Check pod events and logs for more details'],
+      solution: ['kubectl describe pod ' + pod.name + ' -n ' + pod.namespace],
+      commands: ['kubectl describe pod {pod} -n {ns}','kubectl logs {pod} -n {ns}'],
+    };
+    const podLogs = logs[`${pod.namespace}/${pod.name}`];
+    const errorLines = podLogs ? podLogs.error_lines || [] : [];
+    findings.push({
+      id:         `pod-${pod.namespace}-${pod.name}`,
+      type:       'pod',
+      severity:   kb.severity,
+      subject:    `${pod.namespace} / ${pod.name}`,
+      status:     pod.status,
+      restarts:   pod.restarts,
+      title:      kb.title,
+      what:       kb.what,
+      causes:     kb.causes,
+      solution:   kb.solution,
+      commands:   kb.commands.map(c => c.replace('{pod}', pod.name).replace('{ns}', pod.namespace)),
+      evidence:   errorLines.slice(0, 10),
+    });
+  }
+
+  // ── Deployment problems ───────────────────────────────────────────────────
+  for (const dep of (deployments.unhealthy_deployments || [])) {
+    const deadlineCondition = (dep.conditions || []).find(c => c.reason === 'ProgressDeadlineExceeded');
+    const key = deadlineCondition ? 'ProgressDeadlineExceeded' : 'UnavailableReplicas';
+    const kb  = RESOLUTION_KB[key];
+    findings.push({
+      id:       `dep-${dep.namespace}-${dep.name}`,
+      type:     'deployment',
+      severity: kb.severity,
+      subject:  `${dep.namespace} / ${dep.name}`,
+      status:   `${dep.ready}/${dep.desired} ready`,
+      title:    kb.title,
+      what:     kb.what,
+      causes:   kb.causes,
+      solution: kb.solution,
+      commands: kb.commands.map(c => c.replace(/{dep}/g, dep.name).replace(/{ns}/g, dep.namespace)),
+      evidence: [],
+    });
+  }
+
+  // ── Network problems ──────────────────────────────────────────────────────
+  for (const issue of (network.issues || [])) {
+    const kb = RESOLUTION_KB[issue.issue] || { severity:'warning', title: issue.issue, what:'', causes:[], solution:[], commands:[] };
+    findings.push({
+      id:       `net-${issue.namespace}-${issue.name}`,
+      type:     'network',
+      severity: kb.severity,
+      subject:  `${issue.namespace} / ${issue.name}`,
+      status:   issue.issue,
+      title:    kb.title,
+      what:     kb.what,
+      causes:   kb.causes,
+      solution: kb.solution,
+      commands: kb.commands.map(c => c.replace(/{svc}/g, issue.name).replace(/{ns}/g, issue.namespace)),
+      evidence: [],
+    });
+  }
+
+  // ── Warning events (top 5 unique reasons) ────────────────────────────────
+  const seenReasons = new Set();
+  for (const ev of (events.warning_events || []).slice(0, 10)) {
+    if (seenReasons.has(ev.reason)) continue;
+    seenReasons.add(ev.reason);
+    const kb = RESOLUTION_KB[ev.reason];
+    if (!kb) continue;
+    findings.push({
+      id:       `ev-${ev.reason}-${ev.object_name}`,
+      type:     'event',
+      severity: kb.severity,
+      subject:  `${ev.namespace} / ${ev.object_name} (${ev.object_kind})`,
+      status:   ev.reason,
+      title:    kb.title,
+      what:     kb.what,
+      causes:   kb.causes,
+      solution: kb.solution,
+      commands: kb.commands.map(c => c.replace(/{pod}/g, ev.object_name).replace(/{ns}/g, ev.namespace || 'default')),
+      evidence: [ev.message],
+    });
+  }
+
+  // Sort: critical first
+  const order = { critical:0, high:1, warning:2, info:3 };
+  findings.sort((a,b) => (order[a.severity]||9) - (order[b.severity]||9));
+
+  return { total: findings.length, findings };
+}
+
+// POST /api/resolve
+app.post('/api/resolve', (req, res) => {
+  const { investigation } = req.body || {};
+  if (!investigation) return res.status(400).json({ error: 'investigation payload required' });
+  try {
+    res.json(resolveInvestigation(investigation));
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // S3 routes
 app.get('/api/s3/buckets', async (req, res) => {
   try {

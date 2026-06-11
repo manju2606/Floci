@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>K8s Resolution — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#326ce5;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    header a.back.agent{border-color:#e74c3c;color:#e74c3c}
+    header a.back.agent:hover{background:#e74c3c;color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+
+    /* Hero */
+    .hero{background:linear-gradient(135deg,#1a0a0a,#2d1515);padding:36px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#e74c3c;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero-text{flex:1}
+    .hero h1{font-size:24px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .hero .ctx-pill{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);padding:4px 12px;border-radius:20px;color:#aab7b8}
+    .hero .ctx-pill span{color:#fff;font-weight:600}
+
+    /* Progress nav */
+    .progress-nav{background:#161b22;border-bottom:1px solid #30363d;padding:16px 32px;overflow-x:auto}
+    .progress-nav .steps{display:flex;gap:8px;min-width:max-content}
+    .step-pill{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .2s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+    .step-pill.critical{background:rgba(231,76,60,.15);color:#e74c3c;border-color:rgba(231,76,60,.3)}
+    .step-pill.high{background:rgba(230,126,34,.15);color:#e67e22;border-color:rgba(230,126,34,.3)}
+    .step-pill.warning{background:rgba(243,156,18,.15);color:#f39c12;border-color:rgba(243,156,18,.3)}
+    .step-pill.info{background:rgba(52,152,219,.15);color:#3498db;border-color:rgba(52,152,219,.3)}
+    .step-pill.active{background:#e74c3c;color:#fff;border-color:#e74c3c}
+    .step-pill.active.high{background:#e67e22;border-color:#e67e22}
+    .step-pill.active.warning{background:#f39c12;border-color:#f39c12}
+    .step-pill.active.info{background:#3498db;border-color:#3498db}
+    .step-pill.done{opacity:.5}
+    .step-pill .sev-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+    /* Main layout */
+    .layout{display:flex;max-width:1300px;margin:0 auto;padding:28px 24px;gap:24px;align-items:flex-start}
+
+    /* Sidebar */
+    .sidebar{width:260px;flex-shrink:0;position:sticky;top:20px}
+    .sidebar .sb-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+    .sb-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:all .15s;margin-bottom:4px}
+    .sb-item:hover{background:var(--card-bg);border-color:var(--border)}
+    .sb-item.active{background:var(--card-bg);border-color:#e74c3c}
+    .sb-item.active.sev-high{border-color:#e67e22}
+    .sb-item.active.sev-warning{border-color:#f39c12}
+    .sb-item.active.sev-info{border-color:#3498db}
+    .sb-item .sb-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .sb-dot.critical{background:#e74c3c}
+    .sb-dot.high{background:#e67e22}
+    .sb-dot.warning{background:#f39c12}
+    .sb-dot.info{background:#3498db}
+    .sb-item .sb-name{font-size:12px;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sb-item .sb-type{font-size:10px;color:var(--text-muted);text-transform:uppercase}
+
+    /* Resolution card */
+    .res-area{flex:1;min-width:0}
+    .res-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+
+    .rc-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px}
+    .rc-num{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+    .rc-num.critical{background:#e74c3c}
+    .rc-num.high{background:#e67e22}
+    .rc-num.warning{background:#f39c12}
+    .rc-num.info{background:#3498db}
+    .rc-meta{flex:1}
+    .rc-meta .rc-subject{font-size:11px;color:var(--text-muted);margin-bottom:4px;font-family:monospace}
+    .rc-meta .rc-title{font-size:17px;font-weight:700;color:var(--text-primary)}
+    .rc-meta .rc-badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+    .badge-type{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;text-transform:uppercase}
+    .badge-type.pod{background:#eaf0fb;color:#326ce5}
+    .badge-type.deployment{background:#fdf3e3;color:#e67e22}
+    .badge-type.network{background:#fef9e7;color:#b7950b}
+    .badge-type.event{background:#f5eef8;color:#8e44ad}
+    .badge-sev.critical{background:#fadbd8;color:#922b21;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+    .badge-sev.high{background:#fdebd0;color:#784212;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+    .badge-sev.warning{background:#fef9e7;color:#7d6608;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+    .badge-sev.info{background:#eaf4fb;color:#1a5276;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+
+    .rc-body{padding:0}
+
+    .rc-section{padding:18px 24px;border-bottom:1px solid var(--border)}
+    .rc-section:last-child{border-bottom:none}
+    .rc-section-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+    .what-box{background:#f8f9fa;border-left:4px solid #326ce5;border-radius:4px;padding:12px 16px;font-size:13px;color:var(--text-primary);line-height:1.7}
+    [data-theme="dark"] .what-box{background:#1c2128}
+
+    .causes-list,.solution-list{list-style:none;padding:0}
+    .causes-list li{font-size:13px;color:var(--text-secondary);padding:5px 0 5px 20px;position:relative;line-height:1.5}
+    .causes-list li::before{content:"▸";position:absolute;left:0;color:#e74c3c}
+    .solution-list{counter-reset:sol}
+    .solution-list li{font-size:13px;color:var(--text-primary);padding:7px 0 7px 28px;position:relative;line-height:1.5;border-bottom:1px solid var(--border)}
+    .solution-list li:last-child{border-bottom:none}
+    .solution-list li::before{counter-increment:sol;content:counter(sol);position:absolute;left:0;width:20px;height:20px;background:#27ae60;color:#fff;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;top:7px;text-align:center;line-height:20px}
+
+    .cmd-block{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:10px 14px;font-family:"Courier New",monospace;font-size:12px;color:#a8d8a8;cursor:pointer;position:relative;margin-bottom:6px;transition:border-color .15s}
+    .cmd-block:hover{border-color:#326ce5}
+    .cmd-block:hover::after{content:"Copy";position:absolute;top:6px;right:10px;font-size:10px;background:#326ce5;color:#fff;padding:2px 6px;border-radius:3px;font-family:sans-serif}
+    .cmd-block.copied{border-color:#27ae60}
+
+    .evidence-box{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:10px 14px;font-family:"Courier New",monospace;font-size:11.5px;color:#f39c12;max-height:150px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+
+    /* Navigation buttons */
+    .nav-btns{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+    .nav-btn{padding:9px 22px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;gap:6px;transition:background .15s}
+    .nav-btn.prev{background:var(--card-bg);border:1px solid var(--border);color:var(--text-primary)}
+    .nav-btn.prev:hover{border-color:#326ce5;color:#326ce5}
+    .nav-btn.next{background:#326ce5;color:#fff}
+    .nav-btn.next:hover{background:#2554c7}
+    .nav-btn:disabled{opacity:.4;cursor:not-allowed}
+    .nav-counter{font-size:12px;color:var(--text-muted)}
+
+    /* All-clear */
+    .all-clear{text-align:center;padding:64px 32px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px}
+    .all-clear .ac-icon{font-size:56px;margin-bottom:16px}
+    .all-clear h2{font-size:22px;font-weight:700;color:#27ae60;margin-bottom:8px}
+    .all-clear p{font-size:14px;color:var(--text-secondary);line-height:1.6}
+
+    /* No data */
+    .no-data{text-align:center;padding:64px 32px;color:var(--text-secondary)}
+
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">K8s Resolution Engine</div></div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back agent" href="k8s-agent.html">&#128269; Investigation</a>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#128270;</div>
+  <div class="hero-text">
+    <h1>K8s Resolution Engine</h1>
+    <p>Problem-by-problem breakdown — what is happening, why it is happening, and exactly how to fix it.</p>
+    <div class="ctx-pill" id="ctx-pill" style="display:none">
+      Context: <span id="ctx-label">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="progress-nav" id="progress-nav" style="display:none">
+  <div class="steps" id="progress-steps"></div>
+</div>
+
+<div class="layout" id="layout" style="display:none">
+  <div class="sidebar">
+    <div class="sb-title">Issues</div>
+    <div id="sidebar-items"></div>
+  </div>
+  <div class="res-area" id="res-area"></div>
+</div>
+
+<div id="no-data" class="layout" style="max-width:900px">
+  <div class="no-data" style="width:100%">
+    &#128269; No investigation data found.<br/>
+    <a href="k8s-agent.html" style="color:#326ce5;margin-top:12px;display:inline-block">&#8592; Run an investigation first</a>
+  </div>
+</div>
+
+<footer>Floci &mdash; K8s Resolution Engine &mdash; Evidence-based, no auto-fix</footer>
+
+<script>
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyCmd(el) {
+  navigator.clipboard.writeText(el.textContent.trim()).catch(()=>{});
+  el.classList.add('copied');
+  setTimeout(()=>el.classList.remove('copied'), 900);
+}
+
+// ── Load investigation from sessionStorage ────────────────────────────────────
+let findings   = [];
+let currentIdx = 0;
+
+async function init() {
+  const raw = sessionStorage.getItem('floci-investigation');
+  if (!raw) {
+    document.getElementById('no-data').style.display = 'block';
+    return;
+  }
+
+  const stored = JSON.parse(raw);
+  document.getElementById('no-data').style.display = 'none';
+
+  // Show context pill
+  if (stored.context) {
+    document.getElementById('ctx-label').textContent = stored.context + (stored.namespace ? ' / ' + stored.namespace : '');
+    document.getElementById('ctx-pill').style.display = 'inline-flex';
+  }
+
+  // Call /api/resolve
+  try {
+    const resp = await fetch('/api/resolve', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ investigation: stored.investigation })
+    });
+    const data = await resp.json();
+    findings = data.findings || [];
+  } catch(e) {
+    document.getElementById('no-data').innerHTML =
+      `<div class="no-data" style="width:100%">&#9888; Failed to load resolution: ${escHtml(e.message)}<br/><a href="k8s-agent.html" style="color:#326ce5;margin-top:12px;display:inline-block">&#8592; Back to Investigation</a></div>`;
+    document.getElementById('no-data').style.display = 'block';
+    return;
+  }
+
+  if (!findings.length) {
+    document.getElementById('layout').style.display = 'flex';
+    document.getElementById('res-area').innerHTML = `
+      <div class="all-clear">
+        <div class="ac-icon">&#10003;</div>
+        <h2>All Clear</h2>
+        <p>No known issues were found in the investigation results.<br/>
+           Your cluster appears healthy.</p>
+      </div>`;
+    return;
+  }
+
+  buildProgressNav();
+  buildSidebar();
+  document.getElementById('progress-nav').style.display = 'block';
+  document.getElementById('layout').style.display = 'flex';
+  showFinding(0);
+}
+
+// ── Progress nav ──────────────────────────────────────────────────────────────
+function buildProgressNav() {
+  const container = document.getElementById('progress-steps');
+  container.innerHTML = findings.map((f, i) => `
+    <div class="step-pill ${f.severity}" id="pill-${i}" onclick="showFinding(${i})">
+      <span class="sev-dot"></span>
+      ${i+1}. ${escHtml(f.type.toUpperCase())}
+    </div>`).join('');
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function buildSidebar() {
+  const container = document.getElementById('sidebar-items');
+  container.innerHTML = findings.map((f, i) => `
+    <div class="sb-item sev-${f.severity}" id="sb-${i}" onclick="showFinding(${i})">
+      <span class="sb-dot ${f.severity}"></span>
+      <div>
+        <div class="sb-name">${escHtml(f.title)}</div>
+        <div class="sb-type">${escHtml(f.type)} · ${escHtml(f.subject)}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Render a single finding ───────────────────────────────────────────────────
+function showFinding(idx) {
+  currentIdx = idx;
+  const f = findings[idx];
+
+  // Update nav pills + sidebar
+  document.querySelectorAll('.step-pill').forEach((el, i) => {
+    el.className = `step-pill ${findings[i].severity}` + (i === idx ? ' active' : '') + (i < idx ? ' done' : '');
+  });
+  document.querySelectorAll('.sb-item').forEach((el, i) => {
+    el.className = `sb-item sev-${findings[i].severity}` + (i === idx ? ' active' : '');
+  });
+
+  const causeItems  = (f.causes  ||[]).map(c=>`<li>${escHtml(c)}</li>`).join('');
+  const solItems    = (f.solution||[]).map(s=>`<li>${escHtml(s)}</li>`).join('');
+  const cmdBlocks   = (f.commands||[]).map(c=>`<div class="cmd-block" onclick="copyCmd(this)">${escHtml(c)}</div>`).join('');
+  const evidenceHtml = (f.evidence||[]).filter(Boolean).length
+    ? `<div class="rc-section">
+         <div class="rc-section-title">&#128196; Evidence from logs / events</div>
+         <div class="evidence-box">${(f.evidence||[]).map(escHtml).join('\n')}</div>
+       </div>` : '';
+
+  const infoExtra = f.restarts !== undefined
+    ? `<span class="badge-sev ${f.severity}">${f.severity.toUpperCase()}</span>
+       <span class="badge-type pod">restarts: ${f.restarts}</span>`
+    : `<span class="badge-sev ${f.severity}">${f.severity.toUpperCase()}</span>`;
+
+  document.getElementById('res-area').innerHTML = `
+    <div class="res-card">
+      <div class="rc-header">
+        <div class="rc-num ${f.severity}">${idx+1}</div>
+        <div class="rc-meta">
+          <div class="rc-subject">${escHtml(f.subject)}</div>
+          <div class="rc-title">${escHtml(f.title)}</div>
+          <div class="rc-badges">
+            <span class="badge-type ${f.type}">${escHtml(f.type)}</span>
+            ${infoExtra}
+            ${f.status ? `<span class="badge-type" style="background:#f0f0f0;color:#555">${escHtml(f.status)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="rc-body">
+        <div class="rc-section">
+          <div class="rc-section-title">&#128161; What is happening</div>
+          <div class="what-box">${escHtml(f.what)}</div>
+        </div>
+        <div class="rc-section">
+          <div class="rc-section-title">&#128269; Likely causes</div>
+          <ul class="causes-list">${causeItems}</ul>
+        </div>
+        <div class="rc-section">
+          <div class="rc-section-title">&#9989; How to fix it</div>
+          <ul class="solution-list">${solItems}</ul>
+        </div>
+        <div class="rc-section">
+          <div class="rc-section-title">&#128187; Commands to run</div>
+          ${cmdBlocks || '<span style="color:var(--text-muted);font-size:13px">No commands available.</span>'}
+        </div>
+        ${evidenceHtml}
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="nav-btn prev" onclick="showFinding(${idx-1})" ${idx===0?'disabled':''}>&#8592; Previous</button>
+      <span class="nav-counter">Issue ${idx+1} of ${findings.length}</span>
+      ${idx < findings.length-1
+        ? `<button class="nav-btn next" onclick="showFinding(${idx+1})">Next &#8594;</button>`
+        : `<a class="nav-btn next" href="k8s-agent.html" style="text-decoration:none">&#8592; Back to Investigation</a>`}
+    </div>`;
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+init();
+</script>
+</body>
+</html>
