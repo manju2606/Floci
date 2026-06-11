@@ -121,6 +121,18 @@
     .offline-msg{background:var(--offline-bg);border:1px solid var(--offline-border);border-left:4px solid #e67e22;border-radius:4px;padding:14px 18px;font-size:13px;color:var(--offline-text)}
     .error-box{background:#fadbd8;border:1px solid #f1948a;border-radius:4px;padding:12px 16px;font-size:13px;color:#922b21;margin-bottom:16px}
 
+    .tabs-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+    .tabs-row .cluster-tabs{margin-bottom:0;flex:1}
+    .offline-btn{
+      flex-shrink:0;padding:7px 14px;font-size:12px;font-weight:600;border-radius:4px;
+      cursor:pointer;border:1px dashed #e67e22;background:transparent;
+      color:#e67e22;white-space:nowrap;display:none;align-self:flex-start;
+      transition:background .15s,color .15s;
+    }
+    .offline-btn:hover{background:#e67e22;color:#fff}
+    .offline-btn.showing{border-color:var(--text-muted);color:var(--text-secondary)}
+    .offline-btn.showing:hover{background:var(--th-bg);color:var(--text-primary)}
+
     footer{text-align:center;padding:28px;font-size:12px;color:#aab7b8}
   </style>
 </head>
@@ -145,7 +157,10 @@
 
 <main>
   <div id="error-box"></div>
-  <div class="cluster-tabs" id="cluster-tabs"></div>
+  <div class="tabs-row">
+    <div class="cluster-tabs" id="cluster-tabs"></div>
+    <button id="offline-btn" class="offline-btn" onclick="toggleOffline()"></button>
+  </div>
   <div id="cluster-panels"></div>
 </main>
 
@@ -161,6 +176,50 @@ function toggleTheme() {
 }
 document.getElementById('theme-btn').textContent =
   document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+// ── Offline cluster tracking ─────────────────────────────────────────────────
+let offlineCount = 0;
+let showOffline  = false;
+
+function markOffline(ctxName, panelId) {
+  offlineCount++;
+  const tab = document.querySelector(`[data-ctx="${CSS.escape(ctxName)}"]`);
+  if (tab) {
+    tab.dataset.offline = 'true';
+    if (!showOffline) tab.style.display = 'none';
+    // If the hidden tab was active, switch to the first visible one
+    if (tab.classList.contains('active')) {
+      tab.classList.remove('active');
+      document.getElementById(panelId)?.classList.remove('active');
+      const first = document.querySelector('.cluster-tab:not([data-offline])') ||
+                    document.querySelector('.cluster-tab');
+      if (first) first.click();
+    }
+  }
+  updateOfflineBtn();
+}
+
+function updateOfflineBtn() {
+  const btn = document.getElementById('offline-btn');
+  if (!btn) return;
+  if (offlineCount === 0) { btn.style.display = 'none'; return; }
+  btn.style.display = 'flex';
+  if (showOffline) {
+    btn.textContent = `Hide offline (${offlineCount})`;
+    btn.classList.add('showing');
+  } else {
+    btn.textContent = `Show offline (${offlineCount})`;
+    btn.classList.remove('showing');
+  }
+}
+
+function toggleOffline() {
+  showOffline = !showOffline;
+  document.querySelectorAll('[data-offline="true"]').forEach(tab => {
+    tab.style.display = showOffline ? '' : 'none';
+  });
+  updateOfflineBtn();
+}
 
 // ── Collapse state ────────────────────────────────────────────────────────────
 function getCS(key, def) {
@@ -313,6 +372,7 @@ async function loadCluster(ctx, panelId) {
       ${nodes.reason?.message || 'Cluster may require cloud authentication (AKS/EKS) or may be offline.'}
     </div>`;
     document.querySelector(`[data-ctx="${CSS.escape(ctx.name)}"]`)?.classList.add('offline');
+    markOffline(ctx.name, panelId);
     return;
   }
 
@@ -358,6 +418,9 @@ async function loadCluster(ctx, panelId) {
 let allContexts = [];
 
 async function init() {
+  offlineCount = 0;
+  showOffline  = false;
+  updateOfflineBtn();
   try {
     const data = await apiFetch('/api/contexts');
     allContexts = data.contexts;
