@@ -347,11 +347,15 @@ async function loadResolutionHistory(ctx) {
     const data = await fetch(`/api/resolution-history/${encodeURIComponent(ctx)}`).then(r => r.json());
     const items = data.items || [];
     document.getElementById('rh-count').textContent = items.length;
-    const panel = document.getElementById('res-history');
-    panel.style.display = 'block';
+    document.getElementById('res-history').style.display = 'block';
+
+    const body = document.getElementById('rh-body');
 
     if (!items.length) {
-      document.getElementById('rh-content').textContent = 'No resolution history yet for this cluster.';
+      body.innerHTML = '<div class="rh-empty">No resolution history yet for this cluster.</div>';
+      body.classList.add('open');
+      _resHistoryOpen = true;
+      document.getElementById('rh-toggle').textContent = '▲';
       return;
     }
 
@@ -386,14 +390,18 @@ async function loadResolutionHistory(ctx) {
       </tr>`;
     }).join('');
 
-    document.getElementById('rh-content').outerHTML =
-      `<table class="rh-table">
-         <thead><tr>
-           <th>Timestamp</th><th>Namespace</th><th>Findings</th>
-           <th>Severity</th><th>Confidence</th><th>Breakdown</th><th>Summary</th><th></th>
-         </tr></thead>
-         <tbody>${rows}</tbody>
-       </table>`;
+    body.innerHTML = `<table class="rh-table">
+      <thead><tr>
+        <th>Timestamp</th><th>Namespace</th><th>Findings</th>
+        <th>Severity</th><th>Confidence</th><th>Breakdown</th><th>Summary</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    // Auto-open so the user sees the table immediately
+    body.classList.add('open');
+    _resHistoryOpen = true;
+    document.getElementById('rh-toggle').textContent = '▲';
   } catch(e) {
     console.error('[resolution-history]', e.message);
   }
@@ -431,21 +439,23 @@ async function init() {
     return;
   }
 
-  // Save resolution run to DynamoDB (fire-and-forget)
+  // Save resolution run to DynamoDB then load history so current run is included
   if (stored.context) {
-    fetch('/api/resolution/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cluster:      stored.context,
-        namespace:    stored.namespace || null,
-        findings,
-        ai_reasoning: stored.ai_reasoning || null,
-      })
-    }).catch(e => console.error('[resolution save]', e.message));
-
-    // Load history (delay slightly so the save above completes first)
-    setTimeout(() => loadResolutionHistory(stored.context), 1200);
+    try {
+      await fetch('/api/resolution/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cluster:      stored.context,
+          namespace:    stored.namespace || null,
+          findings,
+          ai_reasoning: stored.ai_reasoning || null,
+        })
+      });
+    } catch(e) {
+      console.error('[resolution save]', e.message);
+    }
+    loadResolutionHistory(stored.context);
   }
 
   // Render AI Reasoning section if available
