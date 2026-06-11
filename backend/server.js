@@ -1031,6 +1031,31 @@ app.get('/api/history/:ctx/:runId', async (req, res) => {
   }
 });
 
+// GET /api/k8s/clusters — list unique clusters stored in the k8s table with stats
+app.get('/api/k8s/clusters', async (req, res) => {
+  try {
+    const data = await dynamo.send(new ScanCommand({ TableName: K8S_TABLE }));
+    const map = {};
+    (data.Items || []).forEach(item => {
+      const c = item.cluster?.S;
+      if (!c) return;
+      if (!map[c]) map[c] = { cluster: c, run_count: 0, last_run: '', last_severity: 'info', last_issues: 0 };
+      map[c].run_count++;
+      const rid = item.run_id?.S || '';
+      if (rid > map[c].last_run) {
+        map[c].last_run      = rid;
+        map[c].last_severity = item.ai_severity?.S || 'info';
+        map[c].last_issues   = parseInt(item.total_issues?.N || '0');
+      }
+    });
+    const clusters = Object.values(map).sort((a, b) => b.last_run.localeCompare(a.last_run));
+    res.json({ clusters });
+  } catch(e) {
+    if (e.name === 'ResourceNotFoundException') return res.json({ clusters: [] });
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/dynamo/table/:name/items — browse table items
 // For the k8s table: supports ?cluster= to query a specific partition
 app.get('/api/dynamo/table/:name/items', async (req, res) => {
