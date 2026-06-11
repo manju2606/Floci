@@ -31,6 +31,15 @@ services:
     depends_on:
       - floci
 
+  k8s-agent:
+    build: ./k8s-agent
+    ports:
+      - "8002:8001"
+    volumes:
+      - ${USERPROFILE}/.kube:/root/.kube:ro
+    depends_on:
+      - dashboard
+
   s3ui:
     image: cloudlena/s3manager
     ports:
