@@ -86,6 +86,7 @@
        Supports on-demand and provisioned capacity with single-digit millisecond latency.</p>
   </div>
   <button class="refresh-btn" onclick="load()">&#8635; Refresh</button>
+  <span id="auto-cd" style="font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;margin-left:-4px"></span>
 </div>
 
 <div class="banner">
@@ -259,6 +260,20 @@ async function load() {
 }
 
 load();
+
+// ── Auto-refresh every 30s ────────────────────────────────────────────────────
+(function startAutoRefresh() {
+  const SECS = 30;
+  let t = SECS;
+  const el = document.getElementById('auto-cd');
+  const update = () => { if (el) el.textContent = `· auto ↻ ${t}s`; };
+  update();
+  setInterval(() => {
+    t--;
+    if (t <= 0) { t = SECS; load(); }
+    update();
+  }, 1000);
+})();
 </script>
 </body>
 </html>

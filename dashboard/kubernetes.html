@@ -182,6 +182,7 @@
     <p id="cluster-count">Loading clusters...</p>
   </div>
   <button class="refresh-btn" onclick="init()">&#8635; Refresh</button>
+  <span id="auto-cd" style="font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;margin-left:-4px"></span>
 </div>
 
 <main>
@@ -644,6 +645,31 @@ async function init() {
 }
 
 init();
+
+// ── Auto-refresh every 60s (preserves active tab) ─────────────────────────────
+async function autoRefresh() {
+  const activeCtx = document.querySelector('.cluster-tab.active')?.dataset.ctx;
+  await init();
+  if (activeCtx) {
+    setTimeout(() => {
+      const tab = document.querySelector(`[data-ctx="${CSS.escape(activeCtx)}"]`);
+      if (tab && tab.style.display !== 'none') tab.click();
+    }, 100);
+  }
+}
+
+(function startAutoRefresh() {
+  const SECS = 60;
+  let t = SECS;
+  const el = document.getElementById('auto-cd');
+  const update = () => { if (el) el.textContent = `· auto ↻ ${t}s`; };
+  update();
+  setInterval(() => {
+    t--;
+    if (t <= 0) { t = SECS; autoRefresh(); }
+    update();
+  }, 1000);
+})();
 </script>
 </body>
 </html>
