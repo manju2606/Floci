@@ -2,6 +2,14 @@ const express = require('express');
 const https   = require('https');
 const fs      = require('fs');
 const yaml    = require('js-yaml');
+const { S3Client, ListBucketsCommand, ListObjectsV2Command, GetBucketLocationCommand } = require('@aws-sdk/client-s3');
+const { DynamoDBClient, ListTablesCommand, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
+
+const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
+const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
+
+const s3     = new S3Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT, forcePathStyle: true });
+const dynamo = new DynamoDBClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 
 const app  = express();
 const PORT = 3000;
@@ -100,6 +108,55 @@ app.get('/api/cluster/:context/:resource', async (req, res) => {
     res.json(data);
   } catch(e) {
     res.status(503).json({ error: e.message, offline: true });
+  }
+});
+
+// S3 routes
+app.get('/api/s3/buckets', async (req, res) => {
+  try {
+    const data = await s3.send(new ListBucketsCommand({}));
+    const buckets = await Promise.all((data.Buckets || []).map(async b => {
+      let region = 'us-east-1';
+      try {
+        const loc = await s3.send(new GetBucketLocationCommand({ Bucket: b.Name }));
+        region = loc.LocationConstraint || 'us-east-1';
+      } catch(_) {}
+      let objects = 0;
+      try {
+        const obj = await s3.send(new ListObjectsV2Command({ Bucket: b.Name }));
+        objects = obj.KeyCount || 0;
+      } catch(_) {}
+      return { name: b.Name, created: b.CreationDate, region, objects };
+    }));
+    res.json(buckets);
+  } catch(e) {
+    res.status(503).json({ error: e.message });
+  }
+});
+
+// DynamoDB routes
+app.get('/api/dynamo/tables', async (req, res) => {
+  try {
+    const list = await dynamo.send(new ListTablesCommand({}));
+    const tables = await Promise.all((list.TableNames || []).map(async name => {
+      try {
+        const d = await dynamo.send(new DescribeTableCommand({ TableName: name }));
+        const t = d.Table;
+        return {
+          name,
+          status:    t.TableStatus,
+          items:     t.ItemCount,
+          sizeBytes: t.TableSizeBytes,
+          keySchema: t.KeySchema,
+          created:   t.CreationDateTime,
+        };
+      } catch(_) {
+        return { name, status: 'UNKNOWN', items: 0, sizeBytes: 0, keySchema: [] };
+      }
+    }));
+    res.json(tables);
+  } catch(e) {
+    res.status(503).json({ error: e.message });
   }
 });
 
