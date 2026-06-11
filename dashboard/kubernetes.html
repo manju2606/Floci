@@ -258,7 +258,7 @@ async function loadCluster(ctx, panelId) {
     section('&#128230; Pods',        `${panelId}-pods`,        renderPods(podItems)) +
     section('&#9881; Deployments',   `${panelId}-deployments`, renderDeployments(depItems)) +
     section('&#127760; Services',    `${panelId}-services`,    renderServices(svcItems)) +
-    section('&#128193; Namespaces',  `${panelId}-namespaces',  renderNamespaces(nsItems));
+    section('&#128193; Namespaces',  `${panelId}-namespaces`,  renderNamespaces(nsItems));
 
   // Update badges
   [[`${panelId}-nodes`,nodeItems],[`${panelId}-pods`,podItems],[`${panelId}-deployments`,depItems],

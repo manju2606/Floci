@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>DynamoDB — Floci Dashboard</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    header .logo{font-size:22px;font-weight:700;color:#ff9900}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    iframe{flex:1;border:none;width:100%}
+  </style>
+</head>
+<body>
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">Amazon DynamoDB</div></div>
+  <a class="back" href="index.html">&#8592; Dashboard</a>
+</header>
+<iframe src="http://localhost:8001" title="DynamoDB Admin"></iframe>
+</body>
+</html>

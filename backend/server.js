@@ -50,7 +50,10 @@ function buildClient(contextName, kc) {
     throw new Error('exec-auth not supported (cloud cluster)');
   }
 
-  return { server: cluster.server, agentOpts, headers };
+  // From inside Docker on Windows, 127.0.0.1 resolves to the container itself.
+  // Remap to host.docker.internal so kind cluster API servers are reachable.
+  const server = cluster.server.replace('https://127.0.0.1', 'https://host.docker.internal');
+  return { server, agentOpts, headers };
 }
 
 async function fetchK8s(contextName, path) {
