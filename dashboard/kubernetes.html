@@ -4,15 +4,34 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Kubernetes — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
   <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+      --th-bg: #f2f3f3; --tr-hover: #fafafa; --td-border: #eaeded;
+      --tab-bg: #fff; --stat-bg: #fff;
+      --offline-bg: #fdf3e3; --offline-border: #f5cba7; --offline-text: #784212;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+      --th-bg: #1c2128; --tr-hover: #21262d; --td-border: #21262d;
+      --tab-bg: #161b22; --stat-bg: #161b22;
+      --offline-bg: #1c1610; --offline-border: #7a5c1e; --offline-text: #d4a853;
+    }
+
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:#f2f3f3;color:#16191f;min-height:100vh}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
 
     header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
     header .logo{font-size:22px;font-weight:700;color:#ff9900}
     header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
     header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
     header a.back:hover{color:#fff;border-color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
 
     .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:28px 32px;display:flex;align-items:center;gap:20px}
     .hero-icon{font-size:32px;background:#326ce5;width:64px;height:64px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -23,52 +42,48 @@
 
     main{max-width:1200px;margin:28px auto;padding:0 24px}
 
-    /* Cluster tabs */
     .cluster-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
-    .cluster-tab{padding:8px 16px;border-radius:4px;border:1px solid #d5dbdb;background:#fff;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;transition:all .15s}
+    .cluster-tab{padding:8px 16px;border-radius:4px;border:1px solid var(--border);background:var(--tab-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;transition:all .15s;color:var(--text-primary)}
     .cluster-tab:hover{border-color:#326ce5;color:#326ce5}
     .cluster-tab.active{background:#326ce5;color:#fff;border-color:#326ce5}
-    .cluster-tab.offline{border-color:#e8a09e;color:#922b21;background:#fff}
+    .cluster-tab.offline{border-color:#e8a09e;color:#922b21;background:var(--tab-bg)}
     .cluster-tab.offline.active{background:#c0392b;border-color:#c0392b;color:#fff}
     .cluster-tab .dot{width:8px;height:8px;border-radius:50%;background:#27ae60;flex-shrink:0}
     .cluster-tab.offline .dot{background:#e74c3c}
-    .cluster-tab .tag{font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(255,255,255,.2);font-weight:400}
+    .cluster-tab .tag{font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(128,128,128,.2);font-weight:400}
+    .cluster-tab.active .tag{background:rgba(255,255,255,.2)}
 
-    /* Cluster panel */
     .cluster-panel{display:none}
     .cluster-panel.active{display:block}
 
-    /* Cluster info bar */
-    .cluster-info{background:#fff;border:1px solid #d5dbdb;border-radius:4px;padding:16px 24px;margin-bottom:20px}
-    .cluster-info h2{font-size:14px;font-weight:600;margin-bottom:12px;color:#545b64;text-transform:uppercase;letter-spacing:.5px}
+    .cluster-info{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 24px;margin-bottom:20px;transition:background .2s}
+    .cluster-info h2{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
     .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-    .info-item .key{font-size:11px;color:#687078;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-    .info-item .val{font-size:14px;font-weight:600;color:#16191f}
+    .info-item .key{font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+    .info-item .val{font-size:14px;font-weight:600;color:var(--text-primary)}
 
-    /* Stats */
     .stat-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-    .stat-card{background:#fff;border:1px solid #d5dbdb;border-radius:4px;padding:12px 20px;flex:1;min-width:110px;text-align:center}
+    .stat-card{background:var(--stat-bg);border:1px solid var(--border);border-radius:4px;padding:12px 20px;flex:1;min-width:110px;text-align:center;transition:background .2s}
     .stat-card .num{font-size:26px;font-weight:700;color:#326ce5}
-    .stat-card .lbl{font-size:11px;color:#687078;margin-top:2px}
+    .stat-card .lbl{font-size:11px;color:var(--text-secondary);margin-top:2px}
 
-    /* Sections */
     .section{margin-bottom:20px}
-    .section h3{font-size:14px;font-weight:600;color:#16191f;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #d5dbdb;display:flex;align-items:center;gap:6px}
+    .section h3{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:6px}
     .section h3 .badge{font-size:10px;background:#326ce5;color:#fff;padding:1px 7px;border-radius:10px}
 
-    table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d5dbdb;border-radius:4px;overflow:hidden;font-size:12.5px}
-    th{background:#f2f3f3;padding:8px 12px;text-align:left;font-weight:600;color:#545b64;border-bottom:1px solid #d5dbdb}
-    td{padding:8px 12px;border-bottom:1px solid #eaeded}
+    table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;font-size:12.5px;transition:background .2s}
+    th{background:var(--th-bg);padding:8px 12px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
+    td{padding:8px 12px;border-bottom:1px solid var(--td-border);color:var(--text-primary)}
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:#fafafa}
+    tr:hover td{background:var(--tr-hover)}
 
     .bg{background:#d5f5e3;color:#1e8449;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .by{background:#fef9e7;color:#b7950b;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
     .br{background:#fadbd8;color:#922b21;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
-    .bk{background:#eaeded;color:#545b64;padding:2px 7px;border-radius:10px;font-size:11px}
+    .bk{background:var(--th-bg);color:var(--text-muted);padding:2px 7px;border-radius:10px;font-size:11px}
 
-    .loading{color:#687078;font-size:13px;padding:20px;text-align:center}
-    .offline-msg{background:#fdf3e3;border:1px solid #f5cba7;border-left:4px solid #e67e22;border-radius:4px;padding:14px 18px;font-size:13px;color:#784212}
+    .loading{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center}
+    .offline-msg{background:var(--offline-bg);border:1px solid var(--offline-border);border-left:4px solid #e67e22;border-radius:4px;padding:14px 18px;font-size:13px;color:var(--offline-text)}
     .error-box{background:#fadbd8;border:1px solid #f1948a;border-radius:4px;padding:12px 16px;font-size:13px;color:#922b21;margin-bottom:16px}
 
     footer{text-align:center;padding:28px;font-size:12px;color:#aab7b8}
@@ -78,7 +93,10 @@
 
 <header>
   <div><div class="logo">&#9830; Floci</div><div class="subtitle">Local AWS Emulator</div></div>
-  <a class="back" href="index.html">&#8592; Dashboard</a>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
 </header>
 
 <div class="hero">
@@ -99,6 +117,15 @@
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
 function age(ts) {
   if (!ts) return '—';
   const s = Math.floor((Date.now() - new Date(ts)) / 1000);
@@ -207,7 +234,6 @@ async function loadCluster(ctx, panelId) {
   const panel = document.getElementById(panelId);
   const enc = encodeURIComponent(ctx.name);
 
-  // Load all resources in parallel
   const [ver, nodes, pods, deps, svcs, nss] = await Promise.allSettled([
     apiFetch(`/api/cluster/${enc}/version`),
     apiFetch(`/api/cluster/${enc}/nodes`),
@@ -226,7 +252,6 @@ async function loadCluster(ctx, panelId) {
     return;
   }
 
-  // Cluster info
   const v = ver.value || {};
   const clusterInfo = `<div class="cluster-info">
     <h2>Cluster Info</h2>
@@ -260,7 +285,6 @@ async function loadCluster(ctx, panelId) {
     section('&#127760; Services',    `${panelId}-services`,    renderServices(svcItems)) +
     section('&#128193; Namespaces',  `${panelId}-namespaces`,  renderNamespaces(nsItems));
 
-  // Update badges
   [[`${panelId}-nodes`,nodeItems],[`${panelId}-pods`,podItems],[`${panelId}-deployments`,depItems],
    [`${panelId}-services`,svcItems],[`${panelId}-namespaces`,nsItems]]
     .forEach(([id,items]) => { const b = document.getElementById(id+'-badge'); if(b) b.textContent=items.length; });

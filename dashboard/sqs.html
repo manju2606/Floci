@@ -4,134 +4,105 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SQS — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
   <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078;
+      --info-bg: #fdf3e3; --info-border: #f5cba7; --info-text: #16191f;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e;
+      --info-bg: #1c1a0f; --info-border: #7a5c1e; --info-text: #e6edf3;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: "Amazon Ember", "Helvetica Neue", Arial, sans-serif;
-      background: #f2f3f3;
-      color: #16191f;
-      min-height: 100vh;
+      background: var(--bg); color: var(--text-primary);
+      min-height: 100vh; transition: background .2s, color .2s;
     }
 
     header {
-      background: #232f3e;
-      padding: 12px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background: #232f3e; padding: 12px 32px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-
-    header .left { display: flex; align-items: center; gap: 16px; }
     header .logo { font-size: 22px; font-weight: 700; color: #ff9900; letter-spacing: 1px; }
     header .subtitle { font-size: 13px; color: #aab7b8; margin-top: 2px; }
+    header .right { display: flex; align-items: center; gap: 10px; }
     header a.back {
       font-size: 13px; color: #aab7b8; text-decoration: none;
       border: 1px solid #4a5568; padding: 5px 14px; border-radius: 3px;
     }
     header a.back:hover { color: #fff; border-color: #fff; }
+    .theme-btn {
+      background: none; border: 1px solid #4a5568; color: #aab7b8;
+      padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 16px; line-height: 1;
+    }
+    .theme-btn:hover { border-color: #fff; color: #fff; }
 
     .hero {
       background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
-      padding: 40px 32px;
-      display: flex;
-      align-items: center;
-      gap: 24px;
+      padding: 40px 32px; display: flex; align-items: center; gap: 24px;
     }
-
     .hero-icon {
-      font-size: 36px;
-      background: #ff9900;
-      width: 80px; height: 80px;
-      border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      font-size: 36px; background: #ff9900;
+      width: 80px; height: 80px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-
     .hero h1 { font-size: 26px; font-weight: 700; color: #fff; }
     .hero p  { font-size: 14px; color: #aab7b8; margin-top: 6px; line-height: 1.6; }
 
-    .banner {
-      background: #1a2332;
-      color: #aab7b8;
-      font-size: 12px;
-      text-align: center;
-      padding: 6px;
-    }
+    .banner { background: #1a2332; color: #aab7b8; font-size: 12px; text-align: center; padding: 6px; }
     .banner span { color: #ff9900; font-weight: 600; }
 
     main { max-width: 1000px; margin: 40px auto; padding: 0 24px; }
 
     .section { margin-bottom: 36px; }
     .section h2 {
-      font-size: 17px; font-weight: 600; color: #16191f;
-      margin-bottom: 16px; padding-bottom: 8px;
-      border-bottom: 2px solid #d5dbdb;
+      font-size: 17px; font-weight: 600; color: var(--text-primary);
+      margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border);
     }
 
-    .cmd-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 16px;
-    }
+    .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
 
     .cmd-card {
-      background: #fff;
-      border: 1px solid #d5dbdb;
-      border-radius: 4px;
-      padding: 16px 18px;
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 4px; padding: 16px 18px; transition: background .2s;
     }
-
-    .cmd-card h4 { font-size: 13px; font-weight: 600; color: #16191f; margin-bottom: 8px; }
-
+    .cmd-card h4 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
     .cmd-card code {
-      display: block;
-      font-family: "Courier New", monospace;
-      font-size: 11.5px;
-      background: #1e2a3a;
-      color: #a8d8a8;
-      padding: 10px 12px;
-      border-radius: 4px;
-      white-space: pre;
-      overflow-x: auto;
-      cursor: pointer;
-      position: relative;
+      display: block; font-family: "Courier New", monospace; font-size: 11.5px;
+      background: #1e2a3a; color: #a8d8a8; padding: 10px 12px; border-radius: 4px;
+      white-space: pre; overflow-x: auto; cursor: pointer; position: relative;
     }
-
     .cmd-card code:hover::after {
-      content: "Copy";
-      position: absolute; top: 6px; right: 8px;
-      font-size: 10px; background: #ff9900; color: #fff;
-      padding: 2px 6px; border-radius: 3px;
+      content: "Copy"; position: absolute; top: 6px; right: 8px;
+      font-size: 10px; background: #ff9900; color: #fff; padding: 2px 6px; border-radius: 3px;
     }
 
     .info-box {
-      background: #fdf3e3;
-      border: 1px solid #f5cba7;
-      border-left: 4px solid #ff9900;
-      border-radius: 4px;
-      padding: 14px 18px;
-      font-size: 13px;
-      color: #16191f;
-      line-height: 1.6;
+      background: var(--info-bg); border: 1px solid var(--info-border);
+      border-left: 4px solid #ff9900; border-radius: 4px;
+      padding: 14px 18px; font-size: 13px; color: var(--info-text); line-height: 1.6;
     }
 
-    footer {
-      text-align: center; padding: 32px;
-      font-size: 12px; color: #aab7b8;
-    }
+    footer { text-align: center; padding: 32px; font-size: 12px; color: #aab7b8; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="left">
-    <div>
-      <div class="logo">&#9830; Floci</div>
-      <div class="subtitle">Local AWS Emulator</div>
-    </div>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Local AWS Emulator</div>
   </div>
-  <a class="back" href="index.html">&#8592; Dashboard</a>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
 </header>
 
 <div class="hero">
@@ -263,9 +234,16 @@
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
-  function copyCmd(el) {
-    navigator.clipboard.writeText(el.innerText).catch(() => {});
-  }
+function copyCmd(el) { navigator.clipboard.writeText(el.innerText).catch(() => {}); }
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
 </script>
 
 </body>
