@@ -1236,6 +1236,32 @@ app.get('/api/s3/buckets', async (req, res) => {
   }
 });
 
+// GET /api/s3/bucket/:name/objects — list objects at a given prefix (folder nav)
+app.get('/api/s3/bucket/:name/objects', async (req, res) => {
+  const bucket = req.params.name;
+  const prefix = req.query.prefix || '';
+  const token  = req.query.continuationToken;
+  try {
+    const params = { Bucket: bucket, Delimiter: '/', Prefix: prefix, MaxKeys: 500 };
+    if (token) params.ContinuationToken = token;
+    const data = await s3.send(new ListObjectsV2Command(params));
+    const prefixes = (data.CommonPrefixes || []).map(p => ({ prefix: p.Prefix }));
+    const objects  = (data.Contents || [])
+      .filter(o => o.Key !== prefix)
+      .map(o => ({
+        key:          o.Key,
+        size:         o.Size,
+        lastModified: o.LastModified,
+        etag:         (o.ETag || '').replace(/"/g, ''),
+        storageClass: o.StorageClass || 'STANDARD',
+      }));
+    res.json({ bucket, prefix, prefixes, objects, isTruncated: data.IsTruncated,
+               continuationToken: data.NextContinuationToken, keyCount: data.KeyCount });
+  } catch(e) {
+    res.status(503).json({ error: e.message });
+  }
+});
+
 // DynamoDB routes
 app.get('/api/dynamo/tables', async (req, res) => {
   try {

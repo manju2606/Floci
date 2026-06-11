@@ -39,29 +39,53 @@
     .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px}
     .banner span{color:#ff9900;font-weight:600}
 
-    main{max-width:1100px;margin:40px auto;padding:0 24px}
+    /* ── Breadcrumb bar ────────────────────────────────────────────── */
+    .nav-bar{background:var(--card-bg);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;align-items:center;gap:4px;font-size:13px;flex-wrap:wrap;min-height:42px}
+    .nav-bar.hidden{display:none}
+    .bc-btn{background:none;border:none;color:#0073bb;cursor:pointer;font-size:13px;font-weight:600;padding:2px 5px;font-family:inherit;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .bc-btn:hover{text-decoration:underline}
+    .bc-sep{color:var(--text-muted);font-size:14px;margin:0 1px}
+    .bc-active{color:var(--text-primary);font-weight:600;padding:2px 5px;font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .nav-bar .right-info{margin-left:auto;font-size:12px;color:var(--text-muted);white-space:nowrap}
+
+    main{max-width:1200px;margin:0 auto;padding:32px}
 
     .section{margin-bottom:36px}
     .section h2{font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
-    .section h2 .badge{font-size:11px;background:#3d8f3d;color:#fff;padding:2px 8px;border-radius:10px;font-weight:400}
+    .badge{font-size:11px;background:#3d8f3d;color:#fff;padding:2px 8px;border-radius:10px;font-weight:400}
 
-    table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;font-size:13px;transition:background .2s}
+    table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;font-size:13px}
     th{background:var(--th-bg);padding:9px 14px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
-    td{padding:9px 14px;border-bottom:1px solid var(--td-border);color:var(--text-primary)}
+    td{padding:9px 14px;border-bottom:1px solid var(--td-border);color:var(--text-primary);vertical-align:middle}
     tr:last-child td{border-bottom:none}
     tr:hover td{background:var(--tr-hover)}
 
+    .link-btn{background:none;border:none;color:#0073bb;cursor:pointer;font-size:13px;font-weight:700;padding:0;font-family:inherit;text-align:left;word-break:break-all}
+    .link-btn:hover{text-decoration:underline}
+    .folder-btn{background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:13px;padding:0;font-family:inherit;text-align:left;display:flex;align-items:center;gap:8px;word-break:break-all}
+    .folder-btn:hover{color:#0073bb}
+    .folder-btn:hover .folder-icon{color:#0073bb}
+    .folder-icon{font-size:16px;flex-shrink:0}
+
+    .tag{font-size:11px;background:#e8f4fd;color:#0073bb;padding:2px 7px;border-radius:10px}
+    .sc-tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+    .sc-tag.STANDARD        {background:#e8f4fd;color:#1a5276}
+    .sc-tag.STANDARD_IA     {background:#fef9e7;color:#7d6608}
+    .sc-tag.REDUCED_REDUNDANCY{background:#f5eef8;color:#6c3483}
+    .sc-tag.GLACIER         {background:#eaf4fb;color:#1a5276}
+    .sc-tag.INTELLIGENT_TIERING{background:#e9f7ef;color:#1e8449}
+
+    .loading{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
+    .error-box{background:#fadbd8;border:1px solid #f1948a;border-radius:4px;padding:12px 16px;font-size:13px;color:#922b21;margin-bottom:16px}
+    .empty{color:var(--text-secondary);font-size:13px;padding:24px;text-align:center;font-style:italic;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
+
     .cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
-    .cmd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 18px;transition:background .2s}
+    .cmd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 18px}
     .cmd-card h4{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px}
     .cmd-card code{display:block;font-family:"Courier New",monospace;font-size:11.5px;background:#1e2a3a;color:#a8d8a8;padding:10px 12px;border-radius:4px;white-space:pre;overflow-x:auto;cursor:pointer;position:relative}
     .cmd-card code:hover::after{content:"Copy";position:absolute;top:6px;right:8px;font-size:10px;background:#ff9900;color:#fff;padding:2px 6px;border-radius:3px}
 
-    .loading{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
-    .error-box{background:#fadbd8;border:1px solid #f1948a;border-radius:4px;padding:12px 16px;font-size:13px;color:#922b21;margin-bottom:16px}
-    .empty{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;font-style:italic;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
-
-    .tag{font-size:11px;background:#e8f4fd;color:#0073bb;padding:2px 7px;border-radius:10px}
+    .truncated-notice{font-size:12px;color:var(--text-muted);padding:10px 14px;background:var(--th-bg);border-top:1px solid var(--border);text-align:center}
 
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
   </style>
@@ -69,7 +93,7 @@
 <body>
 
 <header>
-  <div><div class="logo">&#9830; Floci</div><div class="subtitle">Local AWS Emulator</div></div>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">Amazon S3</div></div>
   <div class="right">
     <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
     <a class="back" href="index.html">&#8592; Dashboard</a>
@@ -80,10 +104,10 @@
   <div class="hero-icon">&#x1F5C4;</div>
   <div>
     <h1>Amazon S3</h1>
-    <p>Simple Storage Service — store and retrieve any amount of data.<br/>
-       Supports buckets, objects, versioning, and lifecycle policies.</p>
+    <p>Simple Storage Service — click any bucket to browse its objects.<br/>
+       Navigate folders, inspect file metadata, and copy CLI commands.</p>
   </div>
-  <button class="refresh-btn" onclick="load()">&#8635; Refresh</button>
+  <button class="refresh-btn" onclick="onRefresh()">&#8635; Refresh</button>
   <span id="auto-cd" style="font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;margin-left:-4px"></span>
 </div>
 
@@ -93,84 +117,80 @@
   Access Key: <span>test</span>
 </div>
 
+<!-- Breadcrumb — shown when inside a bucket -->
+<div class="nav-bar hidden" id="nav-bar"></div>
+
 <main>
   <div id="error-box"></div>
 
-  <div class="section">
-    <h2>Buckets <span class="badge" id="bucket-count">—</span></h2>
-    <div id="bucket-table"><div class="loading">Loading buckets...</div></div>
-  </div>
-
-  <div class="section">
-    <h2>Bucket Operations</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>Create bucket</h4>
-        <code onclick="copyCmd(this)">aws s3 mb s3://my-bucket \
+  <!-- ── VIEW 1: Buckets list ─────────────────────────────────────── -->
+  <div id="view-buckets">
+    <div class="section">
+      <h2>Buckets <span class="badge" id="bucket-count">—</span></h2>
+      <div id="bucket-list"><div class="loading">Loading buckets…</div></div>
+    </div>
+    <div class="section">
+      <h2>Bucket Operations</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create bucket</h4>
+          <code onclick="copyCmd(this)">aws s3 mb s3://my-bucket \
   --endpoint-url http://localhost:4566 \
-  --region us-east-1</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List buckets</h4>
-        <code onclick="copyCmd(this)">aws s3 ls \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List objects in bucket</h4>
-        <code onclick="copyCmd(this)">aws s3 ls s3://my-bucket \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Delete bucket</h4>
-        <code onclick="copyCmd(this)">aws s3 rb s3://my-bucket \
+  --region us-east-1</code></div>
+        <div class="cmd-card"><h4>List buckets</h4>
+          <code onclick="copyCmd(this)">aws s3 ls \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>List objects in bucket</h4>
+          <code onclick="copyCmd(this)">aws s3 ls s3://my-bucket \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete bucket</h4>
+          <code onclick="copyCmd(this)">aws s3 rb s3://my-bucket \
   --force \
-  --endpoint-url http://localhost:4566</code>
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Object Operations</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Upload file</h4>
+          <code onclick="copyCmd(this)">aws s3 cp ./file.txt s3://my-bucket/ \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Download file</h4>
+          <code onclick="copyCmd(this)">aws s3 cp s3://my-bucket/file.txt ./ \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Sync folder to bucket</h4>
+          <code onclick="copyCmd(this)">aws s3 sync ./my-folder s3://my-bucket \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete object</h4>
+          <code onclick="copyCmd(this)">aws s3 rm s3://my-bucket/file.txt \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Generate presigned URL</h4>
+          <code onclick="copyCmd(this)">aws s3 presign s3://my-bucket/file.txt \
+  --expires-in 3600 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Copy between buckets</h4>
+          <code onclick="copyCmd(this)">aws s3 cp s3://src-bucket/file.txt \
+  s3://dst-bucket/file.txt \
+  --endpoint-url http://localhost:4566</code></div>
       </div>
     </div>
   </div>
 
-  <div class="section">
-    <h2>Object Operations</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>Upload file</h4>
-        <code onclick="copyCmd(this)">aws s3 cp ./file.txt s3://my-bucket/ \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Download file</h4>
-        <code onclick="copyCmd(this)">aws s3 cp s3://my-bucket/file.txt ./ \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Sync folder to bucket</h4>
-        <code onclick="copyCmd(this)">aws s3 sync ./my-folder s3://my-bucket \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Delete object</h4>
-        <code onclick="copyCmd(this)">aws s3 rm s3://my-bucket/file.txt \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Generate presigned URL</h4>
-        <code onclick="copyCmd(this)">aws s3 presign s3://my-bucket/file.txt \
-  --expires-in 3600 \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Copy between buckets</h4>
-        <code onclick="copyCmd(this)">aws s3 cp s3://src-bucket/file.txt \
-  s3://dst-bucket/file.txt \
-  --endpoint-url http://localhost:4566</code>
-      </div>
+  <!-- ── VIEW 2: Objects inside a bucket ─────────────────────────── -->
+  <div id="view-objects" style="display:none">
+    <div class="section">
+      <h2 id="obj-title">Objects <span class="badge" id="obj-count">—</span></h2>
+      <div id="obj-list"><div class="loading">Loading objects…</div></div>
     </div>
   </div>
+
 </main>
 
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
+let _bucket  = null;
+let _prefix  = '';
+
 function copyCmd(el) { navigator.clipboard.writeText(el.innerText).catch(() => {}); }
 
 function toggleTheme() {
@@ -182,59 +202,217 @@ function toggleTheme() {
 document.getElementById('theme-btn').textContent =
   document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
 
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtBytes(b) {
+  if (b === undefined || b === null) return '—';
+  if (b === 0) return '0 B';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(2) + ' MB';
+  return (b/1073741824).toFixed(2) + ' GB';
+}
 function age(ts) {
   if (!ts) return '—';
   const s = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (s < 60) return s + 's';
-  if (s < 3600) return Math.floor(s/60) + 'm';
-  if (s < 86400) return Math.floor(s/3600) + 'h';
-  return Math.floor(s/86400) + 'd';
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString();
 }
 
-async function load() {
-  document.getElementById('bucket-table').innerHTML = '<div class="loading">Loading buckets...</div>';
-  document.getElementById('error-box').innerHTML = '';
+// ── Breadcrumb ─────────────────────────────────────────────────────────────────
+function buildBreadcrumb(bucket, prefix) {
+  const bar = document.getElementById('nav-bar');
+  if (!bucket) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+
+  const parts = [];
+  parts.push(`<button class="bc-btn" onclick="goBuckets()">Buckets</button>`);
+  parts.push(`<span class="bc-sep">/</span>`);
+
+  if (!prefix) {
+    parts.push(`<span class="bc-active">${escHtml(bucket)}</span>`);
+  } else {
+    parts.push(`<button class="bc-btn" onclick="openBucket('${escHtml(bucket)}')">${escHtml(bucket)}</button>`);
+    // Split prefix into folder segments
+    const segs = prefix.split('/').filter(Boolean);
+    segs.forEach((seg, i) => {
+      parts.push(`<span class="bc-sep">/</span>`);
+      const segPrefix = segs.slice(0, i + 1).join('/') + '/';
+      if (i === segs.length - 1) {
+        parts.push(`<span class="bc-active">${escHtml(seg)}</span>`);
+      } else {
+        parts.push(`<button class="bc-btn" onclick="navigatePrefix('${escHtml(segPrefix)}')">${escHtml(seg)}</button>`);
+      }
+    });
+  }
+
+  const totalRows = document.getElementById('obj-count')?.textContent || '—';
+  parts.push(`<span class="right-info">s3://${escHtml(bucket)}/${escHtml(prefix)}</span>`);
+  bar.innerHTML = parts.join('');
+}
+
+// ── Views ──────────────────────────────────────────────────────────────────────
+function showView(id) {
+  document.getElementById('view-buckets').style.display = id === 'view-buckets' ? 'block' : 'none';
+  document.getElementById('view-objects').style.display = id === 'view-objects' ? 'block' : 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goBuckets() {
+  _bucket = null;
+  _prefix = '';
+  buildBreadcrumb(null);
+  showView('view-buckets');
+}
+
+async function openBucket(name) {
+  _bucket = name;
+  _prefix = '';
+  showView('view-objects');
+  buildBreadcrumb(name, '');
+  await loadObjects(name, '');
+}
+
+async function navigatePrefix(prefix) {
+  _prefix = prefix;
+  buildBreadcrumb(_bucket, prefix);
+  await loadObjects(_bucket, prefix);
+}
+
+// ── Load objects ───────────────────────────────────────────────────────────────
+async function loadObjects(bucket, prefix) {
+  document.getElementById('obj-title').innerHTML =
+    `<span style="font-family:monospace">${escHtml(bucket)}</span>
+     <span class="badge" id="obj-count">…</span>`;
+  document.getElementById('obj-list').innerHTML = '<div class="loading">Loading objects…</div>';
+
+  try {
+    const url = `/api/s3/bucket/${encodeURIComponent(bucket)}/objects?prefix=${encodeURIComponent(prefix)}`;
+    const data = await fetch(url).then(r => r.json());
+    if (data.error) throw new Error(data.error);
+
+    const totalRows = (data.prefixes || []).length + (data.objects || []).length;
+    document.getElementById('obj-count').textContent = totalRows;
+
+    if (!totalRows) {
+      document.getElementById('obj-list').innerHTML =
+        `<div class="empty">&#128193; This ${prefix ? 'folder' : 'bucket'} is empty.</div>`;
+      return;
+    }
+
+    // Build table rows: folders first, then objects
+    let rows = '';
+
+    // Folder rows
+    for (const p of (data.prefixes || [])) {
+      const folderName = p.prefix.slice(prefix.length); // strip parent prefix
+      rows += `<tr>
+        <td colspan="2">
+          <button class="folder-btn" onclick="navigatePrefix('${escHtml(p.prefix)}')">
+            <span class="folder-icon">&#128193;</span>
+            <span>${escHtml(folderName)}</span>
+          </button>
+        </td>
+        <td style="color:var(--text-muted);font-size:12px">Folder</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>`;
+    }
+
+    // Object rows
+    for (const obj of (data.objects || [])) {
+      const filename = obj.key.slice(prefix.length); // strip prefix to show relative name
+      const sc = obj.storageClass || 'STANDARD';
+      rows += `<tr>
+        <td style="word-break:break-all">
+          <span style="font-size:16px;margin-right:8px">&#128196;</span>${escHtml(filename)}
+        </td>
+        <td style="font-size:11px;color:var(--text-muted);word-break:break-all">${escHtml(obj.key)}</td>
+        <td>${fmtBytes(obj.size)}</td>
+        <td style="white-space:nowrap;font-size:12px">${fmtDate(obj.lastModified)}</td>
+        <td><span class="sc-tag ${escHtml(sc)}">${escHtml(sc)}</span></td>
+        <td style="font-family:monospace;font-size:11px;color:var(--text-muted)">${escHtml((obj.etag||'').slice(0,16))}${obj.etag && obj.etag.length > 16 ? '…' : ''}</td>
+      </tr>`;
+    }
+
+    let html = `<table>
+      <thead><tr>
+        <th>Name</th><th>Full Key</th><th>Size</th><th>Last Modified</th><th>Storage Class</th><th>ETag</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    if (data.isTruncated) {
+      html += `<div class="truncated-notice">
+        &#9432; Showing first 500 objects. Use the AWS CLI to list all:
+        <code style="font-family:monospace;font-size:11px;background:var(--th-bg);padding:2px 6px;border-radius:3px">
+          aws s3 ls s3://${escHtml(bucket)}/${escHtml(prefix)} --endpoint-url http://localhost:4566
+        </code>
+      </div>`;
+    }
+
+    document.getElementById('obj-list').innerHTML = html;
+  } catch(e) {
+    document.getElementById('obj-list').innerHTML =
+      `<div class="error-box">&#9888; ${escHtml(e.message)}</div>`;
+  }
+}
+
+// ── Buckets list ───────────────────────────────────────────────────────────────
+async function loadBuckets() {
+  document.getElementById('bucket-list').innerHTML = '<div class="loading">Loading buckets…</div>';
+  document.getElementById('error-box').innerHTML   = '';
   try {
     const buckets = await fetch('/api/s3/buckets').then(r => r.json());
     if (buckets.error) throw new Error(buckets.error);
     document.getElementById('bucket-count').textContent = buckets.length;
     if (!buckets.length) {
-      document.getElementById('bucket-table').innerHTML = '<div class="empty">No buckets found. Create one using the commands below.</div>';
+      document.getElementById('bucket-list').innerHTML =
+        '<div class="empty">No buckets found. Create one using the commands below.</div>';
       return;
     }
     const rows = buckets.map(b => `<tr>
-      <td><strong>${b.name}</strong></td>
-      <td><span class="tag">${b.region}</span></td>
+      <td>
+        <button class="link-btn" onclick="openBucket('${escHtml(b.name)}')">${escHtml(b.name)}</button>
+      </td>
+      <td><span class="tag">${escHtml(b.region)}</span></td>
       <td>${b.objects}</td>
-      <td>${age(b.created)}</td>
-      <td><code style="font-size:11px;background:var(--th-bg);color:var(--text-muted);padding:2px 6px;border-radius:3px">s3://${b.name}</code></td>
+      <td style="font-size:12px;color:var(--text-muted)">${age(b.created)}</td>
+      <td><code style="font-size:11px;background:var(--th-bg);color:var(--text-muted);padding:2px 6px;border-radius:3px">s3://${escHtml(b.name)}</code></td>
     </tr>`).join('');
-    document.getElementById('bucket-table').innerHTML = `
-      <table>
-        <thead><tr><th>Name</th><th>Region</th><th>Objects</th><th>Age</th><th>URI</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+    document.getElementById('bucket-list').innerHTML = `<table>
+      <thead><tr><th>Name</th><th>Region</th><th>Objects</th><th>Age</th><th>URI</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   } catch(e) {
     document.getElementById('error-box').innerHTML =
       `<div class="error-box">&#9888; Failed to load buckets: ${e.message}</div>`;
-    document.getElementById('bucket-table').innerHTML = '';
+    document.getElementById('bucket-list').innerHTML = '';
   }
 }
 
-load();
+function onRefresh() {
+  if (_bucket) loadObjects(_bucket, _prefix);
+  else loadBuckets();
+}
 
-// ── Auto-refresh every 30s ────────────────────────────────────────────────────
-(function startAutoRefresh() {
-  const SECS = 30;
-  let t = SECS;
+loadBuckets();
+
+// ── Auto-refresh every 30s (buckets view only) ────────────────────────────────
+(function() {
+  const SECS = 30; let t = SECS;
   const el = document.getElementById('auto-cd');
-  const update = () => { if (el) el.textContent = `· auto ↻ ${t}s`; };
-  update();
-  setInterval(() => {
-    t--;
-    if (t <= 0) { t = SECS; load(); }
-    update();
-  }, 1000);
+  const upd = () => { if (el) el.textContent = `· auto ↻ ${t}s`; };
+  upd();
+  setInterval(() => { t--; if (t <= 0) { t = SECS; if (!_bucket) loadBuckets(); } upd(); }, 1000);
 })();
 </script>
 </body>
