@@ -133,6 +133,21 @@
     .offline-btn.showing{border-color:var(--text-muted);color:var(--text-secondary)}
     .offline-btn.showing:hover{background:var(--th-bg);color:var(--text-primary)}
 
+    /* Live status bar */
+    .status-bar{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;flex-wrap:wrap}
+    .sb-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:background .3s}
+    .sb-dot.online{background:#27ae60;box-shadow:0 0 5px rgba(39,174,96,.4)}
+    .sb-dot.offline{background:#e74c3c}
+    .sb-dot.checking{background:#f39c12;animation:sbpulse 1s ease-in-out infinite}
+    @keyframes sbpulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .sb-text{font-weight:600}
+    .sb-text.online{color:#27ae60}
+    .sb-text.offline{color:#e74c3c}
+    .sb-text.checking{color:#f39c12}
+    .sb-time{color:var(--text-secondary)}
+    .sb-check-btn{margin-left:auto;padding:3px 10px;font-size:11px;border:1px solid var(--border);border-radius:3px;background:none;color:var(--text-secondary);cursor:pointer;white-space:nowrap}
+    .sb-check-btn:hover{border-color:#326ce5;color:#326ce5}
+
     footer{text-align:center;padding:28px;font-size:12px;color:#aab7b8}
   </style>
 </head>
@@ -220,6 +235,79 @@ function toggleOffline() {
   });
   updateOfflineBtn();
 }
+
+// ── Live cluster status ───────────────────────────────────────────────────────
+const panelCtx      = {};
+const clusterStatus = {};
+const pollIntervals = {};
+
+function clearAllIntervals() {
+  Object.values(pollIntervals).forEach(id => clearInterval(id));
+  Object.keys(pollIntervals).forEach(k => delete pollIntervals[k]);
+  Object.keys(clusterStatus).forEach(k => delete clusterStatus[k]);
+  Object.keys(panelCtx).forEach(k => delete panelCtx[k]);
+}
+
+function timeAgo(ts) {
+  if (!ts) return 'never';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5)  return 'just now';
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  return Math.floor(s / 3600) + 'h ago';
+}
+
+function renderStatusBar(panelId) {
+  const el = document.getElementById('sb-' + panelId);
+  if (!el) return;
+  const s = clusterStatus[panelId];
+  if (!s) { el.innerHTML = '<span style="color:var(--text-secondary);font-size:12px">Checking...</span>'; return; }
+  const latStr = s.online && s.latency != null ? ` · ${s.latency}ms` : '';
+  const dotC   = s.checking ? 'checking' : (s.online ? 'online' : 'offline');
+  const txt    = s.checking ? 'Checking…' : (s.online ? `Online${latStr}` : 'Offline');
+  const since  = s.checkedAt ? `Last checked: ${timeAgo(s.checkedAt)}` : '';
+  el.innerHTML = `
+    <span class="sb-dot ${dotC}"></span>
+    <span class="sb-text ${dotC}">${txt}</span>
+    ${since ? `<span class="sb-time">${since}</span>` : ''}
+    <button class="sb-check-btn" onclick="checkClusterByPanel('${panelId}')">&#8635; Check now</button>`;
+}
+
+async function checkCluster(ctxName, panelId) {
+  clusterStatus[panelId] = { ...clusterStatus[panelId], checking: true };
+  renderStatusBar(panelId);
+  const enc   = encodeURIComponent(ctxName);
+  const start = Date.now();
+  try {
+    await apiFetch(`/api/cluster/${enc}/version`);
+    clusterStatus[panelId] = { online: true, latency: Date.now() - start, checkedAt: Date.now(), checking: false };
+    const tab = document.querySelector(`[data-ctx="${CSS.escape(ctxName)}"]`);
+    if (tab) tab.querySelector('.dot').style.background = '#27ae60';
+  } catch {
+    clusterStatus[panelId] = { online: false, latency: null, checkedAt: Date.now(), checking: false };
+    const tab = document.querySelector(`[data-ctx="${CSS.escape(ctxName)}"]`);
+    if (tab) tab.querySelector('.dot').style.background = '#e74c3c';
+  }
+  renderStatusBar(panelId);
+}
+
+function checkClusterByPanel(panelId) {
+  const ctxName = panelCtx[panelId];
+  if (ctxName) checkCluster(ctxName, panelId);
+}
+
+function startPolling(ctxName, panelId) {
+  panelCtx[panelId] = ctxName;
+  checkCluster(ctxName, panelId);
+  pollIntervals[panelId] = setInterval(() => checkCluster(ctxName, panelId), 30000);
+}
+
+// Refresh "X ago" timestamps every 10s without re-fetching
+setInterval(() => {
+  Object.keys(clusterStatus).forEach(id => {
+    if (!clusterStatus[id]?.checking) renderStatusBar(id);
+  });
+}, 10000);
 
 // ── Collapse state ────────────────────────────────────────────────────────────
 function getCS(key, def) {
@@ -370,9 +458,16 @@ async function loadCluster(ctx, panelId) {
     panel.innerHTML = `<div class="offline-msg">
       &#9888; <strong>Cannot connect to cluster</strong><br/>
       ${nodes.reason?.message || 'Cluster may require cloud authentication (AKS/EKS) or may be offline.'}
+      <div id="sb-${panelId}" class="status-bar">
+        <span class="sb-dot offline"></span>
+        <span class="sb-text offline">Offline</span>
+        <span class="sb-time">Last checked: just now</span>
+        <button class="sb-check-btn" onclick="checkClusterByPanel('${panelId}')">&#8635; Check now</button>
+      </div>
     </div>`;
     document.querySelector(`[data-ctx="${CSS.escape(ctx.name)}"]`)?.classList.add('offline');
     markOffline(ctx.name, panelId);
+    startPolling(ctx.name, panelId);
     return;
   }
 
@@ -392,6 +487,7 @@ async function loadCluster(ctx, panelId) {
       <div class="info-item"><div class="key">Go Version</div><div class="val">${v.goVersion||'—'}</div></div>
       <div class="info-item"><div class="key">Build Date</div><div class="val">${(v.buildDate||'').split('T')[0]||'—'}</div></div>
     </div>
+    <div id="sb-${panelId}" class="status-bar"><span style="color:var(--text-secondary);font-size:12px">Checking status...</span></div>
   </div>`;
 
   const stats = `<div class="stat-bar">
@@ -412,6 +508,7 @@ async function loadCluster(ctx, panelId) {
     splitSection(panelId, 'deps',  '&#9881;',   'Deployments', depItems,  isSysNs,   deployRows) +
     splitSection(panelId, 'svcs',  '&#127760;', 'Services',    svcItems,  isSysNs,   svcRows) +
     splitSection(panelId, 'nss',   '&#128193;', 'Namespaces',  nsItems,   isSysNs,   nsRows);
+  startPolling(ctx.name, panelId);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -420,6 +517,7 @@ let allContexts = [];
 async function init() {
   offlineCount = 0;
   showOffline  = false;
+  clearAllIntervals();
   updateOfflineBtn();
   try {
     const data = await apiFetch('/api/contexts');
