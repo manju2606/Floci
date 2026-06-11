@@ -571,6 +571,338 @@ function resolveInvestigation(investigation) {
   return { total: findings.length, findings };
 }
 
+// ── AI Reasoning Engine ────────────────────────────────────────────────────────
+function reasonAboutInvestigation(inv) {
+  const pods    = inv.pods    || {};
+  const logs    = inv.logs    || {};
+  const events  = inv.events  || {};
+  const deps    = inv.deployments || {};
+  const net     = inv.network || {};
+
+  const badPods   = pods.problematic_pods      || [];
+  const badDeps   = deps.unhealthy_deployments || [];
+  const warnEvts  = events.warning_events      || [];
+  const netIssues = net.issues                 || [];
+  const logKeys   = Object.keys(logs);
+
+  const steps = [];
+  const root_causes = [];
+  let confidence = 50;
+  let severity   = 'info';
+
+  // Penalise for errored stages
+  const erroredStages = [pods.error && !badPods.length, deps.error, events.error, net.error]
+    .filter(Boolean).length;
+  if (erroredStages > 0) {
+    confidence -= erroredStages * 12;
+    steps.push(`⚠ ${erroredStages} stage(s) had errors — evidence may be incomplete`);
+  }
+
+  const totalIssues = badPods.length + badDeps.length +
+                      (events.warning_count || 0) + (net.issue_count || 0);
+
+  // Healthy cluster
+  if (totalIssues === 0 && erroredStages === 0) {
+    return {
+      summary: 'Cluster appears healthy — no issues detected.',
+      confidence: 95,
+      severity: 'healthy',
+      root_causes: [],
+      reasoning_steps: [
+        '✓ All 5 investigation stages completed without errors',
+        '✓ No unhealthy pods, deployments, warning events, or network issues found',
+        '→ Cluster is operating normally'
+      ]
+    };
+  }
+
+  // Analyse pods
+  if (badPods.length > 0) {
+    confidence += 10;
+    steps.push(`✓ Pod analysis: ${badPods.length} unhealthy pod(s) found`);
+
+    const clb  = badPods.filter(p => p.reason === 'CrashLoopBackOff');
+    const ipb  = badPods.filter(p => p.reason === 'ImagePullBackOff' || p.reason === 'ErrImagePull');
+    const oom  = badPods.filter(p => p.reason === 'OOMKilled');
+    const pend = badPods.filter(p => p.reason === 'Pending');
+    const err  = badPods.filter(p => p.reason === 'Error');
+
+    if (clb.length > 0) {
+      confidence += 20; severity = 'critical';
+      const names = clb.map(p => p.name).join(', ');
+      root_causes.push({ type:'CrashLoopBackOff', pods:names, severity:'critical' });
+      steps.push(`→ CrashLoopBackOff in ${clb.length} pod(s): ${names}`);
+      steps.push('→ Pod is repeatedly crashing — likely startup error, bad config, or missing dependency');
+    }
+    if (ipb.length > 0) {
+      confidence += 18; if (severity !== 'critical') severity = 'high';
+      const names = ipb.map(p => p.name).join(', ');
+      root_causes.push({ type:'ImagePullBackOff', pods:names, severity:'high' });
+      steps.push(`→ ImagePullBackOff in ${ipb.length} pod(s): ${names}`);
+      steps.push('→ Cannot pull container image — check image tag, registry URL, and pull secrets');
+    }
+    if (oom.length > 0) {
+      confidence += 15; if (severity !== 'critical') severity = 'high';
+      const names = oom.map(p => p.name).join(', ');
+      root_causes.push({ type:'OOMKilled', pods:names, severity:'high' });
+      steps.push(`→ OOMKilled in ${oom.length} pod(s): ${names}`);
+      steps.push('→ Container exceeded memory limit — increase memory requests/limits');
+    }
+    if (pend.length > 0) {
+      if (severity === 'info') severity = 'warning';
+      const names = pend.map(p => p.name).join(', ');
+      root_causes.push({ type:'Pending', pods:names, severity:'warning' });
+      steps.push(`→ ${pend.length} pod(s) stuck Pending: ${names} — check node resources or taints`);
+    }
+    if (err.length > 0) {
+      if (severity === 'info') severity = 'warning';
+      const names = err.map(p => p.name).join(', ');
+      root_causes.push({ type:'Error', pods:names, severity:'warning' });
+      steps.push(`→ ${err.length} pod(s) in Error state: ${names}`);
+    }
+  } else {
+    steps.push('✓ Pod analysis: all pods healthy');
+    confidence += 5;
+  }
+
+  // Correlate with logs
+  const logsWithErrors = logKeys.filter(k => (logs[k].error_count || 0) > 0);
+  if (logsWithErrors.length > 0) {
+    confidence += 15;
+    steps.push(`✓ Log correlation: error lines found in ${logsWithErrors.length} pod(s) — corroborates findings`);
+    let hasOOM = false, hasMissingEnv = false, hasConnRefused = false;
+    logsWithErrors.forEach(k => {
+      const text = (logs[k].error_lines || []).join(' ').toLowerCase();
+      if (text.includes('oom') || text.includes('memory'))                       hasOOM = true;
+      if (text.includes('environment') || text.includes('env var') ||
+          text.includes('configmap') || text.includes('secret'))                 hasMissingEnv = true;
+      if (text.includes('connection refused') || text.includes('dial tcp') ||
+          text.includes('timeout'))                                               hasConnRefused = true;
+    });
+    if (hasOOM)          { confidence += 5; steps.push('→ Log evidence: OOM/memory errors reinforce OOMKilled diagnosis'); }
+    if (hasMissingEnv)   { confidence += 5; steps.push('→ Log evidence: missing env/config errors suggest bad ConfigMap or Secret'); }
+    if (hasConnRefused)  { confidence += 3; steps.push('→ Log evidence: connection errors suggest service or DNS issue'); }
+  } else if (badPods.length > 0 && logKeys.length === 0) {
+    confidence -= 5;
+    steps.push('⚠ Log collection skipped — confidence slightly reduced');
+  }
+
+  // Deployments
+  if (badDeps.length > 0) {
+    confidence += 8; if (severity === 'info') severity = 'warning';
+    const names = badDeps.map(d => d.name).slice(0, 3).join(', ');
+    root_causes.push({ type:'UnhealthyDeployment', deployments:names, severity:'high' });
+    steps.push(`✓ Deployment analysis: ${badDeps.length} unhealthy — ${names}${badDeps.length > 3 ? ' …' : ''}`);
+    steps.push('→ Replica count below desired — pods may be failing to start');
+  } else {
+    steps.push('✓ Deployment analysis: all deployments healthy');
+    confidence += 3;
+  }
+
+  // Events
+  if (warnEvts.length > 0) {
+    confidence += 8;
+    const reasons = [...new Set(warnEvts.map(e => e.reason))].slice(0, 3).join(', ');
+    steps.push(`✓ Events: ${warnEvts.length} warning event(s) — reasons: ${reasons}`);
+    if (reasons.includes('FailedScheduling')) {
+      steps.push('→ FailedScheduling: cluster may lack resources (CPU/memory/nodes)');
+      root_causes.push({ type:'FailedScheduling', severity:'warning' });
+    }
+    if (reasons.includes('BackOff')) {
+      confidence += 5;
+      steps.push('→ BackOff events corroborate pod restart issues');
+    }
+    if (reasons.includes('FailedMount')) {
+      steps.push('→ FailedMount: PersistentVolume or ConfigMap/Secret may be missing');
+      root_causes.push({ type:'FailedMount', severity:'high' });
+    }
+  }
+
+  // Network
+  const emptyEp  = netIssues.filter(i => i.issue === 'empty-endpoints');
+  const missingEp = netIssues.filter(i => i.issue === 'missing-endpoints');
+  if (emptyEp.length > 0) {
+    confidence += 8; if (severity === 'info') severity = 'warning';
+    const names = emptyEp.map(i => i.name).join(', ');
+    root_causes.push({ type:'EmptyEndpoints', services:names, severity:'warning' });
+    steps.push(`✓ Network: ${emptyEp.length} service(s) with no endpoints — ${names}`);
+    steps.push('→ Selector mismatch or all backing pods are unhealthy/not ready');
+  }
+  if (missingEp.length > 0) {
+    const names = missingEp.map(i => i.name).join(', ');
+    root_causes.push({ type:'MissingEndpoints', services:names, severity:'warning' });
+    steps.push(`✓ Network: ${missingEp.length} service(s) missing endpoint objects — ${names}`);
+  }
+
+  // Final confidence cap and summary
+  confidence = Math.max(10, Math.min(97, confidence));
+  if (root_causes.length === 0 && totalIssues > 0) {
+    confidence = Math.min(confidence, 50);
+    steps.push('→ Issues detected but specific root cause unclear — manual inspection recommended');
+  }
+
+  const top = root_causes[0];
+  let summary;
+  if (!top) {
+    summary = `${totalIssues} issue(s) detected — root cause unclear, manual review needed`;
+  } else if (top.type === 'CrashLoopBackOff') {
+    summary = `CrashLoopBackOff in ${top.pods} — container crashing repeatedly`;
+  } else if (top.type === 'ImagePullBackOff') {
+    summary = `ImagePullBackOff in ${top.pods} — invalid image or registry access denied`;
+  } else if (top.type === 'OOMKilled') {
+    summary = `OOMKilled in ${top.pods} — container exceeded memory limits`;
+  } else if (top.type === 'EmptyEndpoints') {
+    summary = `Service endpoints empty for ${top.services} — likely selector mismatch`;
+  } else if (top.type === 'UnhealthyDeployment') {
+    summary = `Unhealthy deployment(s): ${top.deployments} — replicas below desired count`;
+  } else if (top.type === 'Pending') {
+    summary = `Pods stuck Pending: ${top.pods} — insufficient resources or scheduling constraint`;
+  } else {
+    summary = `${root_causes.length} issue(s) identified — see root causes for details`;
+  }
+
+  if (severity === 'info' && totalIssues > 0) severity = 'warning';
+
+  return { summary, confidence, severity, root_causes, reasoning_steps: steps };
+}
+
+// GET /api/investigate/stream  — Server-Sent Events, one event per stage
+app.get('/api/investigate/stream', async (req, res) => {
+  const ctx = req.query.context;
+  const ns  = req.query.namespace || null;
+  if (!ctx) { res.status(400).end(); return; }
+
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const start = Date.now();
+  const elapsed = () => ((Date.now() - start) / 1000).toFixed(1) + 's';
+
+  const pause = (ms) => new Promise(r => setTimeout(r, ms));
+  let podResult, logsResult, evResult, depResult, netResult;
+
+  // ── Stage 1: Pods ──────────────────────────────────────────────────────────
+  emit({ stage:'pods', status:'running', message:'Fetching pod status across all namespaces…' });
+  await pause(1200);
+  try {
+    const podsData = await fetchK8s(ctx, ns ? `/api/v1/namespaces/${ns}/pods` : '/api/v1/pods');
+    podResult = inspectPods(podsData, null);
+    if (podsData.error) podResult.error = podsData.error;
+    emit({ stage:'pods', status:'done', elapsed:elapsed(),
+           total: podResult.total, issues: podResult.problematic_pods.length,
+           message: `${podResult.total} pods found, ${podResult.problematic_pods.length} unhealthy` });
+  } catch(e) {
+    podResult = { total:0, problematic_pods:[], all_pods:[], healthy:false, error:e.message };
+    emit({ stage:'pods', status:'error', elapsed:elapsed(), message: e.message });
+  }
+
+  await pause(1400);
+
+  // ── Stage 2: Logs ─────────────────────────────────────────────────────────
+  const badPods = podResult.problematic_pods || [];
+  emit({ stage:'logs', status:'running',
+         message: badPods.length
+           ? `Collecting logs for ${badPods.length} unhealthy pod(s)…`
+           : 'No unhealthy pods — skipping log collection' });
+  try {
+    logsResult = await collectLogs(ctx, badPods);
+    const withErrors = Object.values(logsResult).filter(l => l.error_count > 0).length;
+    emit({ stage:'logs', status:'done', elapsed:elapsed(),
+           total: Object.keys(logsResult).length, issues: withErrors,
+           message: `Logs collected for ${Object.keys(logsResult).length} pod(s), ${withErrors} with error lines` });
+  } catch(e) {
+    logsResult = {};
+    emit({ stage:'logs', status:'error', elapsed:elapsed(), message: e.message });
+  }
+
+  await pause(1400);
+
+  // ── Stage 3: Events ───────────────────────────────────────────────────────
+  emit({ stage:'events', status:'running', message:'Reading Kubernetes warning events…' });
+  await pause(1200);
+  try {
+    const evData = await fetchK8s(ctx, ns ? `/api/v1/namespaces/${ns}/events` : '/api/v1/events');
+    evResult = analyzeEvents(evData, null);
+    emit({ stage:'events', status:'done', elapsed:elapsed(),
+           total: evResult.total, issues: evResult.warning_count,
+           message: `${evResult.total} events, ${evResult.warning_count} warnings` });
+  } catch(e) {
+    evResult = { total:0, warning_count:0, warning_events:[], healthy:true };
+    emit({ stage:'events', status:'error', elapsed:elapsed(), message: e.message });
+  }
+
+  await pause(1400);
+
+  // ── Stage 4: Deployments ──────────────────────────────────────────────────
+  emit({ stage:'deployments', status:'running', message:'Inspecting deployment replica health…' });
+  await pause(1200);
+  try {
+    const depsData = await fetchK8s(ctx, ns ? `/apis/apps/v1/namespaces/${ns}/deployments` : '/apis/apps/v1/deployments');
+    depResult = inspectDeployments(depsData, null);
+    emit({ stage:'deployments', status:'done', elapsed:elapsed(),
+           total: depResult.total, issues: depResult.unhealthy_deployments.length,
+           message: `${depResult.total} deployments, ${depResult.unhealthy_deployments.length} unhealthy` });
+  } catch(e) {
+    depResult = { total:0, unhealthy_deployments:[], all_deployments:[], healthy:true };
+    emit({ stage:'deployments', status:'error', elapsed:elapsed(), message: e.message });
+  }
+
+  await pause(1400);
+
+  // ── Stage 5: Network ──────────────────────────────────────────────────────
+  emit({ stage:'network', status:'running', message:'Checking service endpoints and selectors…' });
+  await pause(1200);
+  try {
+    const [svcData, epData] = await Promise.all([
+      fetchK8s(ctx, ns ? `/api/v1/namespaces/${ns}/services`  : '/api/v1/services'),
+      fetchK8s(ctx, ns ? `/api/v1/namespaces/${ns}/endpoints` : '/api/v1/endpoints'),
+    ]);
+    netResult = inspectNetwork(svcData, epData, null);
+    emit({ stage:'network', status:'done', elapsed:elapsed(),
+           total: netResult.total, issues: netResult.issue_count,
+           message: `${netResult.total} services, ${netResult.issue_count} with endpoint issues` });
+  } catch(e) {
+    netResult = { total:0, issue_count:0, issues:[], all_services:[], healthy:true };
+    emit({ stage:'network', status:'error', elapsed:elapsed(), message: e.message });
+  }
+
+  await pause(1000);
+
+  // ── Stage 6: AI Reasoning ─────────────────────────────────────────────────
+  emit({ stage:'reasoning', status:'running', elapsed:elapsed(),
+         message:'Correlating evidence and reasoning about root causes…' });
+  await pause(1800);
+  const aiResult = reasonAboutInvestigation({
+    pods:podResult, logs:logsResult, events:evResult, deployments:depResult, network:netResult
+  });
+  emit({ stage:'reasoning', status:'done', elapsed:elapsed(),
+         confidence: aiResult.confidence, severity: aiResult.severity,
+         issues: aiResult.root_causes.length,
+         message: aiResult.summary });
+  await pause(800);
+
+  // ── Complete ──────────────────────────────────────────────────────────────
+  const totalIssues = (podResult.problematic_pods||[]).length +
+                      (depResult.unhealthy_deployments||[]).length +
+                      (evResult.warning_count||0) +
+                      (netResult.issue_count||0);
+
+  emit({
+    stage:'complete', status:'done', elapsed:elapsed(), total_issues: totalIssues,
+    result: {
+      status:'success', context:ctx, namespace:ns||null,
+      ai_reasoning: aiResult,
+      investigation:{ pods:podResult, logs:logsResult, events:evResult, deployments:depResult, network:netResult }
+    }
+  });
+
+  res.end();
+});
+
 // POST /api/resolve
 app.post('/api/resolve', (req, res) => {
   const { investigation } = req.body || {};

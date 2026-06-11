@@ -72,6 +72,48 @@
 
     .empty-state{color:var(--text-secondary);font-size:13px;padding:16px;text-align:center;font-style:italic;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
     .placeholder{color:var(--text-secondary);font-size:13px;padding:32px;text-align:center;background:var(--card-bg);border:1px dashed var(--border);border-radius:4px}
+    /* ── Runtime panel ─────────────────────────────────────────────────── */
+    .runtime-panel{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:0;margin-bottom:24px;overflow:hidden;font-family:"Courier New",monospace}
+    .rt-header{background:#161b22;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #30363d}
+    .rt-header .rt-title{font-size:13px;font-weight:700;color:#e6edf3;flex:1}
+    .rt-header .rt-context{font-size:11px;color:#58a6ff;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.2);padding:2px 8px;border-radius:10px}
+    .rt-header .rt-elapsed{font-size:11px;color:#8b949e;margin-left:auto}
+    .rt-stages{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+    .rt-stage{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:6px;border:1px solid #21262d;transition:border-color .2s,background .2s}
+    .rt-stage.waiting{background:#0d1117}
+    .rt-stage.running{background:#0d2137;border-color:#1f6feb;animation:rtpulse 1.5s ease-in-out infinite}
+    .rt-stage.done{background:#0a1f0a;border-color:#238636}
+    .rt-stage.error{background:#1f0a0a;border-color:#da3633}
+    @keyframes rtpulse{0%,100%{border-color:#1f6feb}50%{border-color:#58a6ff}}
+    .rt-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-style:normal}
+    .rt-stage.waiting .rt-icon{background:#21262d;color:#8b949e}
+    .rt-stage.running .rt-icon{background:#1f6feb;color:#fff;animation:rtspin .8s linear infinite}
+    .rt-stage.done    .rt-icon{background:#238636;color:#fff}
+    .rt-stage.error   .rt-icon{background:#da3633;color:#fff}
+    @keyframes rtspin{0%{box-shadow:0 0 0 0 rgba(88,166,255,.4)}70%{box-shadow:0 0 0 8px rgba(88,166,255,0)}100%{box-shadow:0 0 0 0 rgba(88,166,255,0)}}
+    .rt-stage-info{flex:1;min-width:0}
+    .rt-stage-name{font-size:12px;font-weight:700;color:#e6edf3;text-transform:uppercase;letter-spacing:.8px}
+    .rt-stage-msg{font-size:11.5px;color:#8b949e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rt-stage.running .rt-stage-msg{color:#58a6ff}
+    .rt-stage.done    .rt-stage-msg{color:#3fb950}
+    .rt-stage.error   .rt-stage-msg{color:#f85149}
+    .rt-stage-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;white-space:nowrap;flex-shrink:0}
+    .rt-stage.waiting .rt-stage-badge{background:#21262d;color:#8b949e}
+    .rt-stage.running .rt-stage-badge{background:#1f6feb;color:#fff}
+    .rt-stage.done.issues    .rt-stage-badge{background:#b94a3f;color:#fff}
+    .rt-stage.done.no-issues .rt-stage-badge{background:#238636;color:#fff}
+    .rt-stage.error   .rt-stage-badge{background:#da3633;color:#fff}
+    .rt-log{padding:0 20px 16px;display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto}
+    .rt-log-line{font-size:11px;color:#8b949e;display:flex;gap:8px}
+    .rt-log-line .rl-time{color:#58a6ff;flex-shrink:0}
+    .rt-log-line .rl-txt{color:#aab7b8}
+    .rt-log-line.rl-done .rl-txt{color:#3fb950}
+    .rt-log-line.rl-error .rl-txt{color:#f85149}
+    .rt-footer{background:#161b22;border-top:1px solid #21262d;padding:10px 20px;display:flex;align-items:center;gap:10px;font-size:11px;color:#8b949e}
+    .rt-progress-bar{flex:1;height:4px;background:#21262d;border-radius:2px;overflow:hidden}
+    .rt-progress-fill{height:100%;background:#1f6feb;border-radius:2px;transition:width .4s ease}
+    .rt-footer .rt-complete-msg{color:#3fb950;font-weight:700}
+    /* ── end runtime panel ─────────────────────────────────────────────── */
     .resolve-bar{background:#1a2332;border-top:1px solid #30363d;padding:14px 32px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
     .resolve-bar .rb-msg{font-size:13px;color:#aab7b8;flex:1}
     .resolve-bar .rb-msg strong{color:#e74c3c}
@@ -135,7 +177,7 @@
     <h1>Kubernetes Investigation Agent</h1>
     <p>Evidence-gathering layer — inspects pods, logs, events, deployments, and network endpoints.<br/>
        Surfaces what is broken without making any changes.</p>
-    <span class="badge-ro">&#10003; Read-only &nbsp;·&nbsp; No fixes &nbsp;·&nbsp; No AI (yet)</span>
+    <span class="badge-ro">&#10003; Read-only &nbsp;·&nbsp; No fixes &nbsp;·&nbsp; Evidence only</span>
   </div>
 </div>
 
@@ -164,7 +206,8 @@
 </div>
 
 <main id="main-content">
-  <div class="placeholder">&#128269; No investigation run yet.<br/>Select a context above and click <strong>Run Investigation</strong>.</div>
+  <div id="runtime-panel" style="display:none"></div>
+  <div id="results-panel"><div class="placeholder">&#128269; No investigation run yet.<br/>Select a context above and click <strong>Run Investigation</strong>.</div></div>
 </main>
 
 <footer>Floci &mdash; K8s Investigation Agent &mdash; Evidence only, no fixes</footer>
@@ -416,37 +459,157 @@ function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Run investigation ─────────────────────────────────────────────────────────
-async function runInvestigation() {
-  const ctx = document.getElementById('ctx-select').value || null;
-  const ns  = document.getElementById('ns-select').value || null;
-  const btn = document.getElementById('run-btn');
 
+// ── Stage definitions ─────────────────────────────────────────────────────────
+const STAGES = [
+  { key:'pods',        label:'Pods',        icon:'⬡'  },
+  { key:'logs',        label:'Logs',        icon:'📄' },
+  { key:'events',      label:'Events',      icon:'⚡' },
+  { key:'deployments', label:'Deployments', icon:'🔄' },
+  { key:'network',     label:'Network',     icon:'🌐' },
+];
+
+function buildRuntimePanel(ctx, ns) {
+  const stageRows = STAGES.map((s, i) => `
+    <div class="rt-stage waiting" id="rts-${s.key}">
+      <div class="rt-icon" id="rti-${s.key}">${i + 1}</div>
+      <div class="rt-stage-info">
+        <div class="rt-stage-name">${s.label}</div>
+        <div class="rt-stage-msg" id="rtm-${s.key}">Waiting…</div>
+      </div>
+      <div class="rt-stage-badge" id="rtb-${s.key}">—</div>
+    </div>`).join('');
+
+  return `
+    <div class="runtime-panel">
+      <div class="rt-header">
+        <span class="rt-title">🔍 Investigation Runtime</span>
+        <span class="rt-context">${escHtml(ctx)}${ns ? ' / ' + escHtml(ns) : ''}</span>
+        <span class="rt-elapsed" id="rt-elapsed">0.0s</span>
+      </div>
+      <div class="rt-stages">${stageRows}</div>
+      <div class="rt-log" id="rt-log"></div>
+      <div class="rt-footer">
+        <div class="rt-progress-bar"><div class="rt-progress-fill" id="rt-prog" style="width:0%"></div></div>
+        <span id="rt-footer-msg">Starting…</span>
+      </div>
+    </div>`;
+}
+
+function updateStage(key, status, msg, badge, hasIssues) {
+  const el  = document.getElementById('rts-' + key);
+  const icn = document.getElementById('rti-' + key);
+  const msgEl = document.getElementById('rtm-' + key);
+  const bdg = document.getElementById('rtb-' + key);
+  if (!el) return;
+  el.className = `rt-stage ${status}` + (status === 'done' ? (hasIssues ? ' issues' : ' no-issues') : '');
+  if (msgEl) msgEl.textContent = msg;
+  if (bdg)   bdg.textContent   = badge;
+  if (icn) {
+    if (status === 'done')    icn.textContent = '✓';
+    else if (status === 'error') icn.textContent = '✗';
+    else if (status === 'running') icn.textContent = '●';
+  }
+}
+
+function addLogLine(time, text, cls) {
+  const log = document.getElementById('rt-log');
+  if (!log) return;
+  const line = document.createElement('div');
+  line.className = 'rt-log-line' + (cls ? ' ' + cls : '');
+  line.innerHTML = `<span class="rl-time">${escHtml(time)}</span><span class="rl-txt">${escHtml(text)}</span>`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── Run investigation via SSE stream ─────────────────────────────────────────
+function runInvestigation() {
+  const ctx = document.getElementById('ctx-select').value;
+  const ns  = document.getElementById('ns-select').value || null;
+  if (!ctx) { setStatus('warn', 'Please select a cluster first.'); return; }
+
+  const btn = document.getElementById('run-btn');
   btn.disabled = true;
   btn.classList.add('running');
-  btn.querySelector('.spin').style.display = 'inline-block';
-  setStatus('running', `Running investigation${ctx ? ' on context: ' + ctx : ''}${ns ? ', namespace: ' + ns : ' (all namespaces)'}…`);
-  document.getElementById('main-content').innerHTML =
-    '<div class="placeholder" style="padding:48px">&#128269; Investigation in progress…</div>';
 
-  try {
-    const resp = await fetch('/api/investigate', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ context: ctx, namespace: ns })
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
-    const data = await resp.json();
-    renderResults(data);
-  } catch(e) {
-    setStatus('warn', 'Investigation failed: ' + e.message);
-    document.getElementById('main-content').innerHTML =
-      `<div class="placeholder" style="border-color:#e74c3c;color:#e74c3c">&#9888; ${escHtml(e.message)}</div>`;
-  } finally {
+  // Hide resolve bar, show runtime panel, clear old results
+  document.getElementById('resolve-bar').style.display = 'none';
+  document.getElementById('runtime-panel').style.display = 'block';
+  document.getElementById('runtime-panel').innerHTML = buildRuntimePanel(ctx, ns);
+  document.getElementById('results-panel').innerHTML = '';
+
+  setStatus('running', `Running investigation on ${ctx}${ns ? ' / ' + ns : ''}…`);
+
+  const startTime = Date.now();
+  const ticker = setInterval(() => {
+    const el = document.getElementById('rt-elapsed');
+    if (el) el.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  const doneStages = new Set();
+  const url = `/api/investigate/stream?context=${encodeURIComponent(ctx)}` + (ns ? `&namespace=${encodeURIComponent(ns)}` : '');
+  const es  = new EventSource(url);
+
+  es.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+
+    if (ev.stage === 'complete') {
+      es.close();
+      clearInterval(ticker);
+      // Update footer
+      const footer = document.getElementById('rt-footer-msg');
+      const prog   = document.getElementById('rt-prog');
+      if (footer) footer.innerHTML = `<span class="rt-complete-msg">✓ Complete in ${ev.elapsed} — ${ev.total_issues} issue(s) found</span>`;
+      if (prog)   prog.style.width = '100%';
+      addLogLine(ev.elapsed, `Investigation complete — ${ev.total_issues} issue(s) found`, ev.total_issues > 0 ? 'rl-error' : 'rl-done');
+
+      btn.disabled = false;
+      btn.classList.remove('running');
+      setStatus(ev.total_issues > 0 ? 'warn' : 'ok',
+        ev.total_issues > 0
+          ? `Investigation complete — ${ev.total_issues} issue(s) found on ${ctx}`
+          : `Investigation complete — everything looks healthy on ${ctx}`);
+
+      // Render results below runtime panel after short pause
+      setTimeout(() => {
+        renderResults(ev.result);
+      }, 600);
+      return;
+    }
+
+    const stageIdx  = STAGES.findIndex(s => s.key === ev.stage);
+    const progress  = Math.round(((doneStages.size) / STAGES.length) * 100);
+    const progEl = document.getElementById('rt-prog');
+    if (progEl) progEl.style.width = progress + '%';
+
+    if (ev.status === 'running') {
+      updateStage(ev.stage, 'running', ev.message, '●', false);
+      addLogLine(ev.elapsed || '0.0s', ev.message);
+      const footer = document.getElementById('rt-footer-msg');
+      if (footer) footer.textContent = `Stage ${stageIdx + 1}/${STAGES.length} — ${STAGES[stageIdx]?.label}`;
+    } else if (ev.status === 'done') {
+      doneStages.add(ev.stage);
+      const hasIssues = (ev.issues || 0) > 0;
+      const badge = hasIssues ? `${ev.issues} issue${ev.issues > 1 ? 's' : ''}` : `${ev.total} ok`;
+      updateStage(ev.stage, 'done', ev.message, badge, hasIssues);
+      addLogLine(ev.elapsed, ev.message, hasIssues ? 'rl-error' : 'rl-done');
+      const prog2 = document.getElementById('rt-prog');
+      if (prog2) prog2.style.width = Math.round((doneStages.size / STAGES.length) * 100) + '%';
+    } else if (ev.status === 'error') {
+      doneStages.add(ev.stage);
+      updateStage(ev.stage, 'error', ev.message, 'error', false);
+      addLogLine(ev.elapsed, 'Error: ' + ev.message, 'rl-error');
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    clearInterval(ticker);
     btn.disabled = false;
     btn.classList.remove('running');
-    btn.querySelector('.spin').style.display = 'none';
-  }
+    setStatus('warn', 'Investigation stream disconnected.');
+    addLogLine('—', 'Stream error — connection lost', 'rl-error');
+  };
 }
 
 function renderResults(data) {
@@ -466,7 +629,7 @@ function renderResults(data) {
       : `Investigation complete — ${badCount} issue(s) found (context: ${data.context||'default'}).`
   );
 
-  document.getElementById('main-content').innerHTML =
+  document.getElementById('results-panel').innerHTML =
     renderSummary(inv) +
     renderPods(inv.pods || {}) +
     renderLogs(inv.logs || {}) +
