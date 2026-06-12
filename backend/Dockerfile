@@ -2,7 +2,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Install kubectl and kind so the execute endpoint can run upgrade commands
-RUN apk add --no-cache curl ca-certificates && \
+RUN apk add --no-cache curl ca-certificates docker-cli && \
     curl -Lo /usr/local/bin/kubectl \
       "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl" && \
     chmod +x /usr/local/bin/kubectl && \
