@@ -1680,10 +1680,14 @@ app.get('/api/upgrade/setup', async (req, res) => {
   res.end();
 });
 
-// GET /api/upgrade/execute?context=&startFrom= — SSE real-time upgrade execution
+// GET /api/upgrade/execute?context=&startFrom=&currentVer=&latestVer= — SSE real-time upgrade execution
+// currentVer/latestVer let callers skip the cluster query when the cluster is temporarily down
+// (e.g. re-running from the create step after deletion)
 app.get('/api/upgrade/execute', async (req, res) => {
-  const ctx       = req.query.context;
-  const startFrom = req.query.startFrom || null;
+  const ctx        = req.query.context;
+  const startFrom  = req.query.startFrom  || null;
+  const hintCur    = req.query.currentVer || null;
+  const hintLatest = req.query.latestVer  || null;
   if (!ctx) { res.status(400).end(); return; }
 
   res.setHeader('Content-Type',  'text/event-stream');
@@ -1699,23 +1703,32 @@ app.get('/api/upgrade/execute', async (req, res) => {
   try {
     emit({ type: 'status', message: 'Generating upgrade plan…' });
 
-    const ver      = await fetchK8s(ctx, '/version');
-    const srvVer   = ver.gitVersion || `v${ver.major}.${ver.minor}`;
-    const nodeData = await fetchK8s(ctx, '/api/v1/nodes');
-    const nodeList = (nodeData.items || []).map(n => ({
-      name:           n.metadata.name,
-      kubeletVersion: n.status?.nodeInfo?.kubeletVersion || '—',
-      role:           (n.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ||
-                       n.metadata?.labels?.['node-role.kubernetes.io/master']        !== undefined)
-                       ? 'control-plane' : 'worker',
-      status: (n.status?.conditions || []).find(c => c.type === 'Ready')?.status === 'True' ? 'Ready' : 'NotReady',
-    }));
+    let srvVer, nodeList = [];
 
-    let latestVer = srvVer;
-    try {
-      const rel = await fetchGitHub('/repos/kubernetes/kubernetes/releases/latest');
-      latestVer = rel.tag_name;
-    } catch { /* fallback to current */ }
+    if (hintCur) {
+      // Caller supplied version hints — skip live cluster query (cluster may be down during upgrade)
+      srvVer = hintCur;
+    } else {
+      const ver  = await fetchK8s(ctx, '/version');
+      srvVer     = ver.gitVersion || `v${ver.major}.${ver.minor}`;
+      const nodeData = await fetchK8s(ctx, '/api/v1/nodes');
+      nodeList = (nodeData.items || []).map(n => ({
+        name:           n.metadata.name,
+        kubeletVersion: n.status?.nodeInfo?.kubeletVersion || '—',
+        role:           (n.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ||
+                         n.metadata?.labels?.['node-role.kubernetes.io/master']        !== undefined)
+                         ? 'control-plane' : 'worker',
+        status: (n.status?.conditions || []).find(c => c.type === 'Ready')?.status === 'True' ? 'Ready' : 'NotReady',
+      }));
+    }
+
+    let latestVer = hintLatest || srvVer;
+    if (!hintLatest) {
+      try {
+        const rel = await fetchGitHub('/repos/kubernetes/kubernetes/releases/latest');
+        latestVer = rel.tag_name;
+      } catch { /* fallback to current */ }
+    }
 
     const plan = generateUpgradePlan(srvVer, latestVer, ctx, nodeList);
 
@@ -1741,8 +1754,8 @@ app.get('/api/upgrade/execute', async (req, res) => {
     }
 
     // Build a temp kubeconfig with host.docker.internal so kubectl can reach the API server
-    const kcPath = makeKubectlConfig(ctx);
-    const env = { ...process.env, KUBECONFIG: kcPath };
+    let kcPath = makeKubectlConfig(ctx);
+    let env = { ...process.env, KUBECONFIG: kcPath };
 
     const pause = ms => new Promise(r => setTimeout(r, ms));
 
@@ -1832,6 +1845,15 @@ app.get('/api/upgrade/execute', async (req, res) => {
         }
         await pause(500);
         emit({ type: 'step-done', stepId: step.id });
+
+        // After the cluster is recreated the kubeconfig has a new port —
+        // regenerate the temp kubeconfig so subsequent steps use the right endpoint
+        if (step.id === 'create') {
+          try { fs.unlinkSync(kcPath); } catch { /* ignore */ }
+          kcPath = makeKubectlConfig(ctx);
+          env.KUBECONFIG = kcPath;
+          await pause(2000); // give kubelet a moment to become ready
+        }
       }
     } finally {
       try { fs.unlinkSync(kcPath); } catch { /* ignore */ }

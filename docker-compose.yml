@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     volumes:
-      - ${USERPROFILE}/.kube:/root/.kube:ro
+      - ${USERPROFILE}/.kube:/root/.kube:rw
       - /var/run/docker.sock:/var/run/docker.sock
 
   dashboard:

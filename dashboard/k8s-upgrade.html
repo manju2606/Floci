@@ -810,8 +810,13 @@ function startExecution() {
   _execStepMap = {};
 
   if (_execEs) { _execEs.close(); _execEs = null; }
-  const startFrom = document.getElementById('modal-start-from')?.value || '';
-  const execUrl = `/api/upgrade/execute?context=${encodeURIComponent(ctx)}${startFrom ? '&startFrom=' + encodeURIComponent(startFrom) : ''}`;
+  const startFrom  = document.getElementById('modal-start-from')?.value || '';
+  const currentVer = window._upgradePlan?.current || '';
+  const latestVer  = window._upgradePlan?.latest  || '';
+  let execUrl = `/api/upgrade/execute?context=${encodeURIComponent(ctx)}`;
+  if (startFrom)  execUrl += `&startFrom=${encodeURIComponent(startFrom)}`;
+  if (currentVer) execUrl += `&currentVer=${encodeURIComponent(currentVer)}`;
+  if (latestVer)  execUrl += `&latestVer=${encodeURIComponent(latestVer)}`;
   _execEs = new EventSource(execUrl);
 
   _execEs.onmessage = e => {
