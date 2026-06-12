@@ -1867,6 +1867,83 @@ app.get('/api/upgrade/execute', async (req, res) => {
   res.end();
 });
 
+// GET /api/upgrade/revert?context=&currentVer=&latestVer= — SSE revert to previous version
+app.get('/api/upgrade/revert', async (req, res) => {
+  const ctx        = req.query.context;
+  const currentVer = req.query.currentVer; // original (pre-upgrade) version to restore
+  const latestVer  = req.query.latestVer;  // version that was attempted
+  if (!ctx || !currentVer) { res.status(400).end(); return; }
+
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit  = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const pause = ms  => new Promise(r => setTimeout(r, ms));
+
+  function runCmd(cmd, env) {
+    return new Promise(resolve => {
+      let stdout = '', stderr = '';
+      const proc = spawn(cmd, [], { shell: true, cwd: '/tmp', env: env || process.env });
+      proc.stdout.on('data', d => { stdout += d; emit({ type: 'output', stream: 'stdout', text: d.toString() }); });
+      proc.stderr.on('data', d => { stderr += d; emit({ type: 'output', stream: 'stderr', text: d.toString() }); });
+      proc.on('close', code => resolve({ exitCode: code || 0, stdout, stderr }));
+    });
+  }
+
+  try {
+    const clusterName = ctx.replace(/^kind-/i, '');
+
+    // Step 1 — delete the current (partially upgraded) cluster
+    emit({ type: 'status', message: `Deleting cluster "${clusterName}"…` });
+    emit({ type: 'cmd-start', cmd: `kind delete cluster --name ${clusterName}` });
+    const del = await runCmd(`kind delete cluster --name ${clusterName}`);
+    emit({ type: 'cmd-done', exitCode: del.exitCode });
+    if (del.exitCode !== 0) {
+      emit({ type: 'complete', success: false });
+      return res.end();
+    }
+    await pause(1500);
+
+    // Step 2 — recreate with the original image version
+    emit({ type: 'status', message: `Recreating cluster with ${currentVer}…` });
+    const sedCmd = `sed -e 's|image: kindest/node:.*|image: kindest/node:${currentVer}|g' -e '/apiServerPort/d' /kind-cluster.yaml > /tmp/kind-revert.yaml`;
+    emit({ type: 'cmd-start', cmd: sedCmd });
+    await runCmd(sedCmd);
+    emit({ type: 'cmd-done', exitCode: 0 });
+    await pause(500);
+
+    const createCmd = `kind create cluster --name ${clusterName} --image kindest/node:${currentVer} --config /tmp/kind-revert.yaml`;
+    emit({ type: 'cmd-start', cmd: createCmd });
+    const create = await runCmd(createCmd);
+    emit({ type: 'cmd-done', exitCode: create.exitCode });
+    if (create.exitCode !== 0) {
+      emit({ type: 'complete', success: false });
+      return res.end();
+    }
+    await pause(1000);
+
+    // Step 3 — verify
+    emit({ type: 'status', message: 'Verifying reverted cluster…' });
+    const kcPath = makeKubectlConfig(ctx);
+    const env    = { ...process.env, KUBECONFIG: kcPath };
+    emit({ type: 'cmd-start', cmd: 'kubectl get nodes' });
+    const verify = await runCmd(`kubectl --context="${ctx}" get nodes -o wide`, env);
+    emit({ type: 'cmd-done', exitCode: verify.exitCode });
+    try { fs.unlinkSync(kcPath); } catch {}
+
+    emit({ type: 'status', message: verify.exitCode === 0 ? `Cluster restored to ${currentVer}` : 'Revert complete — check nodes manually' });
+    emit({ type: 'complete', success: true });
+  } catch (err) {
+    emit({ type: 'error', message: err.message });
+  }
+
+  res.end();
+});
+
+
 // GET /api/s3/bucket/:name/objects — list objects at a given prefix (folder nav)
 app.get('/api/s3/bucket/:name/objects', async (req, res) => {
   const bucket = req.params.name;

@@ -175,6 +175,14 @@
     .utd-card p{font-size:14px;color:var(--text-secondary);line-height:1.6}
 
     .empty{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
+    /* Retry / Revert action bar */
+    .exec-action-bar{display:flex;align-items:center;gap:16px;padding:12px 20px;background:#1a0a0a;border-top:1px solid #5c1a1a;flex-shrink:0;flex-wrap:wrap}
+    .exec-action-msg{font-size:13px;color:#e74c3c;font-weight:700;flex:1}
+    .exec-action-btns{display:flex;gap:10px;flex-wrap:wrap}
+    .exec-action-btn{padding:8px 18px;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;transition:background .15s}
+    .exec-action-btn.retry{background:#e67e22;color:#fff}.exec-action-btn.retry:hover{background:#ca6f1e}
+    .exec-action-btn.revert{background:#2d1a1a;color:#e74c3c;border:1px solid #5c1a1a}.exec-action-btn.revert:hover{background:#3d1a1a}
+
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
 
     /* Setup environment panel */
@@ -403,9 +411,33 @@
     </div>
     <div class="exec-terminal" id="exec-terminal"></div>
   </div>
+  <!-- Action bar — shown on step failure -->
+  <div class="exec-action-bar" id="exec-action-bar" style="display:none">
+    <div class="exec-action-msg" id="exec-action-msg">&#10007; Step failed</div>
+    <div class="exec-action-btns">
+      <button class="exec-action-btn retry" id="exec-retry-btn" onclick="retryFromFailedStep()">&#8635; Retry from this step</button>
+      <button class="exec-action-btn revert" id="exec-revert-btn" onclick="showRevertConfirm()">&#8617; Revert upgrade</button>
+    </div>
+  </div>
   <div class="exec-statusbar">
     <div class="sb-indicator" id="exec-sb-dot"></div>
     <span id="exec-sb-msg">Initialising…</span>
+  </div>
+</div>
+
+<!-- Revert confirmation modal -->
+<div class="modal-overlay" id="revert-modal-overlay" style="display:none">
+  <div class="modal">
+    <h2>&#8617; Revert Upgrade</h2>
+    <div class="modal-body">
+      <p>This will <strong>delete</strong> the current cluster and recreate it using the original version <strong id="revert-modal-ver"></strong>.</p>
+      <div class="warn-list">&#9679; All workloads on the current cluster will be lost.<br/>&#9679; You can restore from the backup taken at the start of the upgrade.</div>
+      <p style="font-size:12px;color:#8b949e;margin-top:10px">Backup location (inside backend container): <code>/tmp/cluster-backup-&lt;ver&gt;.yaml</code></p>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeRevertModal()">Cancel</button>
+      <button class="modal-confirm" style="background:#c0392b" onclick="startRevert()">&#8617; Revert Now</button>
+    </div>
   </div>
 </div>
 
@@ -795,6 +827,8 @@ function closeModal() {
 // ── Execution terminal ────────────────────────────────────────────────────────
 let _execEs = null;
 let _execStepMap = {};
+let _failedStepId = null;
+let _revertEs = null;
 
 function startExecution() {
   closeModal();
@@ -818,7 +852,10 @@ function startExecution() {
   if (currentVer) execUrl += `&currentVer=${encodeURIComponent(currentVer)}`;
   if (latestVer)  execUrl += `&latestVer=${encodeURIComponent(latestVer)}`;
   _execEs = new EventSource(execUrl);
+  bindExecHandlers();
+}
 
+function bindExecHandlers() {
   _execEs.onmessage = e => {
     const d = JSON.parse(e.data);
     const term = document.getElementById('exec-terminal');
@@ -932,6 +969,8 @@ function startExecution() {
         setExecStatus('Upgrade stopped due to command failure', 'error');
         _execEs.close(); _execEs = null;
         document.getElementById('exec-ov-close').disabled = false;
+        _failedStepId = d.stepId;
+        showActionBar(d.stepId);
         break;
 
       case 'complete':
@@ -966,7 +1005,10 @@ function startExecution() {
 }
 
 function closeExecOverlay() {
-  if (_execEs) { _execEs.close(); _execEs = null; }
+  if (_execEs)   { _execEs.close();   _execEs   = null; }
+  if (_revertEs) { _revertEs.close(); _revertEs = null; }
+  hideActionBar();
+  document.getElementById('exec-ov-title').textContent = '⚡ Upgrade Execution';
   document.getElementById('exec-overlay').style.display = 'none';
 }
 
@@ -1110,6 +1152,117 @@ function runSetup() {
       resultBar.className = 'setup-result-bar fail';
       resultBar.textContent = 'Connection lost — check backend is running.';
     }
+  };
+}
+
+// ── Retry / Revert ────────────────────────────────────────────────────────────
+function showActionBar(failedStepId) {
+  const plan  = window._upgradePlan;
+  const steps = plan?.steps || [];
+  const idx   = steps.findIndex(s => s.id === failedStepId);
+  const label = idx >= 0 ? `Step ${idx + 1}: ${steps[idx].title}` : failedStepId;
+
+  document.getElementById('exec-action-msg').innerHTML =
+    `&#10007; Failed at <strong>${escHtml(label)}</strong> — choose how to proceed`;
+
+  // Only offer revert for kind clusters (kubeadm revert is unsupported)
+  const isKind = plan?.clusterType === 'kind';
+  document.getElementById('exec-revert-btn').style.display = isKind ? 'flex' : 'none';
+
+  document.getElementById('exec-action-bar').style.display = 'flex';
+}
+
+function hideActionBar() {
+  document.getElementById('exec-action-bar').style.display = 'none';
+}
+
+function retryFromFailedStep() {
+  if (!_failedStepId) return;
+  hideActionBar();
+
+  const ctx        = document.getElementById('ctx-select').value;
+  const currentVer = window._upgradePlan?.current || '';
+  const latestVer  = window._upgradePlan?.latest  || '';
+
+  // Clear terminal and restart SSE from the failed step
+  document.getElementById('exec-terminal').innerHTML = '';
+  document.getElementById('exec-sb-dot').className = 'sb-indicator';
+  document.getElementById('exec-sb-msg').textContent = 'Retrying…';
+  document.getElementById('exec-ov-close').disabled = true;
+
+  if (_execEs) { _execEs.close(); _execEs = null; }
+  let url = `/api/upgrade/execute?context=${encodeURIComponent(ctx)}&startFrom=${encodeURIComponent(_failedStepId)}`;
+  if (currentVer) url += `&currentVer=${encodeURIComponent(currentVer)}`;
+  if (latestVer)  url += `&latestVer=${encodeURIComponent(latestVer)}`;
+  _execEs = new EventSource(url);
+  bindExecHandlers();
+}
+
+function showRevertConfirm() {
+  const ver = window._upgradePlan?.current || 'original version';
+  document.getElementById('revert-modal-ver').textContent = ver;
+  document.getElementById('revert-modal-overlay').style.display = 'flex';
+}
+
+function closeRevertModal() {
+  document.getElementById('revert-modal-overlay').style.display = 'none';
+}
+
+function startRevert() {
+  closeRevertModal();
+  hideActionBar();
+
+  const ctx        = document.getElementById('ctx-select').value;
+  const currentVer = window._upgradePlan?.current || '';
+  const latestVer  = window._upgradePlan?.latest  || '';
+
+  // Use the terminal overlay already open — clear and reuse
+  document.getElementById('exec-ov-title').textContent = '⟲ Reverting Upgrade';
+  document.getElementById('exec-terminal').innerHTML = '';
+  document.getElementById('exec-sb-dot').className = 'sb-indicator';
+  document.getElementById('exec-sb-msg').textContent = 'Reverting…';
+  document.getElementById('exec-ov-close').disabled = true;
+
+  if (_revertEs) { _revertEs.close(); _revertEs = null; }
+  let url = `/api/upgrade/revert?context=${encodeURIComponent(ctx)}`;
+  if (currentVer) url += `&currentVer=${encodeURIComponent(currentVer)}`;
+  if (latestVer)  url += `&latestVer=${encodeURIComponent(latestVer)}`;
+  _revertEs = new EventSource(url);
+
+  const term = document.getElementById('exec-terminal');
+  _revertEs.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.type === 'status')   { setExecStatus(d.message, 'running'); appendTermLine('term-info', '⟲ ' + d.message); }
+    if (d.type === 'output')   { appendOutput(d.stream, d.text, term); scrollTerm(); }
+    if (d.type === 'cmd-start'){ appendTermLine('term-cmd', '$ ' + d.cmd); scrollTerm(); }
+    if (d.type === 'cmd-done') {
+      appendTermLine(d.exitCode === 0 ? 'term-ok' : 'term-error',
+        d.exitCode === 0 ? '✓ exit 0' : `✗ exit ${d.exitCode}`);
+    }
+    if (d.type === 'complete') {
+      _revertEs.close(); _revertEs = null;
+      document.getElementById('exec-ov-close').disabled = false;
+      if (d.success) {
+        appendTermLine('term-complete', '✓ Cluster reverted to ' + (currentVer || 'original version'));
+        setExecStatus('Revert complete', 'done');
+      } else {
+        appendTermLine('term-error', '✗ Revert failed — check output above');
+        setExecStatus('Revert failed', 'error');
+      }
+      scrollTerm();
+    }
+    if (d.type === 'error') {
+      _revertEs.close(); _revertEs = null;
+      appendTermLine('term-error', 'Error: ' + d.message);
+      setExecStatus('Error', 'error');
+      document.getElementById('exec-ov-close').disabled = false;
+    }
+  };
+  _revertEs.onerror = () => {
+    if (!_revertEs) return;
+    _revertEs.close(); _revertEs = null;
+    appendTermLine('term-error', 'Connection lost');
+    document.getElementById('exec-ov-close').disabled = false;
   };
 }
 
