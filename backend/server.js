@@ -1610,8 +1610,27 @@ app.get('/api/upgrade/setup', async (req, res) => {
       cmd: 'kind version',
       hint: 'kind is not in PATH — Kind cluster operations (delete/create) will not work' },
     { id: 'docker',   label: 'Docker socket accessible',
-      cmd: 'docker info --format "Server Version: {{.ServerVersion}} | Containers: {{.Containers}}"',
-      hint: 'Docker socket is not mounted — kind commands cannot manage clusters from inside the container' },
+      fn: () => new Promise(resolve => {
+        const http = require('http');
+        const req2 = http.request(
+          { socketPath: '/var/run/docker.sock', path: '/info', method: 'GET' },
+          res2 => {
+            let body = '';
+            res2.on('data', d => { body += d; });
+            res2.on('end', () => {
+              try {
+                const info = JSON.parse(body);
+                resolve({ exitCode: 0, stdout: `Server Version: ${info.ServerVersion} | Containers: ${info.Containers}`, stderr: '' });
+              } catch {
+                resolve({ exitCode: 0, stdout: 'Docker socket reachable', stderr: '' });
+              }
+            });
+          }
+        );
+        req2.on('error', err => resolve({ exitCode: 1, stdout: '', stderr: err.message }));
+        req2.end();
+      }),
+      hint: 'Docker socket is not mounted — add "- /var/run/docker.sock:/var/run/docker.sock" to k8s-backend volumes in docker-compose.yml' },
     { id: 'connect',  label: `Cluster reachable — ${ctx}`,
       cmd: `kubectl --context="${ctx}" cluster-info`,
       hint: 'Cannot reach the Kubernetes API server — check the cluster is running and the context is correct' },
@@ -1633,7 +1652,7 @@ app.get('/api/upgrade/setup', async (req, res) => {
     emit({ type: 'check-start', id: check.id, label: check.label });
     await pause(700);
 
-    const { exitCode, stdout, stderr } = await runCheck(check.cmd);
+    const { exitCode, stdout, stderr } = check.fn ? await check.fn() : await runCheck(check.cmd);
     const pass = exitCode === 0;
     if (!pass) allPass = false;
 
