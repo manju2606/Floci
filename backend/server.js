@@ -30,6 +30,37 @@ function readKubeconfig() {
   return yaml.load(fs.readFileSync(path, 'utf8'));
 }
 
+// Write a temp kubeconfig with 127.0.0.1/localhost → host.docker.internal
+// so kubectl subprocesses can reach Kind API servers from inside the container.
+function makeKubectlConfig(contextName) {
+  const kc  = readKubeconfig();
+  const out  = JSON.parse(JSON.stringify(kc)); // deep clone
+  (out.clusters || []).forEach(c => {
+    if (c.cluster && c.cluster.server) {
+      c.cluster.server = c.cluster.server
+        .replace('https://127.0.0.1', 'https://host.docker.internal')
+        .replace('https://localhost',  'https://host.docker.internal');
+    }
+  });
+  out['current-context'] = contextName;
+  const tmpPath = `/tmp/kc-exec-${Date.now()}.yaml`;
+  fs.writeFileSync(tmpPath, yaml.dump(out));
+  return tmpPath;
+}
+
+// Return a human-readable resolution tip for a failed command
+function resolutionTip(cmd, stderr) {
+  if (/connection refused|no route to host/i.test(stderr))
+    return 'The Kubernetes API server is unreachable. Verify the cluster is running with: kubectl cluster-info';
+  if (/unauthorized|forbidden/i.test(stderr))
+    return 'Authentication or RBAC error. Check your kubeconfig credentials and cluster role bindings.';
+  if (/not found|no such file/i.test(stderr) || /127$/.test(''+1))
+    return `"${cmd.split(' ')[0]}" was not found. It may need to run on a different machine or be installed separately.`;
+  if (/timeout/i.test(stderr))
+    return 'The command timed out. Check cluster health and network connectivity.';
+  return 'Check the error output above and verify your cluster state before retrying.';
+}
+
 function request(url, opts, timeout) {
   return new Promise((resolve, reject) => {
     const req = https.request(url, opts, res => {
@@ -1501,8 +1532,6 @@ app.get('/api/upgrade/execute', async (req, res) => {
     emit({ type: 'plan', totalSteps: plan.steps.length, current: plan.current, latest: plan.latest,
            steps: plan.steps.map(s => ({ id: s.id, title: s.title })) });
 
-    const env = { ...process.env, KUBECONFIG: '/root/.kube/config' };
-
     // Commands that must run on the actual Kubernetes node — cannot execute from container
     const NODE_ONLY_PREFIXES = ['apt-get', 'apt ', 'yum ', 'dnf ', 'systemctl', 'kubeadm'];
     function isNodeOnly(cmd) {
@@ -1510,65 +1539,96 @@ app.get('/api/upgrade/execute', async (req, res) => {
       return NODE_ONLY_PREFIXES.some(p => t.startsWith(p));
     }
     function nodeOnlyTip(cmd) {
-      if (/^apt(-get)?/.test(cmd.trim())) return 'Package manager — run on each Kubernetes node via SSH.';
-      if (/^systemctl/.test(cmd.trim()))  return 'Systemd — run on each Kubernetes node via SSH.';
-      if (/^kubeadm/.test(cmd.trim()))    return 'kubeadm — run on the control-plane node via SSH.';
+      if (/^apt(-get)?/i.test(cmd.trim())) return 'Package manager — run on each Kubernetes node via SSH.';
+      if (/^systemctl/i.test(cmd.trim()))  return 'Systemd — run on each Kubernetes node via SSH.';
+      if (/^kubeadm/i.test(cmd.trim()))    return 'kubeadm — run on the control-plane node via SSH.';
       return 'This command must run directly on the Kubernetes node via SSH.';
     }
 
-    for (let si = 0; si < plan.steps.length; si++) {
-      if (aborted) break;
-      const step = plan.steps[si];
-      emit({ type: 'step-start', idx: si, stepId: step.id, title: step.title, total: plan.steps.length });
+    // Build a temp kubeconfig with host.docker.internal so kubectl can reach the API server
+    const kcPath = makeKubectlConfig(ctx);
+    const env = { ...process.env, KUBECONFIG: kcPath };
 
-      let stepFailed = false;
+    const pause = ms => new Promise(r => setTimeout(r, ms));
 
-      for (const rawCmd of step.commands) {
+    try {
+      for (let si = 0; si < plan.steps.length; si++) {
         if (aborted) break;
-        const trimmed = rawCmd.trim();
-        if (!trimmed || trimmed.startsWith('#')) {
-          emit({ type: 'cmd-skip', cmd: rawCmd });
-          continue;
-        }
+        const step = plan.steps[si];
 
-        // Node-only commands — skip execution, show SSH tip instead
-        if (isNodeOnly(trimmed)) {
-          emit({ type: 'cmd-node-only', cmd: trimmed, tip: nodeOnlyTip(trimmed) });
-          continue;
-        }
+        // Pause between steps so the output is easy to follow
+        if (si > 0) await pause(2000);
 
-        // Inject --context into kubectl commands
-        let execCmd = trimmed;
-        if (execCmd.startsWith('kubectl ') && !execCmd.includes('--context')) {
-          execCmd = `kubectl --context="${ctx}" ${execCmd.slice(8)}`;
-        }
+        emit({ type: 'step-start', idx: si, stepId: step.id, title: step.title, total: plan.steps.length });
+        await pause(600);
 
-        emit({ type: 'cmd-start', cmd: trimmed });
+        let stepFailed = false;
 
-        const exitCode = await new Promise(resolve => {
-          const proc = spawn(execCmd, [], { env, shell: true, cwd: '/tmp' });
-          proc.stdout.on('data', d => emit({ type: 'output', stream: 'stdout', text: d.toString() }));
-          proc.stderr.on('data', d => emit({ type: 'output', stream: 'stderr', text: d.toString() }));
-          proc.on('error', err => {
-            emit({ type: 'output', stream: 'stderr', text: `Error: ${err.message}\n` });
-            resolve(1);
+        for (const rawCmd of step.commands) {
+          if (aborted) break;
+          const trimmed = rawCmd.trim();
+
+          if (!trimmed || trimmed.startsWith('#')) {
+            emit({ type: 'cmd-skip', cmd: rawCmd });
+            await pause(300);
+            continue;
+          }
+
+          // Node-only commands — show SSH tip and continue
+          if (isNodeOnly(trimmed)) {
+            emit({ type: 'cmd-node-only', cmd: trimmed, tip: nodeOnlyTip(trimmed) });
+            await pause(1200);
+            continue;
+          }
+
+          // Inject --context into kubectl commands
+          let execCmd = trimmed;
+          if (execCmd.startsWith('kubectl ') && !execCmd.includes('--context')) {
+            execCmd = `kubectl --context="${ctx}" ${execCmd.slice(8)}`;
+          }
+
+          await pause(500);
+          emit({ type: 'cmd-start', cmd: trimmed });
+
+          let stderrBuf = '';
+          const exitCode = await new Promise(resolve => {
+            const proc = spawn(execCmd, [], { env, shell: true, cwd: '/tmp' });
+            proc.stdout.on('data', d => emit({ type: 'output', stream: 'stdout', text: d.toString() }));
+            proc.stderr.on('data', d => {
+              stderrBuf += d.toString();
+              emit({ type: 'output', stream: 'stderr', text: d.toString() });
+            });
+            proc.on('error', err => {
+              stderrBuf += err.message;
+              emit({ type: 'output', stream: 'stderr', text: `Error: ${err.message}\n` });
+              resolve(1);
+            });
+            proc.on('close', resolve);
           });
-          proc.on('close', resolve);
-        });
 
-        emit({ type: 'cmd-done', exitCode });
+          await pause(400);
+          emit({ type: 'cmd-done', exitCode });
 
-        if (exitCode !== 0) {
-          stepFailed = true;
+          if (exitCode !== 0) {
+            await pause(600);
+            emit({ type: 'cmd-resolution', cmd: trimmed, tip: resolutionTip(trimmed, stderrBuf) });
+            stepFailed = true;
+            break;
+          }
+
+          await pause(600);
+        }
+
+        if (stepFailed) {
+          await pause(500);
+          emit({ type: 'step-error', stepId: step.id });
           break;
         }
+        await pause(500);
+        emit({ type: 'step-done', stepId: step.id });
       }
-
-      if (stepFailed) {
-        emit({ type: 'step-error', stepId: step.id });
-        break;
-      }
-      emit({ type: 'step-done', stepId: step.id });
+    } finally {
+      try { fs.unlinkSync(kcPath); } catch { /* ignore */ }
     }
 
     emit({ type: 'complete', aborted });
