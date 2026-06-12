@@ -10,8 +10,9 @@ RUN apk add --no-cache curl ca-certificates docker-cli && \
       "https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64" && \
     chmod +x /usr/local/bin/kind
 
-COPY package.json .
+COPY backend/package.json .
 RUN npm install
-COPY server.js .
+COPY backend/server.js .
+COPY kind-cluster.yaml /kind-cluster.yaml
 EXPOSE 3000
 CMD ["node", "server.js"]

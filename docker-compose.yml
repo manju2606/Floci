@@ -5,7 +5,9 @@ services:
       - "4566:4566"
 
   k8s-backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     volumes:
       - ${USERPROFILE}/.kube:/root/.kube:ro
       - /var/run/docker.sock:/var/run/docker.sock
