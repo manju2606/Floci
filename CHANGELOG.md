@@ -4,6 +4,37 @@ All notable changes to the Floci local DevOps dashboard are documented here.
 
 ---
 
+## [v4.2] — 2026-06-12
+
+### Live Version Banner in Upgrade Agent
+
+- Version banner added inside the runtime panel — fills in progressively as the SSE stream runs
+- **Phase 1 done** → Current version pill appears immediately (blue, e.g. `v1.28.0`)
+- **Phase 3 done** → Latest version pill appears alongside it with an arrow, plus a green **✓ Up to date** or orange **↑ Upgrade available** badge — before the analysis phase even starts
+- Users see both versions seconds earlier rather than waiting for the full results card to render
+- `setVersionBanner()` used by both the mid-stream banner and the final status strip message
+
+---
+
+## [v4.1] — 2026-06-12
+
+### K8s Upgrade Agent
+
+New agent page (`k8s-upgrade.html`) that checks the cluster's Kubernetes version against the latest stable release and generates a tailored upgrade playbook.
+
+#### Features
+- **4-phase SSE stream**: Cluster Connection → Node Versions → Latest K8s Release (GitHub API) → Upgrade Analysis
+- **Cluster-type detection**: Kind clusters (detected by `kind-` context prefix) get delete + recreate steps; kubeadm clusters get one-minor-at-a-time `kubeadm upgrade apply` steps
+- **Version comparison card**: current version (blue badge) vs latest stable (green badge) with skew count
+- **Upgrade path visualisation**: `v1.28.0 → v1.29.x → v1.30.x → v1.31.2` showing each required hop
+- **Nodes table**: name, role (control-plane / worker), kubelet version, Ready status
+- **Upgrade playbook**: numbered step cards with click-to-copy commands and orange warning boxes on destructive operations (e.g. Kind cluster recreation)
+- Graceful fallback if GitHub API is unreachable (still shows current version)
+- New card on main dashboard; **↑ Upgrade** nav link added to K8s Investigation Agent header
+- Backend: `GET /api/upgrade/stream`, `generateUpgradePlan()`, `parseVersion()`, `fetchGitHub()`
+
+---
+
 ## [v4.0] — 2026-06-12 · Agent Added
 
 **Milestone release — K8s Agent suite is complete.**
