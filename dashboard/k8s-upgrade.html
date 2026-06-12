@@ -162,6 +162,11 @@
     .vb-badge.uptodate{background:rgba(39,174,96,.2);color:#3fb950;border:1px solid rgba(63,185,80,.3)}
     .vb-badge.outdated{background:rgba(230,126,34,.2);color:#e67e22;border:1px solid rgba(230,126,34,.3)}
     .vb-badge.checking{background:#1c2128;color:#6e7681}
+    .vb-time{display:flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.25);border-radius:16px;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .vb-time-icon{font-size:13px}
+    .vb-time-val{font-size:13px;font-weight:700;color:#e67e22}
+    .vb-time-note{font-size:11px;color:#8b949e;margin-left:4px}
+    .step-time{margin-left:auto;font-size:11px;color:#e67e22;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.25);padding:3px 10px;border-radius:12px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:4px}
 
     /* Up-to-date state */
     .utd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:48px 32px;text-align:center;margin-bottom:24px}
@@ -180,7 +185,7 @@
   <div class="right">
     <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
     <a class="back inv" href="k8s-agent.html">&#128269; Investigate</a>
-    <a class="back" href="index.html">&#8592; Dashboard</a>
+    <a class="back" href="kubernetes.html">&#8592; Kubernetes</a>
   </div>
 </header>
 
@@ -234,6 +239,11 @@
       </div>
       <div class="vb-status">
         <span class="vb-badge checking" id="vb-badge">Checking…</span>
+      </div>
+      <div class="vb-time" id="vb-time" style="display:none">
+        <span class="vb-time-icon">&#8987;</span>
+        <span class="vb-time-val" id="vb-time-val"></span>
+        <span class="vb-time-note" id="vb-time-note"></span>
       </div>
     </div>
   </div>
@@ -311,6 +321,7 @@ function initRuntimePanel(ctx) {
   document.getElementById('vb-arrow').style.display = 'none';
   document.getElementById('vb-badge').className = 'vb-badge checking';
   document.getElementById('vb-badge').textContent = 'Checking…';
+  document.getElementById('vb-time').style.display = 'none';
   document.getElementById('runtime-panel').style.display = 'block';
   document.getElementById('results').style.display = 'none';
   document.getElementById('results').innerHTML = '';
@@ -430,6 +441,14 @@ function copyCmd(el) {
 }
 
 function renderResults(plan) {
+  // Show estimated time in version banner
+  if (plan.estimatedTime && plan.estimatedTime.label && plan.estimatedTime.label !== 'None') {
+    const timeEl = document.getElementById('vb-time');
+    document.getElementById('vb-time-val').textContent = plan.estimatedTime.label;
+    document.getElementById('vb-time-note').textContent = plan.estimatedTime.note ? '· ' + plan.estimatedTime.note : '';
+    timeEl.style.display = 'flex';
+  }
+
   let html = '';
 
   // ── Version comparison card ──────────────────────────────────────────────────
@@ -515,11 +534,15 @@ function renderResults(plan) {
         const isComment = c.trim().startsWith('#') || c.trim() === '';
         return `<div class="cmd-block ${isComment ? 'comment' : ''}" onclick="copyCmd(this)">${escHtml(c)}</div>`;
       }).join('');
+      const timeHtml = step.estimatedTime
+        ? `<div class="step-time">&#8987; ${escHtml(step.estimatedTime)}</div>`
+        : '';
       html += `
       <div class="step-card">
         <div class="step-hdr">
           <div class="step-num">${i + 1}</div>
           <div class="step-title">${escHtml(step.title)}</div>
+          ${timeHtml}
         </div>
         <div class="step-body">
           ${warningHtml}

@@ -1264,6 +1264,29 @@ function parseVersion(v) {
            str: `v${m[1]}.${m[2]}.${m[3]}` };
 }
 
+function estimateUpgradeTime(isKind, skew) {
+  if (skew <= 0) return { label: 'None', note: 'Already on latest', stepTimes: {} };
+  if (isKind) {
+    return {
+      label: '5–10 min',
+      note: 'Backup ~2 min · Delete ~30 sec · Recreate cluster ~3–7 min · Verify ~1 min',
+      stepTimes: { backup: '~2 min', delete: '~30 sec', create: '~3–7 min', verify: '~1 min' },
+    };
+  }
+  // kubeadm: ~20–35 min per minor version hop
+  const minT = skew * 20;
+  const maxT = skew * 35;
+  const perHop = '~20–35 min per hop';
+  const stepTimes = {};
+  for (let i = 1; i <= skew; i++) stepTimes[`upgrade-to-v${i}`] = '~20–35 min';
+  stepTimes['verify'] = '~2 min';
+  return {
+    label: skew === 1 ? '20–35 min' : `${minT}–${maxT} min`,
+    note: `${perHop} · ${skew} hop${skew !== 1 ? 's' : ''} required · Total ~${minT}–${maxT} min`,
+    stepTimes,
+  };
+}
+
 function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
   const cur = parseVersion(serverVersion);
   const lat = parseVersion(latestVersion);
@@ -1273,6 +1296,7 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
   const skew      = (lat.major - cur.major) * 100 + (lat.minor - cur.minor);
   const upToDate  = skew <= 0;
   const clusterType = isKind ? 'kind' : 'kubeadm';
+  const timeEst   = estimateUpgradeTime(isKind, skew);
 
   // Build minor-version path (must upgrade one minor at a time for kubeadm)
   const path = [];
@@ -1288,7 +1312,7 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
     if (isKind) {
       const clusterName = contextName.replace(/^kind-/i, '');
       steps.push({
-        id: 'backup', title: 'Backup workloads',
+        id: 'backup', title: 'Backup workloads', estimatedTime: timeEst.stepTimes.backup,
         warning: 'Kind clusters must be recreated to upgrade — existing workloads will be lost unless backed up.',
         commands: [
           `kubectl get all -A -o yaml > cluster-backup-${cur.str}.yaml`,
@@ -1297,12 +1321,12 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
         ],
       });
       steps.push({
-        id: 'delete', title: `Delete cluster "${clusterName}"`,
+        id: 'delete', title: `Delete cluster "${clusterName}"`, estimatedTime: timeEst.stepTimes.delete,
         warning: 'This permanently removes the cluster and all its data.',
         commands: [`kind delete cluster --name ${clusterName}`],
       });
       steps.push({
-        id: 'create', title: `Create cluster with ${lat.str}`,
+        id: 'create', title: `Create cluster with ${lat.str}`, estimatedTime: timeEst.stepTimes.create,
         commands: [
           `kind create cluster --name ${clusterName} --image kindest/node:${lat.str}`,
           `# Or with your existing config:`,
@@ -1316,6 +1340,7 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
         const ver    = target.replace(/^v/, '');
         steps.push({
           id: `upgrade-to-${target}`, title: `Upgrade control plane to ${target}`,
+          estimatedTime: '~20–35 min',
           commands: [
             `# Upgrade kubeadm on control-plane node`,
             `apt-get update && apt-get install -y kubeadm=${ver}-*`,
@@ -1329,7 +1354,7 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
       }
     }
     steps.push({
-      id: 'verify', title: 'Verify the upgrade',
+      id: 'verify', title: 'Verify the upgrade', estimatedTime: '~1–2 min',
       commands: [
         `kubectl version`,
         `kubectl get nodes -o wide`,
@@ -1338,7 +1363,7 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
     });
   }
 
-  return { current: cur.str, latest: lat.str, upToDate, skew, clusterType, path, steps, nodes };
+  return { current: cur.str, latest: lat.str, upToDate, skew, clusterType, path, steps, nodes, estimatedTime: timeEst };
 }
 
 // GET /api/upgrade/stream?context= — SSE upgrade check stream
