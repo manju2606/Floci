@@ -234,6 +234,10 @@
     .modal-cancel:hover{border-color:#8b949e;color:#c9d1d9}
     .modal-confirm{padding:9px 22px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700}
     .modal-confirm:hover{background:#c0392b}
+    .modal-start-row{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #30363d}
+    .modal-start-label{font-size:12px;color:#8b949e;white-space:nowrap;font-weight:600}
+    .modal-start-select{flex:1;background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:6px 10px;font-size:13px;cursor:pointer}
+    .modal-start-select:focus{outline:none;border-color:#e67e22}
 
     /* Execution terminal overlay */
     .exec-overlay{position:fixed;inset:0;background:#0a0d12;z-index:300;display:flex;flex-direction:column;font-family:"Courier New",monospace}
@@ -371,9 +375,13 @@
   <div class="modal">
     <h2>&#9888; Confirm Upgrade</h2>
     <div class="modal-body">
-      <p>You are about to run all upgrade commands on cluster <strong id="modal-ctx"></strong>.</p>
+      <p>You are about to run upgrade commands on cluster <strong id="modal-ctx"></strong>.</p>
       <div class="warn-list" id="modal-warns"></div>
-      <p>Commands run inside the backend container with your kubeconfig. Verify the plan above before proceeding.</p>
+      <div class="modal-start-row">
+        <label class="modal-start-label">Start from step</label>
+        <select id="modal-start-from" class="modal-start-select"></select>
+      </div>
+      <p style="font-size:12px;color:#8b949e;margin-top:8px">Commands run inside the backend container with your kubeconfig.</p>
     </div>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeModal()">Cancel</button>
@@ -590,6 +598,7 @@ function copyCmd(el) {
 }
 
 function renderResults(plan) {
+  window._upgradePlan = plan;
   // Show estimated time in version banner
   if (plan.estimatedTime && plan.estimatedTime.label && plan.estimatedTime.label !== 'None') {
     const timeEl = document.getElementById('vb-time');
@@ -770,6 +779,12 @@ function showConfirmModal() {
   document.getElementById('modal-ctx').textContent = ctx;
   document.getElementById('modal-warns').innerHTML =
     (window._upgradeWarnings || []).map(w => `&#9679; ${w}`).join('<br/>');
+
+  const sel = document.getElementById('modal-start-from');
+  sel.innerHTML = (window._upgradePlan?.steps || []).map((s, i) =>
+    `<option value="${escHtml(s.id)}">Step ${i + 1}: ${escHtml(s.title)}</option>`
+  ).join('');
+
   document.getElementById('modal-overlay').style.display = 'flex';
 }
 
@@ -795,7 +810,9 @@ function startExecution() {
   _execStepMap = {};
 
   if (_execEs) { _execEs.close(); _execEs = null; }
-  _execEs = new EventSource(`/api/upgrade/execute?context=${encodeURIComponent(ctx)}`);
+  const startFrom = document.getElementById('modal-start-from')?.value || '';
+  const execUrl = `/api/upgrade/execute?context=${encodeURIComponent(ctx)}${startFrom ? '&startFrom=' + encodeURIComponent(startFrom) : ''}`;
+  _execEs = new EventSource(execUrl);
 
   _execEs.onmessage = e => {
     const d = JSON.parse(e.data);
@@ -804,6 +821,10 @@ function startExecution() {
     switch (d.type) {
       case 'status':
         setExecStatus(d.message, 'running');
+        break;
+
+      case 'step-skip':
+        setSidebarStep(d.stepId, 'done', '✓');
         break;
 
       case 'plan': {

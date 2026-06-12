@@ -1680,9 +1680,10 @@ app.get('/api/upgrade/setup', async (req, res) => {
   res.end();
 });
 
-// GET /api/upgrade/execute?context= — SSE real-time upgrade execution
+// GET /api/upgrade/execute?context=&startFrom= — SSE real-time upgrade execution
 app.get('/api/upgrade/execute', async (req, res) => {
-  const ctx = req.query.context;
+  const ctx       = req.query.context;
+  const startFrom = req.query.startFrom || null;
   if (!ctx) { res.status(400).end(); return; }
 
   res.setHeader('Content-Type',  'text/event-stream');
@@ -1746,9 +1747,20 @@ app.get('/api/upgrade/execute', async (req, res) => {
     const pause = ms => new Promise(r => setTimeout(r, ms));
 
     try {
+      let skipping = !!startFrom;
       for (let si = 0; si < plan.steps.length; si++) {
         if (aborted) break;
         const step = plan.steps[si];
+
+        // Skip steps before startFrom — mark them as already done in the sidebar
+        if (skipping) {
+          if (step.id === startFrom) {
+            skipping = false; // start executing from this step
+          } else {
+            emit({ type: 'step-skip', idx: si, stepId: step.id, title: step.title });
+            continue;
+          }
+        }
 
         // Pause between steps so the output is easy to follow
         if (si > 0) await pause(2000);
