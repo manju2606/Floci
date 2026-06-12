@@ -1,6 +1,7 @@
 const express = require('express');
 const https   = require('https');
 const fs      = require('fs');
+const { spawn } = require('child_process');
 const yaml    = require('js-yaml');
 const { S3Client, ListBucketsCommand, ListObjectsV2Command, GetBucketLocationCommand } = require('@aws-sdk/client-s3');
 const { DynamoDBClient, ListTablesCommand, DescribeTableCommand,
@@ -1451,6 +1452,111 @@ app.get('/api/upgrade/stream', async (req, res) => {
 
   // Complete
   emit({ phase: 'complete', status: 'done', plan });
+  res.end();
+});
+
+// GET /api/upgrade/execute?context= — SSE real-time upgrade execution
+app.get('/api/upgrade/execute', async (req, res) => {
+  const ctx = req.query.context;
+  if (!ctx) { res.status(400).end(); return; }
+
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  let aborted = false;
+  req.on('close', () => { aborted = true; });
+
+  try {
+    emit({ type: 'status', message: 'Generating upgrade plan…' });
+
+    const ver      = await fetchK8s(ctx, '/version');
+    const srvVer   = ver.gitVersion || `v${ver.major}.${ver.minor}`;
+    const nodeData = await fetchK8s(ctx, '/api/v1/nodes');
+    const nodeList = (nodeData.items || []).map(n => ({
+      name:           n.metadata.name,
+      kubeletVersion: n.status?.nodeInfo?.kubeletVersion || '—',
+      role:           (n.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ||
+                       n.metadata?.labels?.['node-role.kubernetes.io/master']        !== undefined)
+                       ? 'control-plane' : 'worker',
+      status: (n.status?.conditions || []).find(c => c.type === 'Ready')?.status === 'True' ? 'Ready' : 'NotReady',
+    }));
+
+    let latestVer = srvVer;
+    try {
+      const rel = await fetchGitHub('/repos/kubernetes/kubernetes/releases/latest');
+      latestVer = rel.tag_name;
+    } catch { /* fallback to current */ }
+
+    const plan = generateUpgradePlan(srvVer, latestVer, ctx, nodeList);
+
+    if (plan.upToDate) {
+      emit({ type: 'complete', upToDate: true });
+      return res.end();
+    }
+
+    emit({ type: 'plan', totalSteps: plan.steps.length, current: plan.current, latest: plan.latest,
+           steps: plan.steps.map(s => ({ id: s.id, title: s.title })) });
+
+    const env = { ...process.env, KUBECONFIG: '/root/.kube/config' };
+
+    for (let si = 0; si < plan.steps.length; si++) {
+      if (aborted) break;
+      const step = plan.steps[si];
+      emit({ type: 'step-start', idx: si, stepId: step.id, title: step.title, total: plan.steps.length });
+
+      let stepFailed = false;
+
+      for (const rawCmd of step.commands) {
+        if (aborted) break;
+        const trimmed = rawCmd.trim();
+        if (!trimmed || trimmed.startsWith('#')) {
+          emit({ type: 'cmd-skip', cmd: rawCmd });
+          continue;
+        }
+
+        // Inject --context into kubectl commands
+        let execCmd = trimmed;
+        if (execCmd.startsWith('kubectl ') && !execCmd.includes('--context')) {
+          execCmd = `kubectl --context="${ctx}" ${execCmd.slice(8)}`;
+        }
+
+        emit({ type: 'cmd-start', cmd: trimmed });
+
+        const exitCode = await new Promise(resolve => {
+          const proc = spawn(execCmd, [], { env, shell: true, cwd: '/tmp' });
+          proc.stdout.on('data', d => emit({ type: 'output', stream: 'stdout', text: d.toString() }));
+          proc.stderr.on('data', d => emit({ type: 'output', stream: 'stderr', text: d.toString() }));
+          proc.on('error', err => {
+            emit({ type: 'output', stream: 'stderr', text: `Error: ${err.message}\n` });
+            resolve(1);
+          });
+          proc.on('close', resolve);
+        });
+
+        emit({ type: 'cmd-done', exitCode });
+
+        if (exitCode !== 0) {
+          stepFailed = true;
+          break;
+        }
+      }
+
+      if (stepFailed) {
+        emit({ type: 'step-error', stepId: step.id });
+        break;
+      }
+      emit({ type: 'step-done', stepId: step.id });
+    }
+
+    emit({ type: 'complete', aborted });
+  } catch (err) {
+    emit({ type: 'error', message: err.message });
+  }
+
   res.end();
 });
 

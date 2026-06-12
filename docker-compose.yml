@@ -8,6 +8,7 @@ services:
     build: ./backend
     volumes:
       - ${USERPROFILE}/.kube:/root/.kube:ro
+      - /var/run/docker.sock:/var/run/docker.sock
 
   dashboard:
     image: nginx:alpine

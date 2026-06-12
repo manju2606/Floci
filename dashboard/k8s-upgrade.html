@@ -176,6 +176,73 @@
 
     .empty{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+
+    /* Execute button banner */
+    .exec-banner{background:linear-gradient(90deg,#1a0f00,#2d1a00);border:1px solid rgba(230,126,34,.4);border-radius:8px;padding:18px 24px;margin-bottom:24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .exec-btn{padding:11px 28px;background:#e67e22;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap;transition:background .15s}
+    .exec-btn:hover{background:#ca6f1e}
+    .exec-btn .spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    .exec-banner-note{font-size:12px;color:#e67e22;line-height:1.5;flex:1}
+    .exec-banner-note strong{color:#f39c12}
+
+    /* Confirmation modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+    .modal{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .modal h2{font-size:20px;font-weight:700;color:#e74c3c;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+    .modal .modal-body{font-size:13px;color:#c9d1d9;line-height:1.7;margin-bottom:20px}
+    .modal .modal-body strong{color:#e6edf3}
+    .modal .warn-list{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:12px;color:#f1948a;line-height:1.8}
+    .modal .modal-actions{display:flex;gap:12px;justify-content:flex-end}
+    .modal-cancel{padding:9px 22px;background:none;border:1px solid #30363d;color:#8b949e;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600}
+    .modal-cancel:hover{border-color:#8b949e;color:#c9d1d9}
+    .modal-confirm{padding:9px 22px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700}
+    .modal-confirm:hover{background:#c0392b}
+
+    /* Execution terminal overlay */
+    .exec-overlay{position:fixed;inset:0;background:#0a0d12;z-index:300;display:flex;flex-direction:column;font-family:"Courier New",monospace}
+    .exec-ov-hdr{background:#161b22;border-bottom:1px solid #30363d;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+    .exec-ov-title{font-size:15px;font-weight:700;color:#e6edf3;flex:1;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .exec-ov-meta{font-size:12px;color:#8b949e;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .exec-ov-close{background:none;border:1px solid #30363d;color:#8b949e;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:13px}
+    .exec-ov-close:hover{border-color:#e74c3c;color:#e74c3c}
+    .exec-body{display:flex;flex:1;overflow:hidden}
+
+    /* Steps sidebar */
+    .exec-steps{width:240px;background:#111820;border-right:1px solid #21262d;padding:16px 0;overflow-y:auto;flex-shrink:0;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .exec-steps-label{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#4a5568;padding:0 16px 10px;font-weight:700}
+    .exec-step-item{display:flex;align-items:flex-start;gap:10px;padding:9px 16px;font-size:12px;color:#4a5568;border-left:3px solid transparent;transition:all .2s}
+    .exec-step-item.done{color:#27ae60;border-left-color:#27ae60}
+    .exec-step-item.running{color:#e67e22;border-left-color:#e67e22;background:rgba(230,126,34,.07)}
+    .exec-step-item.error{color:#e74c3c;border-left-color:#e74c3c;background:rgba(231,76,60,.07)}
+    .exec-step-item.waiting{color:#4a5568}
+    .exec-step-icon{width:16px;flex-shrink:0;margin-top:1px;font-size:12px}
+    .exec-step-name{line-height:1.4}
+
+    /* Terminal area */
+    .exec-terminal{flex:1;overflow-y:auto;padding:16px 20px;background:#0a0d12;font-size:12px;line-height:1.6;color:#c9d1d9}
+    .exec-terminal::-webkit-scrollbar{width:6px}
+    .exec-terminal::-webkit-scrollbar-track{background:#0a0d12}
+    .exec-terminal::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+    .term-step-hdr{color:#e67e22;font-size:13px;font-weight:700;margin:16px 0 8px;padding:6px 10px;background:rgba(230,126,34,.08);border-left:3px solid #e67e22;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .term-step-hdr:first-child{margin-top:0}
+    .term-cmd{color:#58a6ff;margin:8px 0 2px;display:flex;gap:8px;align-items:flex-start}
+    .term-cmd::before{content:"$";color:#e67e22;flex-shrink:0}
+    .term-cmd.skipped{color:#4a5568}
+    .term-cmd.skipped::before{content:"#";color:#4a5568}
+    .term-stdout{color:#a8d8a8;white-space:pre-wrap;word-break:break-all}
+    .term-stderr{color:#f1948a;white-space:pre-wrap;word-break:break-all}
+    .term-exit-ok{color:#27ae60;font-size:11px;margin:4px 0 8px}
+    .term-exit-err{color:#e74c3c;font-size:11px;margin:4px 0 8px;font-weight:700}
+    .term-step-ok{color:#27ae60;margin:6px 0 14px;padding:5px 10px;background:rgba(39,174,96,.1);border-left:3px solid #27ae60;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;font-size:12px}
+    .term-step-err{color:#e74c3c;margin:6px 0 14px;padding:5px 10px;background:rgba(231,76,60,.1);border-left:3px solid #e74c3c;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;font-size:12px}
+    .term-complete{color:#3fb950;font-size:14px;font-weight:700;margin-top:20px;padding:12px 16px;background:rgba(63,185,80,.1);border-left:3px solid #3fb950;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .term-error{color:#e74c3c;font-size:13px;font-weight:700;margin-top:20px;padding:12px 16px;background:rgba(231,76,60,.1);border-left:3px solid #e74c3c;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+
+    /* Status bar at bottom of terminal */
+    .exec-statusbar{background:#161b22;border-top:1px solid #30363d;padding:8px 20px;font-size:11px;color:#8b949e;display:flex;align-items:center;gap:12px;flex-shrink:0;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .exec-statusbar .sb-indicator{width:8px;height:8px;border-radius:50%;background:#f39c12;animation:pulse 1s ease-in-out infinite;flex-shrink:0}
+    .exec-statusbar .sb-indicator.done{background:#27ae60;animation:none}
+    .exec-statusbar .sb-indicator.error{background:#e74c3c;animation:none}
   </style>
 </head>
 <body>
@@ -252,7 +319,42 @@
   <div class="results" id="results"></div>
 </main>
 
-<footer>Floci &mdash; K8s Upgrade Agent &mdash; Plan only, no auto-apply</footer>
+<!-- Confirmation modal -->
+<div class="modal-overlay" id="modal-overlay" style="display:none">
+  <div class="modal">
+    <h2>&#9888; Confirm Upgrade</h2>
+    <div class="modal-body">
+      <p>You are about to run all upgrade commands on cluster <strong id="modal-ctx"></strong>.</p>
+      <div class="warn-list" id="modal-warns"></div>
+      <p>Commands run inside the backend container with your kubeconfig. Verify the plan above before proceeding.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" onclick="startExecution()">&#9889; Execute Upgrade</button>
+    </div>
+  </div>
+</div>
+
+<!-- Execution terminal overlay -->
+<div class="exec-overlay" id="exec-overlay" style="display:none">
+  <div class="exec-ov-hdr">
+    <span class="exec-ov-title">&#9889; Upgrade Execution</span>
+    <span class="exec-ov-meta" id="exec-ov-meta"></span>
+    <button class="exec-ov-close" id="exec-ov-close" onclick="closeExecOverlay()">&#10005; Close</button>
+  </div>
+  <div class="exec-body">
+    <div class="exec-steps" id="exec-steps-sidebar">
+      <div class="exec-steps-label">Steps</div>
+    </div>
+    <div class="exec-terminal" id="exec-terminal"></div>
+  </div>
+  <div class="exec-statusbar">
+    <div class="sb-indicator" id="exec-sb-dot"></div>
+    <span id="exec-sb-msg">Initialising…</span>
+  </div>
+</div>
+
+<footer>Floci &mdash; K8s Upgrade Agent</footer>
 
 <script>
 const PHASES = [
@@ -552,10 +654,217 @@ function renderResults(plan) {
     });
   }
 
+  // Execute upgrade banner (only when upgrade is needed)
+  if (!plan.upToDate && plan.steps && plan.steps.length) {
+    const warnings = plan.clusterType === 'kind'
+      ? ['Kind clusters must be <strong>deleted and recreated</strong> to upgrade — all workloads will be lost unless backed up first.',
+         'The backup step saves manifests to /tmp in the backend container.']
+      : ['kubeadm upgrades run one minor version at a time — this may take 20–35 min per hop.',
+         'apt-get and systemctl commands must run on the actual nodes — those steps will fail from the container.'];
+
+    html = `
+    <div class="exec-banner">
+      <button class="exec-btn" id="exec-run-btn" onclick="showConfirmModal()">
+        <div class="spin"></div>
+        &#9889; Execute Upgrade
+      </button>
+      <div class="exec-banner-note">
+        Runs each step's commands in real time inside the backend container using your kubeconfig.<br/>
+        <strong>Review the plan below carefully before executing.</strong>
+      </div>
+    </div>` + html;
+
+    // Store warnings for modal
+    window._upgradeWarnings = warnings;
+  }
+
   const el = document.getElementById('results');
   el.innerHTML = html;
   el.style.display = 'block';
   window.scrollTo({ top: document.getElementById('runtime-panel').offsetTop - 20, behavior: 'smooth' });
+}
+
+// ── Confirmation modal ────────────────────────────────────────────────────────
+function showConfirmModal() {
+  const ctx = document.getElementById('ctx-select').value;
+  document.getElementById('modal-ctx').textContent = ctx;
+  document.getElementById('modal-warns').innerHTML =
+    (window._upgradeWarnings || []).map(w => `&#9679; ${w}`).join('<br/>');
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+// ── Execution terminal ────────────────────────────────────────────────────────
+let _execEs = null;
+let _execStepMap = {};
+
+function startExecution() {
+  closeModal();
+  const ctx = document.getElementById('ctx-select').value;
+
+  document.getElementById('exec-ov-meta').textContent = ctx;
+  document.getElementById('exec-steps-sidebar').innerHTML = '<div class="exec-steps-label">Steps</div>';
+  document.getElementById('exec-terminal').innerHTML = '';
+  document.getElementById('exec-sb-dot').className = 'sb-indicator';
+  document.getElementById('exec-sb-msg').textContent = 'Connecting…';
+  document.getElementById('exec-ov-close').disabled = true;
+  document.getElementById('exec-overlay').style.display = 'flex';
+  _execStepMap = {};
+
+  if (_execEs) { _execEs.close(); _execEs = null; }
+  _execEs = new EventSource(`/api/upgrade/execute?context=${encodeURIComponent(ctx)}`);
+
+  _execEs.onmessage = e => {
+    const d = JSON.parse(e.data);
+    const term = document.getElementById('exec-terminal');
+
+    switch (d.type) {
+      case 'status':
+        setExecStatus(d.message, 'running');
+        break;
+
+      case 'plan': {
+        const sidebar = document.getElementById('exec-steps-sidebar');
+        sidebar.innerHTML = '<div class="exec-steps-label">Steps</div>';
+        d.steps.forEach((s, i) => {
+          const el = document.createElement('div');
+          el.className = 'exec-step-item waiting';
+          el.id = `es-${s.id}`;
+          el.innerHTML = `<span class="exec-step-icon">○</span><span class="exec-step-name">${i+1}. ${escHtml(s.title)}</span>`;
+          sidebar.appendChild(el);
+          _execStepMap[s.id] = el;
+        });
+        setExecStatus(`Plan ready — ${d.totalSteps} step(s): ${escHtml(d.current)} → ${escHtml(d.latest)}`, 'running');
+        break;
+      }
+
+      case 'step-start': {
+        const hdr = document.createElement('div');
+        hdr.className = 'term-step-hdr';
+        hdr.textContent = `Step ${d.idx + 1}/${d.total}: ${d.title}`;
+        term.appendChild(hdr);
+        setSidebarStep(d.stepId, 'running', '▶');
+        setExecStatus(`Running: ${d.title}`, 'running');
+        scrollTerm();
+        break;
+      }
+
+      case 'cmd-skip': {
+        const el = document.createElement('div');
+        el.className = 'term-cmd skipped';
+        el.textContent = d.cmd;
+        term.appendChild(el);
+        scrollTerm();
+        break;
+      }
+
+      case 'cmd-start': {
+        const el = document.createElement('div');
+        el.className = 'term-cmd';
+        el.id = 'term-cmd-active';
+        el.textContent = d.cmd;
+        term.appendChild(el);
+        scrollTerm();
+        break;
+      }
+
+      case 'output': {
+        const prev = document.getElementById('term-cmd-active');
+        if (prev) prev.removeAttribute('id');
+        const el = document.createElement('div');
+        el.className = d.stream === 'stderr' ? 'term-stderr' : 'term-stdout';
+        el.textContent = d.text;
+        term.appendChild(el);
+        scrollTerm();
+        break;
+      }
+
+      case 'cmd-done': {
+        const el = document.createElement('div');
+        el.className = d.exitCode === 0 ? 'term-exit-ok' : 'term-exit-err';
+        el.textContent = d.exitCode === 0 ? `✓ exit 0` : `✗ exit ${d.exitCode}`;
+        term.appendChild(el);
+        scrollTerm();
+        break;
+      }
+
+      case 'step-done':
+        setSidebarStep(d.stepId, 'done', '✓');
+        appendTermLine('term-step-ok', '✓ Step completed');
+        break;
+
+      case 'step-error':
+        setSidebarStep(d.stepId, 'error', '✗');
+        appendTermLine('term-step-err', '✗ Step failed — execution stopped');
+        setExecStatus('Upgrade stopped due to command failure', 'error');
+        _execEs.close(); _execEs = null;
+        document.getElementById('exec-ov-close').disabled = false;
+        break;
+
+      case 'complete':
+        _execEs.close(); _execEs = null;
+        if (d.upToDate) {
+          appendTermLine('term-complete', '✓ Cluster is already up to date — nothing to do.');
+        } else if (d.aborted) {
+          appendTermLine('term-error', '⚡ Execution cancelled.');
+        } else {
+          appendTermLine('term-complete', '✓ All upgrade steps completed successfully!');
+        }
+        setExecStatus('Done', 'done');
+        document.getElementById('exec-ov-close').disabled = false;
+        break;
+
+      case 'error':
+        _execEs.close(); _execEs = null;
+        appendTermLine('term-error', `Error: ${d.message}`);
+        setExecStatus('Error: ' + d.message, 'error');
+        document.getElementById('exec-ov-close').disabled = false;
+        break;
+    }
+  };
+
+  _execEs.onerror = () => {
+    if (!_execEs) return;
+    _execEs.close(); _execEs = null;
+    appendTermLine('term-error', 'Connection lost — backend may have restarted.');
+    setExecStatus('Connection lost', 'error');
+    document.getElementById('exec-ov-close').disabled = false;
+  };
+}
+
+function closeExecOverlay() {
+  if (_execEs) { _execEs.close(); _execEs = null; }
+  document.getElementById('exec-overlay').style.display = 'none';
+}
+
+function setSidebarStep(stepId, state, icon) {
+  const el = _execStepMap[stepId];
+  if (!el) return;
+  el.className = `exec-step-item ${state}`;
+  el.querySelector('.exec-step-icon').textContent = icon;
+}
+
+function setExecStatus(msg, state) {
+  document.getElementById('exec-sb-msg').textContent = msg;
+  const dot = document.getElementById('exec-sb-dot');
+  dot.className = `sb-indicator${state === 'done' ? ' done' : state === 'error' ? ' error' : ''}`;
+}
+
+function appendTermLine(cls, text) {
+  const term = document.getElementById('exec-terminal');
+  const el = document.createElement('div');
+  el.className = cls;
+  el.innerHTML = text;
+  term.appendChild(el);
+  scrollTerm();
+}
+
+function scrollTerm() {
+  const t = document.getElementById('exec-terminal');
+  t.scrollTop = t.scrollHeight;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
