@@ -1289,6 +1289,89 @@ function fetchGitHub(path) {
   });
 }
 
+// ─── Kubernetes API Removal Database ──────────────────────────────────────────
+// Each entry: removedIn (minor int), apiVersion, kinds[], replacement, severity, note
+const API_REMOVAL_DB = [
+  // v1.16
+  { removedIn:16, apiVersion:'extensions/v1beta1',
+    kinds:['Deployment','DaemonSet','ReplicaSet','NetworkPolicy','Ingress','PodSecurityPolicy'],
+    replacement:'apps/v1 / networking.k8s.io/v1', severity:'CRITICAL',
+    note:'All major workload types must use apps/v1; Ingress moves to networking.k8s.io/v1' },
+  { removedIn:16, apiVersion:'apps/v1beta1',
+    kinds:['Deployment','StatefulSet'], replacement:'apps/v1', severity:'CRITICAL',
+    note:'apps/v1 stable since 1.9' },
+  { removedIn:16, apiVersion:'apps/v1beta2',
+    kinds:['Deployment','DaemonSet','StatefulSet','ReplicaSet'], replacement:'apps/v1', severity:'CRITICAL',
+    note:'apps/v1 stable since 1.9' },
+  // v1.22
+  { removedIn:22, apiVersion:'networking.k8s.io/v1beta1',
+    kinds:['Ingress','IngressClass'], replacement:'networking.k8s.io/v1', severity:'CRITICAL',
+    note:'Must add pathType field when migrating Ingress resources' },
+  { removedIn:22, apiVersion:'admissionregistration.k8s.io/v1beta1',
+    kinds:['ValidatingWebhookConfiguration','MutatingWebhookConfiguration'],
+    replacement:'admissionregistration.k8s.io/v1', severity:'CRITICAL',
+    note:'Webhook controllers must be updated before upgrade' },
+  { removedIn:22, apiVersion:'apiextensions.k8s.io/v1beta1',
+    kinds:['CustomResourceDefinition'], replacement:'apiextensions.k8s.io/v1', severity:'CRITICAL',
+    note:'CRDs must define structural schemas; v1beta1 CRDs blocked on upgrade' },
+  { removedIn:22, apiVersion:'rbac.authorization.k8s.io/v1beta1',
+    kinds:['ClusterRole','ClusterRoleBinding','Role','RoleBinding'],
+    replacement:'rbac.authorization.k8s.io/v1', severity:'HIGH',
+    note:'RBAC v1 stable since 1.8' },
+  { removedIn:22, apiVersion:'scheduling.k8s.io/v1beta1',
+    kinds:['PriorityClass'], replacement:'scheduling.k8s.io/v1', severity:'HIGH',
+    note:'PriorityClass v1 stable since 1.14' },
+  { removedIn:22, apiVersion:'storage.k8s.io/v1beta1',
+    kinds:['CSIDriver','CSINode','StorageClass','VolumeAttachment'],
+    replacement:'storage.k8s.io/v1', severity:'HIGH',
+    note:'storage.k8s.io/v1 stable since 1.17' },
+  { removedIn:22, apiVersion:'coordination.k8s.io/v1beta1',
+    kinds:['Lease'], replacement:'coordination.k8s.io/v1', severity:'MEDIUM',
+    note:'Lease v1 stable since 1.14' },
+  { removedIn:22, apiVersion:'authorization.k8s.io/v1beta1',
+    kinds:['SubjectAccessReview','LocalSubjectAccessReview','SelfSubjectAccessReview'],
+    replacement:'authorization.k8s.io/v1', severity:'MEDIUM',
+    note:'Authorization v1 stable since 1.6' },
+  // v1.25
+  { removedIn:25, apiVersion:'batch/v1beta1',
+    kinds:['CronJob'], replacement:'batch/v1', severity:'CRITICAL',
+    note:'CronJob v1 stable since 1.21' },
+  { removedIn:25, apiVersion:'policy/v1beta1',
+    kinds:['PodSecurityPolicy','PodDisruptionBudget'],
+    replacement:'policy/v1 (PDB); Pod Security Admission replaces PSP', severity:'CRITICAL',
+    note:'PSP permanently removed — migrate to namespace labels + Pod Security Admission' },
+  { removedIn:25, apiVersion:'autoscaling/v2beta1',
+    kinds:['HorizontalPodAutoscaler'], replacement:'autoscaling/v2', severity:'HIGH',
+    note:'autoscaling/v2 stable since 1.23' },
+  { removedIn:25, apiVersion:'discovery.k8s.io/v1beta1',
+    kinds:['EndpointSlice'], replacement:'discovery.k8s.io/v1', severity:'HIGH',
+    note:'EndpointSlice v1 stable since 1.21' },
+  { removedIn:25, apiVersion:'node.k8s.io/v1beta1',
+    kinds:['RuntimeClass'], replacement:'node.k8s.io/v1', severity:'MEDIUM',
+    note:'RuntimeClass v1 stable since 1.20' },
+  { removedIn:25, apiVersion:'events.k8s.io/v1beta1',
+    kinds:['Event'], replacement:'events.k8s.io/v1', severity:'LOW',
+    note:'Events v1 stable since 1.19' },
+  // v1.26
+  { removedIn:26, apiVersion:'autoscaling/v2beta2',
+    kinds:['HorizontalPodAutoscaler'], replacement:'autoscaling/v2', severity:'HIGH',
+    note:'autoscaling/v2 stable since 1.23' },
+  { removedIn:26, apiVersion:'flowcontrol.apiserver.k8s.io/v1beta1',
+    kinds:['FlowSchema','PriorityLevelConfiguration'],
+    replacement:'flowcontrol.apiserver.k8s.io/v1beta3', severity:'MEDIUM',
+    note:'API Priority and Fairness — check kube-apiserver flags' },
+  // v1.29
+  { removedIn:29, apiVersion:'flowcontrol.apiserver.k8s.io/v1beta2',
+    kinds:['FlowSchema','PriorityLevelConfiguration'],
+    replacement:'flowcontrol.apiserver.k8s.io/v1', severity:'MEDIUM',
+    note:'flowcontrol v1 stable since 1.29' },
+  // v1.32
+  { removedIn:32, apiVersion:'resource.k8s.io/v1alpha2',
+    kinds:['ResourceClaim','ResourceClass','PodSchedulingContext'],
+    replacement:'resource.k8s.io/v1alpha3', severity:'HIGH',
+    note:'Dynamic Resource Allocation API updated; alpha — verify usage' },
+];
+
 function parseVersion(v) {
   const m = String(v || '').match(/v?(\d+)\.(\d+)\.(\d+)/);
   if (!m) return null;
@@ -1689,6 +1772,455 @@ app.get('/api/dynamo/tables', async (req, res) => {
   } catch(e) {
     res.status(503).json({ error: e.message });
   }
+});
+
+// ─── Feasibility Assessment Stream ────────────────────────────────────────────
+// GET /api/feasibility/stream?context=
+app.get('/api/feasibility/stream', async (req, res) => {
+  const ctx = req.query.context;
+  if (!ctx) { res.status(400).end(); return; }
+
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit  = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const pause = ms  => new Promise(r => setTimeout(r, ms));
+
+  const findings   = { CRITICAL:[], HIGH:[], MEDIUM:[], LOW:[] };
+  const phaseErrors = {};
+  const report     = {};
+
+  function addFinding(severity, area, title, detail) {
+    findings[severity] = findings[severity] || [];
+    findings[severity].push({ severity, area, title, ...detail });
+  }
+
+  // ── Phase 1: Cluster Info ──────────────────────────────────────────────────
+  emit({ phase:'cluster-info', status:'running', message:'Reading cluster version, nodes and namespaces…' });
+  await pause(600);
+  try {
+    const [ver, nodeData, nsData] = await Promise.all([
+      fetchK8s(ctx, '/version'),
+      fetchK8s(ctx, '/api/v1/nodes'),
+      fetchK8s(ctx, '/api/v1/namespaces'),
+    ]);
+
+    const serverVersion = ver.gitVersion || `v${ver.major}.${ver.minor}`;
+    const nodes = (nodeData.items || []).map(n => ({
+      name:    n.metadata.name,
+      os:      n.status?.nodeInfo?.osImage      || '—',
+      runtime: n.status?.nodeInfo?.containerRuntimeVersion || '—',
+      kubelet: n.status?.nodeInfo?.kubeletVersion || '—',
+      role:    (n.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ||
+                n.metadata?.labels?.['node-role.kubernetes.io/master']        !== undefined)
+               ? 'control-plane' : 'worker',
+      ready:   (n.status?.conditions || []).find(c => c.type==='Ready')?.status === 'True',
+      memPressure: (n.status?.conditions || []).find(c => c.type==='MemoryPressure')?.status === 'True',
+      diskPressure:(n.status?.conditions || []).find(c => c.type==='DiskPressure')?.status  === 'True',
+    }));
+    const namespaces = (nsData.items || []).map(n => n.metadata.name);
+
+    report.clusterVersion = serverVersion;
+    report.nodes          = nodes;
+    report.namespaces     = namespaces;
+
+    // Check node conditions for pressure flags
+    nodes.forEach(n => {
+      if (n.memPressure) addFinding('HIGH', 'Nodes',
+        `Memory pressure on node ${n.name}`,
+        { whatWillBreak:'Pods may be evicted during upgrade, causing downtime',
+          whenItBreaks:'During node upgrade', impact:'Pod eviction',
+          remediation:'Free memory or add node capacity before upgrading' });
+      if (n.diskPressure) addFinding('HIGH', 'Nodes',
+        `Disk pressure on node ${n.name}`,
+        { whatWillBreak:'Image pulls may fail during upgrade',
+          whenItBreaks:'During node upgrade', impact:'Image pull failures',
+          remediation:'Free disk space on the node before upgrading' });
+    });
+
+    emit({ phase:'cluster-info', status:'done',
+           message:`${serverVersion} · ${nodes.length} node(s) · ${namespaces.length} namespace(s)`,
+           version: serverVersion });
+  } catch(e) {
+    phaseErrors['cluster-info'] = e.message;
+    emit({ phase:'cluster-info', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 2: Workload Inventory ────────────────────────────────────────────
+  emit({ phase:'workloads', status:'running', message:'Inventorying deployments, statefulsets, daemonsets, jobs and cronjobs…' });
+  await pause(600);
+  try {
+    const [deps, sts, ds, jobs, cjs] = await Promise.allSettled([
+      fetchK8s(ctx, '/apis/apps/v1/deployments'),
+      fetchK8s(ctx, '/apis/apps/v1/statefulsets'),
+      fetchK8s(ctx, '/apis/apps/v1/daemonsets'),
+      fetchK8s(ctx, '/apis/batch/v1/jobs'),
+      fetchK8s(ctx, '/apis/batch/v1/cronjobs'),
+    ]);
+
+    const workloads = {
+      deployments:  deps.status==='fulfilled' ? (deps.value.items||[])   : [],
+      statefulsets: sts.status ==='fulfilled' ? (sts.value.items||[])    : [],
+      daemonsets:   ds.status  ==='fulfilled' ? (ds.value.items||[])     : [],
+      jobs:         jobs.status==='fulfilled' ? (jobs.value.items||[])   : [],
+      cronjobs:     cjs.status ==='fulfilled' ? (cjs.value.items||[])    : [],
+    };
+
+    report.workloads = {
+      deployments:  workloads.deployments.length,
+      statefulsets: workloads.statefulsets.length,
+      daemonsets:   workloads.daemonsets.length,
+      jobs:         workloads.jobs.length,
+      cronjobs:     workloads.cronjobs.length,
+      total: workloads.deployments.length + workloads.statefulsets.length +
+             workloads.daemonsets.length  + workloads.cronjobs.length,
+    };
+
+    const total = report.workloads.total;
+    emit({ phase:'workloads', status:'done',
+           message:`${total} workload(s) — ${workloads.deployments.length} Deployments · ${workloads.statefulsets.length} StatefulSets · ${workloads.daemonsets.length} DaemonSets · ${workloads.cronjobs.length} CronJobs`,
+           workloads: report.workloads });
+  } catch(e) {
+    phaseErrors['workloads'] = e.message;
+    report.workloads = { deployments:0, statefulsets:0, daemonsets:0, jobs:0, cronjobs:0, total:0 };
+    emit({ phase:'workloads', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 3: CRD Discovery ─────────────────────────────────────────────────
+  emit({ phase:'crds', status:'running', message:'Discovering Custom Resource Definitions…' });
+  await pause(600);
+  try {
+    const crdData = await fetchK8s(ctx, '/apis/apiextensions.k8s.io/v1/customresourcedefinitions');
+    const crds = (crdData.items || []).map(c => ({
+      name:           c.metadata.name,
+      group:          c.spec.group,
+      scope:          c.spec.scope,
+      versions:       (c.spec.versions || []).map(v => v.name),
+      storageVersion: (c.spec.versions || []).find(v => v.storage)?.name || '—',
+      hasWebhook:     !!(c.spec.conversion && c.spec.conversion.strategy === 'Webhook'),
+    }));
+    report.crds = crds;
+    emit({ phase:'crds', status:'done',
+           message:`${crds.length} CRD(s) found — ${crds.filter(c=>c.hasWebhook).length} with conversion webhooks`,
+           crds });
+  } catch(e) {
+    phaseErrors['crds'] = e.message;
+    report.crds = [];
+    emit({ phase:'crds', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 4: API Removal Scan ──────────────────────────────────────────────
+  emit({ phase:'api-scan', status:'running', message:'Fetching available API groups from cluster…' });
+  await pause(600);
+  try {
+    // Get all served API groups
+    const apiGroupsData = await fetchK8s(ctx, '/apis');
+    const servedVersions = new Set();
+    for (const grp of (apiGroupsData.groups || [])) {
+      for (const v of (grp.versions || [])) {
+        servedVersions.add(v.groupVersion);
+      }
+    }
+
+    // Determine target minor version
+    let targetMinor = 99;
+    let sourceMinor = 0;
+    if (report.clusterVersion) {
+      const pv = parseVersion(report.clusterVersion);
+      sourceMinor = pv.minor;
+    }
+    try {
+      const rel = await fetchGitHub('/repos/kubernetes/kubernetes/releases/latest');
+      const pv  = parseVersion(rel.tag_name);
+      targetMinor = pv.minor;
+      report.targetVersion = rel.tag_name;
+    } catch { targetMinor = sourceMinor + 3; }
+
+    report.sourceMinor = sourceMinor;
+    report.targetMinor = targetMinor;
+
+    // Filter removals that apply to this upgrade
+    const applicableRemovals = API_REMOVAL_DB.filter(
+      e => e.removedIn > sourceMinor && e.removedIn <= targetMinor
+    );
+
+    emit({ phase:'api-scan', status:'running',
+           message:`Scanning ${applicableRemovals.length} deprecated API(s) for live resources…` });
+
+    const apiFindings = [];
+
+    for (const entry of applicableRemovals) {
+      const [group, version] = entry.apiVersion.split('/');
+      const groupVersion     = entry.apiVersion;
+
+      // Check if this API group/version is still served on the current cluster
+      const isServed = servedVersions.has(groupVersion);
+
+      if (!isServed) {
+        // Already removed or never present — no risk from live resources
+        apiFindings.push({ ...entry, status:'NOT_SERVED', resources:[], resourceCount:0 });
+        continue;
+      }
+
+      // API is still served — check for live resources
+      let totalCount = 0;
+      const liveResources = [];
+
+      try {
+        const resourceList = await fetchK8s(ctx, `/apis/${groupVersion}`);
+        for (const resource of (resourceList.resources || [])) {
+          if (resource.name.includes('/')) continue; // skip sub-resources
+          try {
+            const listPath = resource.namespaced
+              ? `/apis/${groupVersion}/${resource.name}`
+              : `/apis/${groupVersion}/${resource.name}`;
+            const list = await fetchK8s(ctx, listPath);
+            const items = list.items || [];
+            if (items.length > 0) {
+              totalCount += items.length;
+              liveResources.push({
+                kind:      resource.kind,
+                count:     items.length,
+                namespaces:[...new Set(items.map(i => i.metadata?.namespace).filter(Boolean))],
+                names:     items.slice(0,5).map(i => i.metadata?.name).filter(Boolean),
+              });
+              addFinding(entry.severity, 'APIs',
+                `${resource.kind} using removed ${groupVersion}`,
+                { api: groupVersion, kind: resource.kind, count: items.length,
+                  replacement: entry.replacement, removedIn: `v1.${entry.removedIn}`,
+                  whatWillBreak:`${resource.kind} resources will stop working after upgrade to v1.${entry.removedIn}`,
+                  whenItBreaks:'Control Plane Upgrade',
+                  impact: entry.severity === 'CRITICAL' ? 'Outage' : 'Partial Outage / Reconciliation Failure',
+                  remediation:`Update apiVersion to ${entry.replacement}. ${entry.note}`,
+                  resources: items.slice(0,10).map(i => ({ name:i.metadata?.name, namespace:i.metadata?.namespace })) });
+            }
+          } catch { /* ignore individual resource list errors */ }
+        }
+      } catch { /* API group list failed */ }
+
+      apiFindings.push({ ...entry, status: totalCount > 0 ? 'FOUND' : 'SERVED_EMPTY',
+                         resources: liveResources, resourceCount: totalCount });
+    }
+
+    report.apiFindings   = apiFindings;
+    report.servedVersions = [...servedVersions];
+
+    const criticalApiCount = apiFindings.filter(f => f.status === 'FOUND' && f.severity === 'CRITICAL').length;
+    const highApiCount     = apiFindings.filter(f => f.status === 'FOUND' && f.severity === 'HIGH').length;
+
+    emit({ phase:'api-scan', status:'done',
+           message:`${applicableRemovals.length} API(s) checked — ${criticalApiCount} CRITICAL · ${highApiCount} HIGH removals with live resources`,
+           apiFindings });
+  } catch(e) {
+    phaseErrors['api-scan'] = e.message;
+    report.apiFindings = [];
+    emit({ phase:'api-scan', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 5: Webhook Analysis ──────────────────────────────────────────────
+  emit({ phase:'webhooks', status:'running', message:'Analysing admission webhooks…' });
+  await pause(500);
+  try {
+    const [valData, mutData] = await Promise.allSettled([
+      fetchK8s(ctx, '/apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations'),
+      fetchK8s(ctx, '/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations'),
+    ]);
+
+    const validating = valData.status==='fulfilled' ? (valData.value.items||[]) : [];
+    const mutating   = mutData.status==='fulfilled' ? (mutData.value.items||[]) : [];
+
+    const summarise = wh => ({
+      name:         wh.metadata.name,
+      webhookCount: (wh.webhooks || []).length,
+      failurePolicies: [...new Set((wh.webhooks||[]).map(w => w.failurePolicy))],
+      hasFailClosed:   (wh.webhooks||[]).some(w => w.failurePolicy === 'Fail'),
+    });
+
+    const vSummary = validating.map(summarise);
+    const mSummary = mutating.map(summarise);
+
+    vSummary.filter(w=>w.hasFailClosed).forEach(w =>
+      addFinding('HIGH', 'Webhooks',
+        `ValidatingWebhook "${w.name}" has Fail-closed policy`,
+        { whatWillBreak:'If the webhook backend is unavailable after upgrade, all resource requests in scope will be blocked',
+          whenItBreaks:'Immediately after Control Plane Upgrade if webhook pod is restarted',
+          impact:'Deployment Failure / Partial Outage',
+          remediation:'Verify webhook pod compatibility with target K8s version; consider setting failurePolicy: Ignore temporarily during upgrade' }));
+
+    mSummary.filter(w=>w.hasFailClosed).forEach(w =>
+      addFinding('HIGH', 'Webhooks',
+        `MutatingWebhook "${w.name}" has Fail-closed policy`,
+        { whatWillBreak:'Mutations may be skipped or blocked if the webhook pod fails during upgrade',
+          whenItBreaks:'Immediately after Control Plane Upgrade',
+          impact:'Deployment Failure',
+          remediation:'Verify webhook pod compatibility with target K8s version' }));
+
+    report.webhooks = { validating: vSummary, mutating: mSummary };
+    emit({ phase:'webhooks', status:'done',
+           message:`${validating.length} validating · ${mutating.length} mutating webhook config(s)`,
+           webhooks: report.webhooks });
+  } catch(e) {
+    phaseErrors['webhooks'] = e.message;
+    report.webhooks = { validating:[], mutating:[] };
+    emit({ phase:'webhooks', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 6: Storage Check ─────────────────────────────────────────────────
+  emit({ phase:'storage', status:'running', message:'Checking storage classes and persistent volumes…' });
+  await pause(500);
+  try {
+    const [scData, pvData] = await Promise.allSettled([
+      fetchK8s(ctx, '/apis/storage.k8s.io/v1/storageclasses'),
+      fetchK8s(ctx, '/api/v1/persistentvolumes'),
+    ]);
+
+    const storageClasses = scData.status==='fulfilled'
+      ? (scData.value.items||[]).map(sc => ({
+          name:        sc.metadata.name,
+          provisioner: sc.provisioner,
+          reclaimPolicy: sc.reclaimPolicy || 'Delete',
+          isDefault:   sc.metadata?.annotations?.['storageclass.kubernetes.io/is-default-class'] === 'true',
+        })) : [];
+
+    const pvCount = pvData.status==='fulfilled' ? (pvData.value.items||[]).length : 0;
+
+    report.storage = { storageClasses, pvCount };
+    emit({ phase:'storage', status:'done',
+           message:`${storageClasses.length} StorageClass(es) · ${pvCount} PersistentVolume(s)`,
+           storage: report.storage });
+  } catch(e) {
+    phaseErrors['storage'] = e.message;
+    report.storage = { storageClasses:[], pvCount:0 };
+    emit({ phase:'storage', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 7: Security Check ────────────────────────────────────────────────
+  emit({ phase:'security', status:'running', message:'Scanning for privileged workloads and host-network usage…' });
+  await pause(500);
+  try {
+    const podData = await fetchK8s(ctx, '/api/v1/pods');
+    const pods    = podData.items || [];
+
+    const privileged  = [];
+    const hostNetwork = [];
+    const hostPID     = [];
+
+    pods.forEach(pod => {
+      const meta = pod.metadata || {};
+      const spec = pod.spec     || {};
+      if (spec.hostNetwork) hostNetwork.push(`${meta.namespace}/${meta.name}`);
+      if (spec.hostPID)     hostPID.push(`${meta.namespace}/${meta.name}`);
+      (spec.containers || []).forEach(c => {
+        if (c.securityContext?.privileged) privileged.push(`${meta.namespace}/${meta.name}/${c.name}`);
+      });
+    });
+
+    if (privileged.length)
+      addFinding('MEDIUM', 'Security',
+        `${privileged.length} privileged container(s) detected`,
+        { whatWillBreak:'Privileged containers may be blocked by Pod Security Admission in target version',
+          whenItBreaks:'First Deployment after upgrade if PSA is enforced',
+          impact:'Partial Outage',
+          remediation:'Review if privileged mode is required; apply appropriate PSA labels to namespaces',
+          resources: privileged.slice(0,10).map(n=>({ name:n })) });
+
+    if (hostNetwork.length)
+      addFinding('MEDIUM', 'Security',
+        `${hostNetwork.length} pod(s) using hostNetwork`,
+        { whatWillBreak:'Potential CNI/networking conflicts after upgrade',
+          whenItBreaks:'Node Upgrade', impact:'Networking disruption',
+          remediation:'Validate CNI plugin compatibility with target K8s version',
+          resources: hostNetwork.slice(0,10).map(n=>({ name:n })) });
+
+    report.security = { privileged, hostNetwork, hostPID, podCount: pods.length };
+    emit({ phase:'security', status:'done',
+           message:`${pods.length} pod(s) scanned — ${privileged.length} privileged · ${hostNetwork.length} hostNetwork · ${hostPID.length} hostPID`,
+           security: report.security });
+  } catch(e) {
+    phaseErrors['security'] = e.message;
+    report.security = { privileged:[], hostNetwork:[], hostPID:[], podCount:0 };
+    emit({ phase:'security', status:'error', message: e.message });
+  }
+
+  await pause(800);
+
+  // ── Phase 8: Scoring ───────────────────────────────────────────────────────
+  emit({ phase:'score', status:'running', message:'Computing readiness score and generating executive summary…' });
+  await pause(800);
+
+  const critCount = (findings.CRITICAL||[]).length;
+  const highCount = (findings.HIGH||[]).length;
+  const medCount  = (findings.MEDIUM||[]).length;
+  const lowCount  = (findings.LOW||[]).length;
+
+  let readiness = 100;
+  readiness -= critCount * 25;
+  readiness -= highCount * 12;
+  readiness -= medCount  *  6;
+  readiness -= lowCount  *  2;
+  readiness  = Math.max(0, readiness);
+
+  // Confidence: reduces for phase errors and unknown cluster state
+  let confidence = 95;
+  confidence -= Object.keys(phaseErrors).length * 10;
+  confidence  = Math.max(20, Math.min(95, confidence));
+
+  const verdict = readiness >= 90 ? 'APPROVED'
+                : readiness >= 75 ? 'CONDITIONAL'
+                : readiness >= 50 ? 'HIGH RISK'
+                : 'NOT RECOMMENDED';
+
+  const riskMatrix = [
+    { area:'APIs',          status: critCount > 0 || highCount > 0 ? (critCount>0?'CRITICAL':'HIGH') : 'PASS', findings:(findings.CRITICAL||[]).filter(f=>f.area==='APIs').length + (findings.HIGH||[]).filter(f=>f.area==='APIs').length },
+    { area:'CRDs',          status: report.crds?.some(c=>c.hasWebhook) ? 'WARNING' : 'PASS', findings:0 },
+    { area:'Webhooks',      status: (findings.HIGH||[]).some(f=>f.area==='Webhooks') ? 'HIGH' : 'PASS', findings:(findings.HIGH||[]).filter(f=>f.area==='Webhooks').length },
+    { area:'Networking',    status: 'PASS', findings:0 },
+    { area:'Storage',       status: 'PASS', findings:0 },
+    { area:'Security',      status: (findings.MEDIUM||[]).some(f=>f.area==='Security') ? 'WARNING' : 'PASS', findings:(findings.MEDIUM||[]).filter(f=>f.area==='Security').length },
+    { area:'Runtime',       status: 'UNKNOWN', findings:0 },
+    { area:'Nodes',         status: (findings.HIGH||[]).some(f=>f.area==='Nodes') ? 'HIGH' : 'PASS', findings:(findings.HIGH||[]).filter(f=>f.area==='Nodes').length },
+    { area:'Control Plane', status: critCount>0 ? 'HIGH RISK' : 'PASS', findings: critCount },
+    { area:'Controllers',   status: 'UNKNOWN', findings:0 },
+  ];
+
+  report.findings    = findings;
+  report.readiness   = readiness;
+  report.confidence  = confidence;
+  report.verdict     = verdict;
+  report.riskMatrix  = riskMatrix;
+  report.phaseErrors = phaseErrors;
+  report.summary = {
+    criticalIssues: (findings.CRITICAL||[]).map(f=>f.title),
+    highRisks:      (findings.HIGH||[]).map(f=>f.title),
+    warnings:       (findings.MEDIUM||[]).map(f=>f.title),
+    requiredActions: [
+      ...( (findings.CRITICAL||[]).map(f=>`[CRITICAL] ${f.title}: ${f.remediation||''}`) ),
+      ...( (findings.HIGH||[]).map(f=>`[HIGH] ${f.title}: ${f.remediation||''}`) ),
+    ].slice(0,10),
+  };
+
+  emit({ phase:'score', status:'done',
+         message:`Readiness ${readiness}/100 · Confidence ${confidence}% · Verdict: ${verdict}`,
+         readiness, confidence, verdict });
+
+  await pause(500);
+  emit({ phase:'complete', status:'done', report });
+  res.end();
 });
 
 app.listen(PORT, () => console.log(`K8s backend listening on :${PORT}`));

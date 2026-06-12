@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>K8s Feasibility Assessment — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;
+      --text-primary:#16191f;--text-secondary:#687078;--text-muted:#545b64;
+      --th-bg:#f2f3f3;--tr-hover:#fafafa;--td-border:#eaeded;
+      --accent:#c0392b;--accent2:#e74c3c;
+    }
+    [data-theme="dark"]{
+      --bg:#0d1117;--card-bg:#161b22;--border:#30363d;
+      --text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#8b949e;
+      --th-bg:#1c2128;--tr-hover:#21262d;--td-border:#21262d;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+
+    header{background:#1a0a0a;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#e74c3c;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    header a.back.upg{border-color:#e67e22;color:#e67e22}
+    header a.back.upg:hover{background:#e67e22;color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+
+    .hero{background:linear-gradient(135deg,#1a0000,#2d0000);padding:36px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:32px;background:#c0392b;width:72px;height:72px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero h1{font-size:24px;font-weight:700;color:#fff}
+    .hero p{font-size:13px;color:#aab7b8;margin-top:6px;line-height:1.6;max-width:540px}
+    .hero .badge{display:inline-block;margin-top:8px;font-size:11px;background:rgba(192,57,43,.25);color:#e74c3c;border:1px solid rgba(231,76,60,.3);padding:2px 10px;border-radius:10px;font-weight:600}
+
+    .controls{background:#1a0500;padding:18px 32px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid #2d0800}
+    .ctrl-group{display:flex;flex-direction:column;gap:5px}
+    .ctrl-group label{font-size:11px;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .ctrl-group select{padding:7px 12px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:13px;min-width:240px}
+    .ctrl-group select:focus{outline:none;border-color:#e74c3c}
+    .ctrl-group .ver-chip{padding:7px 12px;background:#0d1117;border:1px solid #30363d;color:#8b949e;border-radius:4px;font-size:12px;font-family:monospace;min-width:120px}
+    .run-btn{padding:9px 26px;background:#c0392b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;align-self:flex-end}
+    .run-btn:hover{background:#a93226}
+    .run-btn:disabled{background:#4a5568;cursor:not-allowed}
+    .run-btn .spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    .run-btn.running .spin{display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .status-strip{background:#161b22;border-bottom:1px solid #30363d;padding:8px 32px;font-size:12px;color:#8b949e;display:flex;align-items:center;gap:12px;min-height:36px}
+    .status-strip .dot{width:8px;height:8px;border-radius:50%;background:#4a5568;flex-shrink:0}
+    .status-strip .dot.ok{background:#27ae60}
+    .status-strip .dot.warn{background:#e74c3c}
+    .status-strip .dot.running{background:#f39c12;animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    main{max-width:1140px;margin:28px auto;padding:0 24px}
+
+    /* Runtime panel */
+    .runtime-panel{background:#0d1117;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:28px;font-family:"Courier New",monospace}
+    .rt-header{background:#1a0a0a;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #30363d}
+    .rt-title{font-size:13px;font-weight:700;color:#e6edf3;flex:1;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .rt-ctx{font-size:11px;color:#e74c3c;background:rgba(192,57,43,.1);border:1px solid rgba(231,76,60,.2);padding:2px 8px;border-radius:10px}
+    .rt-elapsed{font-size:11px;color:#8b949e;margin-left:auto;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .rt-stages{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+    .rt-stage{display:flex;align-items:center;gap:12px}
+    .stage-icon{width:20px;text-align:center;font-size:14px;flex-shrink:0}
+    .stage-bar-wrap{flex:1}
+    .stage-label{font-size:11px;margin-bottom:3px;display:flex;justify-content:space-between}
+    .stage-label .stage-name{color:#e6edf3;font-weight:600;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .stage-label .stage-msg{color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:480px;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .stage-bar{height:4px;background:#21262d;border-radius:2px;overflow:hidden}
+    .stage-bar-fill{height:100%;border-radius:2px;width:0;transition:width .5s ease}
+    .stage-bar-fill.running{background:#e74c3c;width:60%;animation:bar-pulse 1s ease-in-out infinite alternate}
+    .stage-bar-fill.done{background:#27ae60;width:100%}
+    .stage-bar-fill.error{background:#e74c3c;width:100%}
+    @keyframes bar-pulse{0%{opacity:.5}100%{opacity:1}}
+
+    /* Results */
+    .results{display:none}
+
+    /* Verdict card */
+    .verdict-card{border-radius:10px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;gap:32px;flex-wrap:wrap}
+    .verdict-card.approved{background:linear-gradient(90deg,#0d2b1a,#0a1f12);border:1px solid rgba(39,174,96,.35)}
+    .verdict-card.conditional{background:linear-gradient(90deg,#2b1a0d,#1f1208);border:1px solid rgba(243,156,18,.35)}
+    .verdict-card.highrisk{background:linear-gradient(90deg,#2b0d0d,#1f0808);border:1px solid rgba(231,76,60,.35)}
+    .verdict-card.notrecommended{background:linear-gradient(90deg,#1a0000,#110000);border:1px solid rgba(192,57,43,.45)}
+    .verdict-icon{font-size:44px;flex-shrink:0}
+    .verdict-body{flex:1}
+    .verdict-label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#8b949e;font-weight:700;margin-bottom:6px}
+    .verdict-text{font-size:22px;font-weight:700}
+    .verdict-text.approved{color:#27ae60}
+    .verdict-text.conditional{color:#f39c12}
+    .verdict-text.highrisk{color:#e74c3c}
+    .verdict-text.notrecommended{color:#c0392b}
+    .verdict-sub{font-size:13px;color:#8b949e;margin-top:6px;line-height:1.5}
+    .verdict-scores{display:flex;gap:24px;flex-shrink:0}
+    .score-block{text-align:center}
+    .score-num{font-size:36px;font-weight:700;font-family:monospace;line-height:1}
+    .score-num.high{color:#27ae60}
+    .score-num.medium{color:#f39c12}
+    .score-num.low{color:#e74c3c}
+    .score-lbl{font-size:11px;color:#8b949e;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+
+    /* Findings summary strip */
+    .findings-strip{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+    .finding-count{flex:1;min-width:120px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:14px 18px;text-align:center;border-top:3px solid transparent}
+    .finding-count.critical{border-top-color:#c0392b}
+    .finding-count.high{border-top-color:#e74c3c}
+    .finding-count.medium{border-top-color:#f39c12}
+    .finding-count.low{border-top-color:#27ae60}
+    .finding-count .fc-num{font-size:28px;font-weight:700;font-family:monospace}
+    .finding-count.critical .fc-num{color:#c0392b}
+    .finding-count.high .fc-num{color:#e74c3c}
+    .finding-count.medium .fc-num{color:#f39c12}
+    .finding-count.low .fc-num{color:#27ae60}
+    .finding-count .fc-lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:3px}
+
+    /* Section headings */
+    .section-title{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:14px;display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+    .section-title .sev-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+    /* API Findings table */
+    .api-findings-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    th{background:var(--th-bg);padding:9px 14px;text-align:left;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap}
+    td{padding:9px 14px;border-bottom:1px solid var(--td-border);color:var(--text-primary);vertical-align:top}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:var(--tr-hover)}
+
+    /* Severity badges */
+    .sev{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+    .sev.CRITICAL{background:#c0392b;color:#fff}
+    .sev.HIGH{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.3)}
+    .sev.MEDIUM{background:rgba(243,156,18,.12);color:#e67e22;border:1px solid rgba(243,156,18,.25)}
+    .sev.LOW{background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.25)}
+    .sev.PASS{background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.25)}
+    .sev.WARNING{background:rgba(243,156,18,.12);color:#e67e22;border:1px solid rgba(243,156,18,.25)}
+    .sev.UNKNOWN{background:var(--th-bg);color:var(--text-muted);border:1px solid var(--border)}
+    .sev.NOT_SERVED{background:rgba(39,174,96,.08);color:#27ae60;border:1px solid rgba(39,174,96,.2)}
+    .sev.SERVED_EMPTY{background:rgba(243,156,18,.08);color:#e67e22;border:1px solid rgba(243,156,18,.2)}
+    .sev.FOUND{background:#c0392b;color:#fff}
+
+    /* API finding row details */
+    .api-ver{font-family:monospace;font-size:11px;color:var(--text-primary)}
+    .rep-api{font-family:monospace;font-size:11px;color:#27ae60}
+    .api-kinds{font-size:11px;color:var(--text-secondary)}
+    .api-resources-list{font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:4px}
+    .api-resources-list .res-tag{display:inline-block;background:rgba(192,57,43,.12);color:#e74c3c;padding:1px 6px;border-radius:4px;margin:2px 2px 0 0;border:1px solid rgba(192,57,43,.2)}
+    .remediation-text{font-size:11px;color:#3fb950;line-height:1.5;margin-top:2px}
+    .break-detail{font-size:11px;color:#f1948a;line-height:1.5;margin-top:2px}
+
+    /* Expandable rows */
+    .expand-btn{background:none;border:none;color:#8b949e;cursor:pointer;font-size:11px;padding:0;display:flex;align-items:center;gap:4px;margin-top:4px}
+    .expand-btn:hover{color:var(--text-primary)}
+    .expand-content{display:none;margin-top:8px;padding:10px 12px;background:var(--th-bg);border-radius:4px;border:1px solid var(--border)}
+    .expand-content.open{display:block}
+
+    /* Risk matrix */
+    .risk-matrix{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px}
+    .risk-matrix h3{font-size:14px;font-weight:700;padding:14px 18px;border-bottom:1px solid var(--border);color:var(--text-primary)}
+    .matrix-row{display:flex;align-items:center;padding:10px 18px;border-bottom:1px solid var(--td-border);gap:16px}
+    .matrix-row:last-child{border-bottom:none}
+    .matrix-row:hover{background:var(--tr-hover)}
+    .matrix-area{font-size:13px;font-weight:600;width:140px;flex-shrink:0}
+    .matrix-status{min-width:110px}
+    .matrix-findings{font-size:12px;color:var(--text-muted);flex:1}
+
+    /* Webhooks / Security cards */
+    .info-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+    @media(max-width:700px){.info-grid-2{grid-template-columns:1fr}}
+    .info-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .info-card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px}
+    .info-card-body{padding:14px 16px;font-size:12px;color:var(--text-secondary);line-height:1.7}
+    .info-chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin:2px}
+    .chip-fail{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.25)}
+    .chip-pass{background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.2)}
+    .chip-gray{background:var(--th-bg);color:var(--text-muted);border:1px solid var(--border)}
+
+    /* Stats row */
+    .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+    .stat-chip{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:10px 18px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary)}
+    .stat-chip strong{color:var(--text-primary);font-size:16px}
+
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">K8s Upgrade Feasibility Assessment</div></div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back upg" href="k8s-upgrade.html">&#11014; Upgrade Agent</a>
+    <a class="back" href="kubernetes.html">&#8592; Kubernetes</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#128270;</div>
+  <div class="hero-text">
+    <h1>Upgrade Feasibility Assessment</h1>
+    <p>Comprehensive pre-upgrade cluster audit covering API removal scanning, workload inventory,
+       CRD discovery, admission webhook analysis, storage &amp; security checks — producing
+       a scored go/no-go recommendation before you touch the cluster.</p>
+    <span class="badge">Evidence-based · 8-phase scan · Readiness Score · Executive Summary</span>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Cluster Context</label>
+    <select id="ctx-select" onchange="onContextChange()">
+      <option value="">Loading contexts…</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Current Version</label>
+    <div class="ver-chip" id="src-ver">—</div>
+  </div>
+  <div class="ctrl-group">
+    <label>Target Version</label>
+    <div class="ver-chip" id="tgt-ver">—</div>
+  </div>
+  <button class="run-btn" id="run-btn" onclick="runAssessment()" disabled>
+    <div class="spin"></div>
+    &#128270; Run Assessment
+  </button>
+</div>
+
+<div class="status-strip">
+  <div class="dot" id="status-dot"></div>
+  <span id="status-msg">Select a cluster context above and click Run Assessment.</span>
+</div>
+
+<main>
+  <!-- Runtime panel -->
+  <div class="runtime-panel" id="runtime-panel" style="display:none">
+    <div class="rt-header">
+      <span class="rt-title">Feasibility Assessment</span>
+      <span class="rt-ctx" id="rt-ctx"></span>
+      <span class="rt-elapsed" id="rt-elapsed"></span>
+    </div>
+    <div class="rt-stages" id="rt-stages"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results"></div>
+</main>
+
+<footer>Floci &mdash; K8s Upgrade Feasibility Assessment &mdash; Read-only, no changes applied</footer>
+
+<script>
+const PHASES = [
+  { id:'cluster-info', label:'Cluster Info',        icon:'&#128279;' },
+  { id:'workloads',    label:'Workload Inventory',  icon:'&#128230;' },
+  { id:'crds',         label:'CRD Discovery',       icon:'&#128736;' },
+  { id:'api-scan',     label:'API Removal Scan',    icon:'&#128270;' },
+  { id:'webhooks',     label:'Webhook Analysis',    icon:'&#128279;' },
+  { id:'storage',      label:'Storage Check',       icon:'&#128190;' },
+  { id:'security',     label:'Security Check',      icon:'&#128274;' },
+  { id:'score',        label:'Scoring',             icon:'&#128202;' },
+];
+
+let _es = null, _startTime = 0, _elapsedTimer = null;
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Contexts ──────────────────────────────────────────────────────────────────
+async function loadContexts() {
+  try {
+    const data = await fetch('/api/contexts').then(r=>r.json());
+    const sel = document.getElementById('ctx-select');
+    sel.innerHTML = data.contexts.map(c=>
+      `<option value="${escHtml(c.name)}" ${c.current?'selected':''}>${escHtml(c.name)}${c.current?' (current)':''}</option>`
+    ).join('');
+    onContextChange();
+  } catch {
+    document.getElementById('ctx-select').innerHTML = '<option value="">Failed to load contexts</option>';
+  }
+}
+
+function onContextChange() {
+  const ctx = document.getElementById('ctx-select').value;
+  document.getElementById('run-btn').disabled = !ctx;
+  document.getElementById('src-ver').textContent = '—';
+  document.getElementById('tgt-ver').textContent = '—';
+}
+
+// ── Runtime panel ─────────────────────────────────────────────────────────────
+function initPanel(ctx) {
+  document.getElementById('rt-ctx').textContent = ctx;
+  document.getElementById('rt-elapsed').textContent = '0.0s';
+  document.getElementById('rt-stages').innerHTML = PHASES.map(p=>`
+    <div class="rt-stage" id="stage-${p.id}">
+      <div class="stage-icon" id="icon-${p.id}">○</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-label">
+          <span class="stage-name">${p.icon} ${p.label}</span>
+          <span class="stage-msg" id="msg-${p.id}">Waiting…</span>
+        </div>
+        <div class="stage-bar"><div class="stage-bar-fill" id="bar-${p.id}"></div></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('runtime-panel').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+}
+
+function updatePhase(id, status, msg) {
+  const bar  = document.getElementById(`bar-${id}`);
+  const icon = document.getElementById(`icon-${id}`);
+  const msgEl = document.getElementById(`msg-${id}`);
+  if (!bar) return;
+  if (msg) msgEl.textContent = msg;
+  bar.className = `stage-bar-fill ${status}`;
+  icon.textContent = status==='done' ? '✓' : status==='error' ? '✗' : status==='running' ? '▶' : '○';
+  icon.style.color = status==='done' ? '#27ae60' : status==='error' ? '#e74c3c' : status==='running' ? '#e74c3c' : '';
+}
+
+// ── Run assessment ────────────────────────────────────────────────────────────
+function runAssessment() {
+  const ctx = document.getElementById('ctx-select').value;
+  if (!ctx) return;
+  if (_es) { _es.close(); _es = null; }
+  clearInterval(_elapsedTimer);
+
+  const btn = document.getElementById('run-btn');
+  btn.classList.add('running'); btn.disabled = true;
+
+  const dot = document.getElementById('status-dot');
+  const msg = document.getElementById('status-msg');
+  dot.className = 'dot running';
+  msg.textContent = 'Running feasibility assessment…';
+
+  initPanel(ctx);
+  _startTime = Date.now();
+  _elapsedTimer = setInterval(() => {
+    const el = document.getElementById('rt-elapsed');
+    if (el) el.textContent = ((Date.now()-_startTime)/1000).toFixed(1)+'s';
+  }, 100);
+
+  _es = new EventSource(`/api/feasibility/stream?context=${encodeURIComponent(ctx)}`);
+
+  _es.onmessage = e => {
+    const d = JSON.parse(e.data);
+
+    if (d.phase === 'complete') {
+      _es.close(); _es = null;
+      clearInterval(_elapsedTimer);
+      btn.classList.remove('running'); btn.disabled = false;
+      dot.className = 'dot ok';
+      msg.textContent = `Assessment complete — Readiness ${d.report.readiness}/100 · ${d.report.verdict}`;
+      renderResults(d.report);
+      return;
+    }
+
+    updatePhase(d.phase, d.status, d.message);
+
+    if (d.phase==='cluster-info' && d.status==='done' && d.version)
+      document.getElementById('src-ver').textContent = d.version;
+  };
+
+  _es.onerror = () => {
+    if (!_es) return;
+    _es.close(); _es = null;
+    clearInterval(_elapsedTimer);
+    btn.classList.remove('running'); btn.disabled = false;
+    dot.className = 'dot warn';
+    msg.textContent = 'Connection lost — check backend is running.';
+  };
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function scoreClass(n) { return n>=75?'high':n>=50?'medium':'low'; }
+
+function verdictCls(v) {
+  return v==='APPROVED' ? 'approved'
+       : v==='CONDITIONAL' ? 'conditional'
+       : v==='HIGH RISK' ? 'highrisk'
+       : 'notrecommended';
+}
+function verdictIcon(v) {
+  return v==='APPROVED' ? '✅' : v==='CONDITIONAL' ? '⚠️' : '🚫';
+}
+
+function renderResults(r) {
+  if (r.targetVersion) document.getElementById('tgt-ver').textContent = r.targetVersion;
+
+  const findings = r.findings || {};
+  const crit = (findings.CRITICAL||[]).length;
+  const high = (findings.HIGH||[]).length;
+  const med  = (findings.MEDIUM||[]).length;
+  const low  = (findings.LOW||[]).length;
+  const vc = verdictCls(r.verdict);
+
+  let html = '';
+
+  // ── Verdict card ─────────────────────────────────────────────────────────
+  html += `
+  <div class="verdict-card ${vc}">
+    <div class="verdict-icon">${verdictIcon(r.verdict)}</div>
+    <div class="verdict-body">
+      <div class="verdict-label">Upgrade Decision</div>
+      <div class="verdict-text ${vc}">${escHtml(r.verdict)}</div>
+      <div class="verdict-sub">
+        ${escHtml(r.clusterVersion||'—')} &nbsp;→&nbsp; ${escHtml(r.targetVersion||'—')} &nbsp;·&nbsp;
+        ${r.nodes?r.nodes.length:0} node(s) &nbsp;·&nbsp;
+        ${(r.workloads||{}).total||0} workload(s) &nbsp;·&nbsp;
+        ${(r.crds||[]).length} CRD(s)
+      </div>
+    </div>
+    <div class="verdict-scores">
+      <div class="score-block">
+        <div class="score-num ${scoreClass(r.readiness)}">${r.readiness}</div>
+        <div class="score-lbl">Readiness /100</div>
+      </div>
+      <div class="score-block">
+        <div class="score-num ${scoreClass(r.confidence)}">${r.confidence}%</div>
+        <div class="score-lbl">Confidence</div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Finding counts ────────────────────────────────────────────────────────
+  html += `
+  <div class="findings-strip">
+    <div class="finding-count critical"><div class="fc-num">${crit}</div><div class="fc-lbl">Critical</div></div>
+    <div class="finding-count high"><div class="fc-num">${high}</div><div class="fc-lbl">High</div></div>
+    <div class="finding-count medium"><div class="fc-num">${med}</div><div class="fc-lbl">Medium</div></div>
+    <div class="finding-count low"><div class="fc-num">${low}</div><div class="fc-lbl">Low</div></div>
+  </div>`;
+
+  // ── API Removal Findings ──────────────────────────────────────────────────
+  html += `<div class="section-title"><span class="sev-dot" style="background:#c0392b"></span>API Removal Scan — ${escHtml(r.clusterVersion||'—')} → ${escHtml(r.targetVersion||'—')}</div>`;
+
+  if (r.apiFindings && r.apiFindings.length) {
+    html += `<div class="api-findings-wrap">
+    <table>
+      <thead><tr>
+        <th>Removed in</th><th>API Version</th><th>Affected Kinds</th>
+        <th>Status</th><th>Severity</th><th>Live Resources</th><th>Replacement</th>
+      </tr></thead><tbody>`;
+
+    r.apiFindings.forEach((f, idx) => {
+      const statusLabel = f.status==='FOUND' ? 'LIVE RESOURCES' : f.status==='SERVED_EMPTY' ? 'SERVED, NO RESOURCES' : 'NOT SERVED';
+      const statusCls   = f.status==='FOUND' ? 'FOUND' : f.status==='SERVED_EMPTY' ? 'SERVED_EMPTY' : 'NOT_SERVED';
+      const hasDetail   = f.status==='FOUND' && f.resources && f.resources.length;
+
+      html += `<tr>
+        <td style="white-space:nowrap;font-weight:700">v1.${f.removedIn}</td>
+        <td class="api-ver">${escHtml(f.apiVersion)}</td>
+        <td class="api-kinds">${(f.kinds||[]).map(k=>`<span style="display:inline-block;background:var(--th-bg);padding:1px 5px;border-radius:3px;margin:1px;font-size:10px">${escHtml(k)}</span>`).join('')}</td>
+        <td><span class="sev ${statusCls}">${statusLabel}</span></td>
+        <td><span class="sev ${f.severity}">${escHtml(f.severity)}</span></td>
+        <td>`;
+
+      if (hasDetail) {
+        html += `<div>`;
+        f.resources.forEach(res => {
+          html += `<div style="margin-bottom:4px"><strong style="color:var(--text-primary)">${escHtml(res.kind)}</strong>
+            <span style="color:#e74c3c;font-weight:700"> ×${res.count}</span>`;
+          if (res.namespaces && res.namespaces.length)
+            html += ` <span class="api-kinds">in ${escHtml(res.namespaces.join(', '))}</span>`;
+          if (res.names && res.names.length)
+            html += `<div class="api-resources-list">${res.names.map(n=>`<span class="res-tag">${escHtml(n)}</span>`).join('')}</div>`;
+          html += `</div>`;
+        });
+        html += `<button class="expand-btn" onclick="toggleExpand('exp-${idx}')">&#9660; What will break</button>
+          <div class="expand-content" id="exp-${idx}">`;
+        const allFindings = [...(findings.CRITICAL||[]),...(findings.HIGH||[]),...(findings.MEDIUM||[])].filter(ff=>ff.api===f.apiVersion);
+        if (allFindings.length) {
+          allFindings.forEach(ff => {
+            html += `<div class="break-detail">&#9888; <strong>Breaks:</strong> ${escHtml(ff.whatWillBreak||'')}</div>
+              <div class="break-detail">&#9201; <strong>When:</strong> ${escHtml(ff.whenItBreaks||'')}</div>
+              <div class="break-detail">&#128202; <strong>Impact:</strong> ${escHtml(ff.impact||'')}</div>
+              <div class="remediation-text">&#9989; <strong>Fix:</strong> ${escHtml(ff.remediation||'')}</div>`;
+          });
+        }
+        html += `</div></div>`;
+      } else {
+        html += `<span style="color:var(--text-muted);font-size:11px">${f.resourceCount===0?'None found':'—'}</span>`;
+      }
+
+      html += `</td><td class="rep-api">${escHtml(f.replacement||'—')}</td></tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<div style="color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;margin-bottom:24px">No deprecated API data available — cluster may be at latest version or the API scan encountered an error.</div>`;
+  }
+
+  // ── All Findings list (non-API) ───────────────────────────────────────────
+  const nonApiFindings = [...(findings.CRITICAL||[]),...(findings.HIGH||[]),...(findings.MEDIUM||[]),...(findings.LOW||[])].filter(f=>f.area!=='APIs');
+  if (nonApiFindings.length) {
+    html += `<div class="section-title"><span class="sev-dot" style="background:#e67e22"></span>Additional Findings (${nonApiFindings.length})</div>
+    <div class="api-findings-wrap"><table>
+      <thead><tr><th>Severity</th><th>Area</th><th>Finding</th><th>When it breaks</th><th>Remediation</th></tr></thead><tbody>`;
+    nonApiFindings.forEach(f => {
+      html += `<tr>
+        <td><span class="sev ${f.severity}">${escHtml(f.severity)}</span></td>
+        <td style="white-space:nowrap;font-weight:600">${escHtml(f.area)}</td>
+        <td>${escHtml(f.title)}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${escHtml(f.whenItBreaks||'—')}</td>
+        <td class="remediation-text">${escHtml(f.remediation||'—')}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  // ── Risk Matrix ───────────────────────────────────────────────────────────
+  if (r.riskMatrix) {
+    html += `<div class="section-title"><span class="sev-dot" style="background:#326ce5"></span>Risk Matrix</div>
+    <div class="risk-matrix">`;
+    r.riskMatrix.forEach(row => {
+      const statusCls = row.status==='PASS'?'PASS':row.status==='CRITICAL'||row.status==='HIGH RISK'?'CRITICAL':row.status==='HIGH'?'HIGH':row.status==='WARNING'?'MEDIUM':'UNKNOWN';
+      html += `<div class="matrix-row">
+        <div class="matrix-area">${escHtml(row.area)}</div>
+        <div class="matrix-status"><span class="sev ${statusCls}">${escHtml(row.status)}</span></div>
+        <div class="matrix-findings">${row.findings>0?`${row.findings} finding(s)`:'—'}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Webhooks + Security ───────────────────────────────────────────────────
+  const wh = r.webhooks || { validating:[], mutating:[] };
+  const sec = r.security || {};
+  html += `<div class="info-grid-2">`;
+
+  html += `<div class="info-card">
+    <div class="info-card-hdr">&#128279; Admission Webhooks</div>
+    <div class="info-card-body">
+      <div style="margin-bottom:8px"><strong>${wh.validating.length}</strong> Validating config(s) &nbsp;·&nbsp; <strong>${wh.mutating.length}</strong> Mutating config(s)</div>`;
+  [...wh.validating,...wh.mutating].forEach(w => {
+    html += `<div style="margin-bottom:6px">${escHtml(w.name)}
+      ${w.hasFailClosed?'<span class="info-chip chip-fail">Fail-closed</span>':'<span class="info-chip chip-pass">Fail-open</span>'}
+      <span class="info-chip chip-gray">${w.webhookCount} hook(s)</span></div>`;
+  });
+  if (!wh.validating.length && !wh.mutating.length) html += '<div style="color:var(--text-muted)">No webhook configurations found</div>';
+  html += `</div></div>`;
+
+  html += `<div class="info-card">
+    <div class="info-card-hdr">&#128274; Security Scan</div>
+    <div class="info-card-body">
+      <div style="margin-bottom:6px"><strong>${sec.podCount||0}</strong> pods scanned</div>
+      <div><span class="info-chip ${sec.privileged&&sec.privileged.length?'chip-fail':'chip-pass'}">${sec.privileged?sec.privileged.length:0} privileged container(s)</span></div>
+      <div><span class="info-chip ${sec.hostNetwork&&sec.hostNetwork.length?'chip-fail':'chip-pass'}">${sec.hostNetwork?sec.hostNetwork.length:0} hostNetwork pod(s)</span></div>
+      <div><span class="info-chip ${sec.hostPID&&sec.hostPID.length?'chip-fail':'chip-pass'}">${sec.hostPID?sec.hostPID.length:0} hostPID pod(s)</span></div>
+    </div></div>`;
+
+  html += `</div>`;
+
+  // ── Cluster stats + Storage ───────────────────────────────────────────────
+  const storage = r.storage || { storageClasses:[], pvCount:0 };
+  const workloads = r.workloads || {};
+  html += `<div class="stat-row">
+    <div class="stat-chip">&#9096; Nodes <strong>${(r.nodes||[]).length}</strong></div>
+    <div class="stat-chip">&#128230; Namespaces <strong>${(r.namespaces||[]).length}</strong></div>
+    <div class="stat-chip">&#128736; CRDs <strong>${(r.crds||[]).length}</strong></div>
+    <div class="stat-chip">&#128190; StorageClasses <strong>${storage.storageClasses.length}</strong></div>
+    <div class="stat-chip">&#128191; PersistentVolumes <strong>${storage.pvCount}</strong></div>
+    <div class="stat-chip">&#128230; Deployments <strong>${workloads.deployments||0}</strong></div>
+    <div class="stat-chip">&#128230; StatefulSets <strong>${workloads.statefulsets||0}</strong></div>
+    <div class="stat-chip">&#128230; DaemonSets <strong>${workloads.daemonsets||0}</strong></div>
+    <div class="stat-chip">&#9200; CronJobs <strong>${workloads.cronjobs||0}</strong></div>
+  </div>`;
+
+  // ── Required actions ──────────────────────────────────────────────────────
+  const actions = (r.summary && r.summary.requiredActions) || [];
+  if (actions.length) {
+    html += `<div class="section-title"><span class="sev-dot" style="background:#c0392b"></span>Required Actions Before Upgrade</div>
+    <div class="api-findings-wrap" style="padding:16px 20px">`;
+    actions.forEach((a, i) => {
+      html += `<div style="display:flex;gap:10px;margin-bottom:10px;font-size:12px;line-height:1.5">
+        <span style="font-weight:700;color:#e74c3c;flex-shrink:0">${i+1}.</span>
+        <span>${escHtml(a)}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  const el = document.getElementById('results');
+  el.innerHTML = html;
+  el.style.display = 'block';
+  window.scrollTo({ top: document.getElementById('runtime-panel').offsetTop - 20, behavior:'smooth' });
+}
+
+function toggleExpand(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('open');
+  const btn = el.previousElementSibling;
+  if (btn) btn.textContent = el.classList.contains('open') ? '▲ Collapse' : '▼ What will break';
+}
+
+loadContexts();
+</script>
+</body>
+</html>
