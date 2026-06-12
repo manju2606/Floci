@@ -37,9 +37,17 @@ function makeKubectlConfig(contextName) {
   const out  = JSON.parse(JSON.stringify(kc)); // deep clone
   (out.clusters || []).forEach(c => {
     if (c.cluster && c.cluster.server) {
-      c.cluster.server = c.cluster.server
+      const remapped = c.cluster.server
         .replace('https://127.0.0.1', 'https://host.docker.internal')
         .replace('https://localhost',  'https://host.docker.internal');
+      if (remapped !== c.cluster.server) {
+        // Kind certs are issued for localhost/floci-cluster-control-plane, not host.docker.internal.
+        // Skip TLS verification for remapped clusters so kubectl doesn't fail with x509 SAN errors.
+        c.cluster.server = remapped;
+        delete c.cluster['certificate-authority-data'];
+        delete c.cluster['certificate-authority'];
+        c.cluster['insecure-skip-tls-verify'] = true;
+      }
     }
   });
   out['current-context'] = contextName;
