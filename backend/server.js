@@ -1236,6 +1236,199 @@ app.get('/api/s3/buckets', async (req, res) => {
   }
 });
 
+// ── Kubernetes Upgrade Agent ───────────────────────────────────────────────────
+
+function fetchGitHub(path) {
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'api.github.com',
+      path,
+      method: 'GET',
+      headers: { 'User-Agent': 'floci-dashboard', 'Accept': 'application/vnd.github.v3+json' },
+    };
+    const req = https.request(opts, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(new Error('bad json')); } });
+    });
+    req.setTimeout(8000, () => { req.destroy(); reject(new Error('GitHub API timeout')); });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function parseVersion(v) {
+  const m = String(v || '').match(/v?(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return null;
+  return { major: parseInt(m[1]), minor: parseInt(m[2]), patch: parseInt(m[3]),
+           str: `v${m[1]}.${m[2]}.${m[3]}` };
+}
+
+function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
+  const cur = parseVersion(serverVersion);
+  const lat = parseVersion(latestVersion);
+  if (!cur || !lat) return null;
+
+  const isKind    = /^kind-/i.test(contextName);
+  const skew      = (lat.major - cur.major) * 100 + (lat.minor - cur.minor);
+  const upToDate  = skew <= 0;
+  const clusterType = isKind ? 'kind' : 'kubeadm';
+
+  // Build minor-version path (must upgrade one minor at a time for kubeadm)
+  const path = [];
+  for (let m = cur.minor; m <= lat.minor; m++) {
+    const label = (m === cur.minor) ? cur.str
+                : (m === lat.minor) ? lat.str
+                : `v${cur.major}.${m}.x`;
+    path.push(label);
+  }
+
+  const steps = [];
+  if (!upToDate) {
+    if (isKind) {
+      const clusterName = contextName.replace(/^kind-/i, '');
+      steps.push({
+        id: 'backup', title: 'Backup workloads',
+        warning: 'Kind clusters must be recreated to upgrade — existing workloads will be lost unless backed up.',
+        commands: [
+          `kubectl get all -A -o yaml > cluster-backup-${cur.str}.yaml`,
+          `kubectl get configmaps -A -o yaml >> cluster-backup-${cur.str}.yaml`,
+          `kubectl get secrets -A -o yaml >> cluster-backup-${cur.str}.yaml`,
+        ],
+      });
+      steps.push({
+        id: 'delete', title: `Delete cluster "${clusterName}"`,
+        warning: 'This permanently removes the cluster and all its data.',
+        commands: [`kind delete cluster --name ${clusterName}`],
+      });
+      steps.push({
+        id: 'create', title: `Create cluster with ${lat.str}`,
+        commands: [
+          `kind create cluster --name ${clusterName} --image kindest/node:${lat.str}`,
+          `# Or with your existing config:`,
+          `kind create cluster --name ${clusterName} --image kindest/node:${lat.str} --config kind-cluster.yaml`,
+        ],
+      });
+    } else {
+      // kubeadm — one minor version at a time
+      for (let m = cur.minor + 1; m <= lat.minor; m++) {
+        const target = (m === lat.minor) ? lat.str : `v${cur.major}.${m}.0`;
+        const ver    = target.replace(/^v/, '');
+        steps.push({
+          id: `upgrade-to-${target}`, title: `Upgrade control plane to ${target}`,
+          commands: [
+            `# Upgrade kubeadm on control-plane node`,
+            `apt-get update && apt-get install -y kubeadm=${ver}-*`,
+            `kubeadm upgrade plan`,
+            `kubeadm upgrade apply ${target}`,
+            `# Then upgrade kubelet & kubectl on each node`,
+            `apt-get install -y kubelet=${ver}-* kubectl=${ver}-*`,
+            `systemctl daemon-reload && systemctl restart kubelet`,
+          ],
+        });
+      }
+    }
+    steps.push({
+      id: 'verify', title: 'Verify the upgrade',
+      commands: [
+        `kubectl version`,
+        `kubectl get nodes -o wide`,
+        `kubectl get componentstatuses`,
+      ],
+    });
+  }
+
+  return { current: cur.str, latest: lat.str, upToDate, skew, clusterType, path, steps, nodes };
+}
+
+// GET /api/upgrade/stream?context= — SSE upgrade check stream
+app.get('/api/upgrade/stream', async (req, res) => {
+  const ctx = req.query.context;
+  if (!ctx) { res.status(400).end(); return; }
+
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit  = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const pause = ms  => new Promise(r => setTimeout(r, ms));
+
+  let serverVersion = null, nodeList = [], latestVersion = null;
+
+  // Phase 1 — cluster connect
+  emit({ phase: 'connect', status: 'running', message: 'Connecting to cluster and reading server version…' });
+  await pause(800);
+  try {
+    const ver = await fetchK8s(ctx, '/version');
+    serverVersion = ver.gitVersion || `v${ver.major}.${ver.minor}`;
+    emit({ phase: 'connect', status: 'done', version: serverVersion,
+           message: `Connected — Kubernetes ${serverVersion}` });
+  } catch(e) {
+    emit({ phase: 'connect', status: 'error', message: e.message });
+    emit({ phase: 'complete', status: 'error', error: e.message });
+    res.end(); return;
+  }
+
+  await pause(700);
+
+  // Phase 2 — node versions
+  emit({ phase: 'nodes', status: 'running', message: 'Reading node kubelet versions…' });
+  await pause(800);
+  try {
+    const data = await fetchK8s(ctx, '/api/v1/nodes');
+    nodeList = (data.items || []).map(n => ({
+      name:           n.metadata.name,
+      kubeletVersion: n.status?.nodeInfo?.kubeletVersion || '—',
+      role:           (n.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined ||
+                       n.metadata?.labels?.['node-role.kubernetes.io/master'] !== undefined)
+                       ? 'control-plane' : 'worker',
+      status: (n.status?.conditions || []).find(c => c.type === 'Ready')?.status === 'True' ? 'Ready' : 'NotReady',
+    }));
+    emit({ phase: 'nodes', status: 'done', nodes: nodeList,
+           message: `${nodeList.length} node(s) found` });
+  } catch(e) {
+    nodeList = [];
+    emit({ phase: 'nodes', status: 'error', message: e.message });
+  }
+
+  await pause(700);
+
+  // Phase 3 — fetch latest K8s version from GitHub
+  emit({ phase: 'latest', status: 'running', message: 'Fetching latest Kubernetes release from GitHub…' });
+  await pause(600);
+  try {
+    const release = await fetchGitHub('/repos/kubernetes/kubernetes/releases/latest');
+    latestVersion = release.tag_name;
+    emit({ phase: 'latest', status: 'done', version: latestVersion,
+           message: `Latest stable: ${latestVersion}` });
+  } catch(e) {
+    latestVersion = serverVersion; // fallback — can't determine latest
+    emit({ phase: 'latest', status: 'error',
+           message: `Could not reach GitHub (${e.message}) — showing current version only` });
+  }
+
+  await pause(600);
+
+  // Phase 4 — analyze
+  emit({ phase: 'analyze', status: 'running', message: 'Computing upgrade path and generating plan…' });
+  await pause(900);
+  const plan = generateUpgradePlan(serverVersion, latestVersion, ctx, nodeList);
+  if (plan.upToDate) {
+    emit({ phase: 'analyze', status: 'done', message: `Already on latest (${serverVersion}) — no upgrade needed` });
+  } else {
+    emit({ phase: 'analyze', status: 'done',
+           message: `${plan.skew} minor version(s) behind — upgrade path: ${plan.path.join(' → ')}` });
+  }
+
+  await pause(500);
+
+  // Complete
+  emit({ phase: 'complete', status: 'done', plan });
+  res.end();
+});
+
 // GET /api/s3/bucket/:name/objects — list objects at a given prefix (folder nav)
 app.get('/api/s3/bucket/:name/objects', async (req, res) => {
   const bucket = req.params.name;

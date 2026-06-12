@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>K8s Upgrade Agent — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+      --th-bg: #f2f3f3; --tr-hover: #fafafa; --td-border: #eaeded;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+      --th-bg: #1c2128; --tr-hover: #21262d; --td-border: #21262d;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#e67e22;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    header a.back.inv{border-color:#326ce5;color:#326ce5}
+    header a.back.inv:hover{background:#326ce5;color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+
+    /* Hero */
+    .hero{background:linear-gradient(135deg,#1a1000,#2d1f00);padding:40px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#e67e22;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero-text{flex:1;min-width:200px}
+    .hero h1{font-size:26px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .hero .badge-ro{display:inline-block;margin-top:8px;font-size:11px;background:rgba(230,126,34,.2);color:#f39c12;border:1px solid rgba(243,156,18,.3);padding:2px 10px;border-radius:10px;font-weight:600}
+
+    /* Controls */
+    .controls{background:#1a1500;padding:20px 32px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid #2d2000}
+    .ctrl-group{display:flex;flex-direction:column;gap:5px}
+    .ctrl-group label{font-size:11px;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .ctrl-group select{padding:7px 12px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:13px;min-width:220px}
+    .ctrl-group select:focus{outline:none;border-color:#e67e22}
+    .run-btn{padding:9px 24px;background:#e67e22;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;align-self:flex-end}
+    .run-btn:hover{background:#ca6f1e}
+    .run-btn:disabled{background:#4a5568;cursor:not-allowed}
+    .run-btn .spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    .run-btn.running .spin{display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Status strip */
+    .status-strip{background:#161b22;border-bottom:1px solid #30363d;padding:8px 32px;font-size:12px;color:#8b949e;display:flex;align-items:center;gap:12px;min-height:36px}
+    .status-strip .dot{width:8px;height:8px;border-radius:50%;background:#4a5568;flex-shrink:0}
+    .status-strip .dot.ok{background:#27ae60}
+    .status-strip .dot.warn{background:#e74c3c;animation:pulse 1.5s ease-in-out infinite}
+    .status-strip .dot.running{background:#f39c12;animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    main{max-width:1100px;margin:32px auto;padding:0 24px}
+
+    /* Runtime panel */
+    .runtime-panel{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:0;margin-bottom:28px;overflow:hidden;font-family:"Courier New",monospace}
+    .rt-header{background:#161b22;padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #30363d}
+    .rt-title{font-size:13px;font-weight:700;color:#e6edf3;flex:1}
+    .rt-ctx{font-size:11px;color:#e67e22;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.2);padding:2px 8px;border-radius:10px}
+    .rt-elapsed{font-size:11px;color:#8b949e;margin-left:auto}
+    .rt-stages{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+    .rt-stage{display:flex;align-items:center;gap:12px}
+    .stage-icon{width:20px;text-align:center;font-size:14px;flex-shrink:0}
+    .stage-bar-wrap{flex:1;min-width:0}
+    .stage-label{font-size:11px;color:#8b949e;margin-bottom:3px;display:flex;justify-content:space-between}
+    .stage-label .stage-name{color:#e6edf3;font-weight:600}
+    .stage-label .stage-msg{color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px}
+    .stage-bar{height:4px;background:#21262d;border-radius:2px;overflow:hidden}
+    .stage-bar-fill{height:100%;border-radius:2px;width:0;transition:width .6s ease}
+    .stage-bar-fill.running{background:#e67e22;animation:bar-pulse 1s ease-in-out infinite alternate}
+    .stage-bar-fill.done{background:#27ae60;width:100%}
+    .stage-bar-fill.error{background:#e74c3c;width:100%}
+    @keyframes bar-pulse{0%{opacity:.5}100%{opacity:1}}
+
+    /* Results */
+    .results{display:none}
+
+    /* Version comparison card */
+    .ver-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:28px;margin-bottom:24px;display:flex;align-items:center;gap:40px;flex-wrap:wrap}
+    .ver-block{text-align:center;flex:1;min-width:140px}
+    .ver-block .ver-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:700;margin-bottom:8px}
+    .ver-pill{display:inline-block;font-size:18px;font-weight:700;padding:8px 22px;border-radius:24px;font-family:monospace;letter-spacing:.5px}
+    .ver-pill.current{background:#eaf0fb;color:#326ce5}
+    [data-theme="dark"] .ver-pill.current{background:rgba(50,108,229,.15);color:#58a6ff}
+    .ver-pill.latest{background:#e9f7ef;color:#1e8449}
+    [data-theme="dark"] .ver-pill.latest{background:rgba(39,174,96,.15);color:#3fb950}
+    .ver-pill.same{background:#e9f7ef;color:#1e8449}
+    [data-theme="dark"] .ver-pill.same{background:rgba(39,174,96,.15);color:#3fb950}
+    .ver-arrow{font-size:28px;color:var(--border);flex-shrink:0}
+    .ver-status{flex:1;text-align:center;min-width:180px}
+    .status-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:700}
+    .status-badge.uptodate{background:#d5f5e3;color:#1e8449}
+    [data-theme="dark"] .status-badge.uptodate{background:rgba(39,174,96,.15);color:#3fb950}
+    .status-badge.outdated{background:#fdebd0;color:#784212}
+    [data-theme="dark"] .status-badge.outdated{background:rgba(230,126,34,.12);color:#e67e22}
+    .cluster-type-pill{display:inline-block;margin-top:8px;font-size:11px;padding:2px 10px;border-radius:10px;font-weight:700}
+    .cluster-type-pill.kind{background:#eaf0fb;color:#326ce5}
+    .cluster-type-pill.kubeadm{background:#fef9e7;color:#7d6608}
+
+    /* Upgrade path */
+    .path-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:20px 24px;margin-bottom:24px}
+    .path-card h3{font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:14px}
+    .path-steps{display:flex;align-items:center;gap:0;flex-wrap:wrap;row-gap:8px}
+    .path-step{display:flex;align-items:center}
+    .path-ver{font-size:13px;font-weight:700;padding:5px 14px;border-radius:16px;background:var(--th-bg);color:var(--text-muted);font-family:monospace;border:1px solid var(--border)}
+    .path-ver.start{background:#eaf0fb;color:#326ce5;border-color:#c3d3f5}
+    [data-theme="dark"] .path-ver.start{background:rgba(50,108,229,.15);color:#58a6ff}
+    .path-ver.end{background:#e9f7ef;color:#1e8449;border-color:#a9dfbf}
+    [data-theme="dark"] .path-ver.end{background:rgba(39,174,96,.15);color:#3fb950}
+    .path-arrow{color:var(--text-muted);font-size:18px;padding:0 6px}
+    .path-note{font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.6}
+
+    /* Nodes table */
+    .nodes-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px}
+    .nodes-card h3{font-size:14px;font-weight:700;color:var(--text-primary);padding:14px 18px;border-bottom:1px solid var(--border)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:var(--th-bg);padding:8px 14px;text-align:left;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
+    td{padding:8px 14px;border-bottom:1px solid var(--td-border);color:var(--text-primary)}
+    tr:last-child td{border-bottom:none}
+    .role-pill{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700}
+    .role-pill.cp{background:#eaf0fb;color:#326ce5}
+    .role-pill.worker{background:var(--th-bg);color:var(--text-muted)}
+    .ready-ok{color:#27ae60;font-weight:700}
+    .ready-bad{color:#e74c3c;font-weight:700}
+
+    /* Upgrade steps */
+    .steps-title{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+    .step-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;overflow:hidden}
+    .step-hdr{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border)}
+    .step-num{width:30px;height:30px;border-radius:50%;background:#e67e22;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+    .step-title{font-size:15px;font-weight:700;color:var(--text-primary)}
+    .step-body{padding:16px 20px}
+    .warning-box{background:#fef3cd;border:1px solid #ffc107;border-left:4px solid #f39c12;border-radius:4px;padding:10px 14px;font-size:13px;color:#7d6608;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+    [data-theme="dark"] .warning-box{background:rgba(243,156,18,.1);border-color:rgba(243,156,18,.3);color:#e3b341}
+    .cmd-block{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:10px 14px;font-family:"Courier New",monospace;font-size:12px;color:#a8d8a8;cursor:pointer;position:relative;margin-bottom:6px;transition:border-color .15s;white-space:pre;overflow-x:auto}
+    .cmd-block.comment{color:#6e7681;cursor:default}
+    .cmd-block:not(.comment):hover{border-color:#e67e22}
+    .cmd-block:not(.comment):hover::after{content:"Copy";position:absolute;top:6px;right:10px;font-size:10px;background:#e67e22;color:#fff;padding:2px 6px;border-radius:3px;font-family:sans-serif}
+    .cmd-block.copied{border-color:#27ae60}
+
+    /* Up-to-date state */
+    .utd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:48px 32px;text-align:center;margin-bottom:24px}
+    .utd-icon{font-size:56px;margin-bottom:16px}
+    .utd-card h2{font-size:22px;font-weight:700;color:#27ae60;margin-bottom:8px}
+    .utd-card p{font-size:14px;color:var(--text-secondary);line-height:1.6}
+
+    .empty{color:var(--text-secondary);font-size:13px;padding:20px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:4px}
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">K8s Upgrade Agent</div></div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+    <a class="back inv" href="k8s-agent.html">&#128269; Investigate</a>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#11014;</div>
+  <div class="hero-text">
+    <h1>K8s Upgrade Agent</h1>
+    <p>Checks your cluster version against the latest Kubernetes release and generates
+       a step-by-step upgrade plan tailored to your cluster type.</p>
+    <span class="badge-ro">Read cluster version · Generates upgrade commands · No auto-apply</span>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Cluster Context</label>
+    <select id="ctx-select" onchange="onContextChange()">
+      <option value="">Loading contexts…</option>
+    </select>
+  </div>
+  <button class="run-btn" id="run-btn" onclick="runUpgradeCheck()" disabled>
+    <div class="spin"></div>
+    &#11014; Check Upgrade
+  </button>
+</div>
+
+<div class="status-strip">
+  <div class="dot" id="status-dot"></div>
+  <span id="status-msg">Select a cluster context above and click Check Upgrade.</span>
+</div>
+
+<main>
+  <!-- Runtime panel -->
+  <div class="runtime-panel" id="runtime-panel" style="display:none">
+    <div class="rt-header">
+      <span class="rt-title">Upgrade Check</span>
+      <span class="rt-ctx" id="rt-ctx"></span>
+      <span class="rt-elapsed" id="rt-elapsed"></span>
+    </div>
+    <div class="rt-stages" id="rt-stages"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results"></div>
+</main>
+
+<footer>Floci &mdash; K8s Upgrade Agent &mdash; Plan only, no auto-apply</footer>
+
+<script>
+const PHASES = [
+  { id: 'connect', label: 'Cluster Connection'  },
+  { id: 'nodes',   label: 'Node Versions'        },
+  { id: 'latest',  label: 'Latest K8s Release'   },
+  { id: 'analyze', label: 'Upgrade Analysis'     },
+];
+
+let _es = null;
+let _startTime = 0;
+let _elapsedTimer = null;
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Contexts ──────────────────────────────────────────────────────────────────
+async function loadContexts() {
+  try {
+    const data = await fetch('/api/contexts').then(r => r.json());
+    const sel = document.getElementById('ctx-select');
+    sel.innerHTML = data.contexts.map(c =>
+      `<option value="${escHtml(c.name)}" ${c.current ? 'selected' : ''}>${escHtml(c.name)}${c.current ? ' (current)' : ''}</option>`
+    ).join('');
+    onContextChange();
+  } catch(e) {
+    document.getElementById('ctx-select').innerHTML = '<option value="">Failed to load contexts</option>';
+  }
+}
+
+function onContextChange() {
+  const ctx = document.getElementById('ctx-select').value;
+  document.getElementById('run-btn').disabled = !ctx;
+}
+
+// ── Runtime panel ─────────────────────────────────────────────────────────────
+function initRuntimePanel(ctx) {
+  document.getElementById('rt-ctx').textContent = ctx;
+  document.getElementById('rt-elapsed').textContent = '0.0s';
+  document.getElementById('rt-stages').innerHTML = PHASES.map(p => `
+    <div class="rt-stage" id="stage-${p.id}">
+      <div class="stage-icon" id="icon-${p.id}">○</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-label">
+          <span class="stage-name">${p.label}</span>
+          <span class="stage-msg" id="msg-${p.id}">Waiting…</span>
+        </div>
+        <div class="stage-bar"><div class="stage-bar-fill" id="bar-${p.id}"></div></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('runtime-panel').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+}
+
+function updatePhase(phase, status, msg) {
+  const bar  = document.getElementById(`bar-${phase}`);
+  const icon = document.getElementById(`icon-${phase}`);
+  const msgEl = document.getElementById(`msg-${phase}`);
+  if (!bar) return;
+  if (msg) msgEl.textContent = msg;
+  bar.className = `stage-bar-fill ${status}`;
+  icon.textContent = status === 'done' ? '✓' : status === 'error' ? '✗' : status === 'running' ? '▶' : '○';
+  icon.style.color = status === 'done' ? '#27ae60' : status === 'error' ? '#e74c3c' : status === 'running' ? '#e67e22' : '';
+}
+
+// ── Run upgrade check ─────────────────────────────────────────────────────────
+function runUpgradeCheck() {
+  const ctx = document.getElementById('ctx-select').value;
+  if (!ctx) return;
+  if (_es) { _es.close(); _es = null; }
+  clearInterval(_elapsedTimer);
+
+  const btn = document.getElementById('run-btn');
+  btn.classList.add('running'); btn.disabled = true;
+
+  const dot = document.getElementById('status-dot');
+  const msg = document.getElementById('status-msg');
+  dot.className = 'dot running';
+  msg.textContent = 'Running upgrade check…';
+
+  initRuntimePanel(ctx);
+  _startTime = Date.now();
+  _elapsedTimer = setInterval(() => {
+    const el = document.getElementById('rt-elapsed');
+    if (el) el.textContent = ((Date.now() - _startTime) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  _es = new EventSource(`/api/upgrade/stream?context=${encodeURIComponent(ctx)}`);
+
+  _es.onmessage = e => {
+    const d = JSON.parse(e.data);
+
+    if (d.phase === 'complete') {
+      _es.close(); _es = null;
+      clearInterval(_elapsedTimer);
+      btn.classList.remove('running'); btn.disabled = false;
+      if (d.status === 'error') {
+        dot.className = 'dot warn';
+        msg.textContent = 'Upgrade check failed: ' + d.error;
+      } else {
+        dot.className = 'dot ok';
+        msg.textContent = d.plan.upToDate
+          ? `Cluster is up to date (${d.plan.current})`
+          : `Upgrade available: ${d.plan.current} → ${d.plan.latest}`;
+        renderResults(d.plan);
+      }
+      return;
+    }
+
+    updatePhase(d.phase, d.status, d.message);
+    if (d.status === 'done') {
+      // auto-advance next phase to running (visual polish)
+      const idx = PHASES.findIndex(p => p.id === d.phase);
+      if (idx >= 0 && idx < PHASES.length - 1) {
+        // backend will emit the next running event shortly
+      }
+    }
+  };
+
+  _es.onerror = () => {
+    _es.close(); _es = null;
+    clearInterval(_elapsedTimer);
+    btn.classList.remove('running'); btn.disabled = false;
+    dot.className = 'dot warn';
+    msg.textContent = 'Connection lost — check if the backend is running.';
+  };
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function copyCmd(el) {
+  if (el.classList.contains('comment')) return;
+  navigator.clipboard.writeText(el.textContent.trim()).catch(()=>{});
+  el.classList.add('copied');
+  setTimeout(() => el.classList.remove('copied'), 900);
+}
+
+function renderResults(plan) {
+  let html = '';
+
+  // ── Version comparison card ──────────────────────────────────────────────────
+  const arrowHtml = plan.upToDate ? '' : `<div class="ver-arrow">&#8594;</div>`;
+  html += `
+  <div class="ver-card">
+    <div class="ver-block">
+      <div class="ver-label">Current Version</div>
+      <div class="ver-pill current">${escHtml(plan.current)}</div>
+    </div>
+    ${arrowHtml}
+    <div class="ver-block">
+      <div class="ver-label">Latest Stable</div>
+      <div class="ver-pill ${plan.upToDate ? 'same' : 'latest'}">${escHtml(plan.latest)}</div>
+    </div>
+    <div class="ver-status">
+      ${plan.upToDate
+        ? `<div class="status-badge uptodate">&#10003; Up to Date</div>`
+        : `<div class="status-badge outdated">&#11014; ${plan.skew} minor version${plan.skew !== 1 ? 's' : ''} behind</div>`}
+      <div style="margin-top:8px">
+        <span class="cluster-type-pill ${plan.clusterType}">
+          ${plan.clusterType === 'kind' ? '&#128679; Kind cluster' : '&#9881; kubeadm cluster'}
+        </span>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Up-to-date state ─────────────────────────────────────────────────────────
+  if (plan.upToDate) {
+    html += `
+    <div class="utd-card">
+      <div class="utd-icon">&#10003;</div>
+      <h2>Your cluster is up to date</h2>
+      <p>Running Kubernetes <strong>${escHtml(plan.current)}</strong> — no upgrade needed.<br/>
+         Check back periodically as new Kubernetes releases come out approximately every 4 months.</p>
+    </div>`;
+  } else {
+    // ── Upgrade path ─────────────────────────────────────────────────────────────
+    const pathHtml = plan.path.map((v, i) => {
+      const cls = i === 0 ? 'start' : i === plan.path.length - 1 ? 'end' : '';
+      const arrow = i < plan.path.length - 1 ? '<span class="path-arrow">&#8594;</span>' : '';
+      return `<div class="path-step"><span class="path-ver ${cls}">${escHtml(v)}</span>${arrow}</div>`;
+    }).join('');
+
+    const pathNote = plan.clusterType === 'kind'
+      ? 'Kind clusters cannot be upgraded in-place. You must delete and recreate the cluster with the new image.'
+      : 'Kubernetes requires upgrading one minor version at a time (e.g. 1.28 → 1.29 → 1.30). Skipping versions is not supported.';
+
+    html += `
+    <div class="path-card">
+      <h3>&#128640; Upgrade Path</h3>
+      <div class="path-steps">${pathHtml}</div>
+      <div class="path-note">&#9432; ${escHtml(pathNote)}</div>
+    </div>`;
+  }
+
+  // ── Nodes table ───────────────────────────────────────────────────────────────
+  if (plan.nodes && plan.nodes.length) {
+    const nodeRows = plan.nodes.map(n => `<tr>
+      <td style="font-weight:700;font-family:monospace">${escHtml(n.name)}</td>
+      <td><span class="role-pill ${n.role === 'control-plane' ? 'cp' : 'worker'}">${escHtml(n.role)}</span></td>
+      <td style="font-family:monospace">${escHtml(n.kubeletVersion)}</td>
+      <td class="${n.status === 'Ready' ? 'ready-ok' : 'ready-bad'}">${escHtml(n.status)}</td>
+    </tr>`).join('');
+    html += `
+    <div class="nodes-card">
+      <h3>&#9096; Cluster Nodes</h3>
+      <table>
+        <thead><tr><th>Node</th><th>Role</th><th>Kubelet Version</th><th>Status</th></tr></thead>
+        <tbody>${nodeRows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── Upgrade steps ─────────────────────────────────────────────────────────────
+  if (plan.steps && plan.steps.length) {
+    html += `<div class="steps-title">&#128196; Upgrade Playbook</div>`;
+    plan.steps.forEach((step, i) => {
+      const warningHtml = step.warning
+        ? `<div class="warning-box">&#9888; <span>${escHtml(step.warning)}</span></div>`
+        : '';
+      const cmds = (step.commands || []).map(c => {
+        const isComment = c.trim().startsWith('#') || c.trim() === '';
+        return `<div class="cmd-block ${isComment ? 'comment' : ''}" onclick="copyCmd(this)">${escHtml(c)}</div>`;
+      }).join('');
+      html += `
+      <div class="step-card">
+        <div class="step-hdr">
+          <div class="step-num">${i + 1}</div>
+          <div class="step-title">${escHtml(step.title)}</div>
+        </div>
+        <div class="step-body">
+          ${warningHtml}
+          ${cmds}
+        </div>
+      </div>`;
+    });
+  }
+
+  const el = document.getElementById('results');
+  el.innerHTML = html;
+  el.style.display = 'block';
+  window.scrollTo({ top: document.getElementById('runtime-panel').offsetTop - 20, behavior: 'smooth' });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadContexts();
+</script>
+</body>
+</html>
