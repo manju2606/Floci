@@ -1451,8 +1451,8 @@ function generateUpgradePlan(serverVersion, latestVersion, contextName, nodes) {
       steps.push({
         id: 'create', title: `Create cluster with ${lat.str}`, estimatedTime: timeEst.stepTimes.create,
         commands: [
-          `# Stamp new image tag into the cluster config`,
-          `sed 's|image: kindest/node:.*|image: kindest/node:${lat.str}|g' /kind-cluster.yaml > /tmp/kind-upgrade.yaml`,
+          `# Build cluster config — update image tag, drop fixed apiServerPort so Kind picks a free port`,
+          `sed -e 's|image: kindest/node:.*|image: kindest/node:${lat.str}|g' -e '/apiServerPort/d' /kind-cluster.yaml > /tmp/kind-upgrade.yaml`,
           `kind create cluster --name ${clusterName} --image kindest/node:${lat.str} --config /tmp/kind-upgrade.yaml`,
         ],
       });
