@@ -1569,6 +1569,90 @@ app.get('/api/upgrade/stream', async (req, res) => {
   res.end();
 });
 
+// GET /api/upgrade/setup?context= — SSE environment pre-flight checklist
+app.get('/api/upgrade/setup', async (req, res) => {
+  const ctx = req.query.context;
+  if (!ctx) { res.status(400).end(); return; }
+
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit  = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const pause = ms  => new Promise(r => setTimeout(r, ms));
+
+  let kcPath = null;
+  try { kcPath = makeKubectlConfig(ctx); } catch(e) {
+    emit({ type: 'complete', allPass: false, fatalError: e.message });
+    return res.end();
+  }
+
+  const env = { ...process.env, KUBECONFIG: kcPath };
+
+  function runCheck(cmd) {
+    return new Promise(resolve => {
+      let stdout = '', stderr = '';
+      const proc = spawn(cmd, [], { env, shell: true, cwd: '/tmp' });
+      proc.stdout.on('data', d => { stdout += d.toString(); });
+      proc.stderr.on('data', d => { stderr += d.toString(); });
+      proc.on('error', err => { stderr += err.message; resolve({ exitCode: 1, stdout, stderr }); });
+      proc.on('close', code => resolve({ exitCode: code || 0, stdout, stderr }));
+    });
+  }
+
+  const checks = [
+    { id: 'kubectl',  label: 'kubectl installed',
+      cmd: 'kubectl version --client',
+      hint: 'kubectl is not in PATH — the backend container may not have it installed' },
+    { id: 'kind',     label: 'kind CLI installed',
+      cmd: 'kind version',
+      hint: 'kind is not in PATH — Kind cluster operations (delete/create) will not work' },
+    { id: 'docker',   label: 'Docker socket accessible',
+      cmd: 'docker info --format "Server Version: {{.ServerVersion}} | Containers: {{.Containers}}"',
+      hint: 'Docker socket is not mounted — kind commands cannot manage clusters from inside the container' },
+    { id: 'connect',  label: `Cluster reachable — ${ctx}`,
+      cmd: `kubectl --context="${ctx}" cluster-info`,
+      hint: 'Cannot reach the Kubernetes API server — check the cluster is running and the context is correct' },
+    { id: 'auth',     label: 'Admin permissions verified',
+      cmd: `kubectl --context="${ctx}" auth can-i '*' '*' --all-namespaces`,
+      hint: 'Insufficient permissions — upgrade requires cluster-admin access' },
+    { id: 'nodes',    label: 'Node health',
+      cmd: `kubectl --context="${ctx}" get nodes -o wide`,
+      hint: 'Could not retrieve node list — cluster may be partially unavailable' },
+    { id: 'version',  label: 'Server version confirmed',
+      cmd: `kubectl --context="${ctx}" version`,
+      hint: 'Could not confirm server version' },
+  ];
+
+  const results = [];
+  let allPass = true;
+
+  for (const check of checks) {
+    emit({ type: 'check-start', id: check.id, label: check.label });
+    await pause(700);
+
+    const { exitCode, stdout, stderr } = await runCheck(check.cmd);
+    const pass = exitCode === 0;
+    if (!pass) allPass = false;
+
+    // Keep output brief — first 6 meaningful lines
+    const rawOut = (stdout + (stdout && stderr ? '\n' : '') + stderr).trim();
+    const output = rawOut.split('\n').filter(l => l.trim()).slice(0, 6).join('\n');
+
+    results.push({ id: check.id, label: check.label, pass, output, hint: check.hint });
+    emit({ type: 'check-done', id: check.id, label: check.label, pass, output,
+           hint: pass ? null : check.hint });
+    await pause(400);
+  }
+
+  try { fs.unlinkSync(kcPath); } catch { /* ignore */ }
+
+  emit({ type: 'complete', allPass, results });
+  res.end();
+});
+
 // GET /api/upgrade/execute?context= — SSE real-time upgrade execution
 app.get('/api/upgrade/execute', async (req, res) => {
   const ctx = req.query.context;
