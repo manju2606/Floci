@@ -147,6 +147,22 @@
     .cmd-block:not(.comment):hover::after{content:"Copy";position:absolute;top:6px;right:10px;font-size:10px;background:#e67e22;color:#fff;padding:2px 6px;border-radius:3px;font-family:sans-serif}
     .cmd-block.copied{border-color:#27ae60}
 
+    /* Live version banner inside runtime panel */
+    .ver-banner{display:flex;align-items:center;gap:0;padding:14px 20px;border-top:1px solid #30363d;background:#0a0f1a;flex-wrap:wrap;gap:16px}
+    .vb-block{display:flex;align-items:center;gap:10px}
+    .vb-label{font-size:11px;color:#6e7681;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+    .vb-pill{font-size:15px;font-weight:700;padding:5px 16px;border-radius:20px;font-family:"Courier New",monospace;letter-spacing:.5px;transition:all .3s}
+    .vb-pill.empty{background:#1c2128;color:#4a5568;font-size:13px;font-weight:400;letter-spacing:0}
+    .vb-pill.cur{background:rgba(50,108,229,.2);color:#58a6ff;border:1px solid rgba(88,166,255,.3)}
+    .vb-pill.lat{background:rgba(39,174,96,.2);color:#3fb950;border:1px solid rgba(63,185,80,.3)}
+    .vb-pill.lat.warn{background:rgba(230,126,34,.2);color:#e67e22;border:1px solid rgba(230,126,34,.3)}
+    .vb-arrow{font-size:20px;color:#444;margin:0 4px}
+    .vb-status{margin-left:auto;font-size:12px;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .vb-status .vb-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:16px;font-weight:700;font-size:12px}
+    .vb-badge.uptodate{background:rgba(39,174,96,.2);color:#3fb950;border:1px solid rgba(63,185,80,.3)}
+    .vb-badge.outdated{background:rgba(230,126,34,.2);color:#e67e22;border:1px solid rgba(230,126,34,.3)}
+    .vb-badge.checking{background:#1c2128;color:#6e7681}
+
     /* Up-to-date state */
     .utd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:48px 32px;text-align:center;margin-bottom:24px}
     .utd-icon{font-size:56px;margin-bottom:16px}
@@ -205,6 +221,21 @@
       <span class="rt-elapsed" id="rt-elapsed"></span>
     </div>
     <div class="rt-stages" id="rt-stages"></div>
+    <!-- Live version banner — fills in as phases complete -->
+    <div class="ver-banner" id="ver-banner">
+      <div class="vb-block">
+        <span class="vb-label">Current</span>
+        <span class="vb-pill empty" id="vb-current">—</span>
+      </div>
+      <div class="vb-arrow" id="vb-arrow" style="display:none">&#8594;</div>
+      <div class="vb-block">
+        <span class="vb-label">Latest</span>
+        <span class="vb-pill empty" id="vb-latest">—</span>
+      </div>
+      <div class="vb-status">
+        <span class="vb-badge checking" id="vb-badge">Checking…</span>
+      </div>
+    </div>
   </div>
 
   <!-- Results -->
@@ -272,9 +303,42 @@ function initRuntimePanel(ctx) {
         <div class="stage-bar"><div class="stage-bar-fill" id="bar-${p.id}"></div></div>
       </div>
     </div>`).join('');
+  // Reset version banner
+  document.getElementById('vb-current').className = 'vb-pill empty';
+  document.getElementById('vb-current').textContent = '—';
+  document.getElementById('vb-latest').className = 'vb-pill empty';
+  document.getElementById('vb-latest').textContent = '—';
+  document.getElementById('vb-arrow').style.display = 'none';
+  document.getElementById('vb-badge').className = 'vb-badge checking';
+  document.getElementById('vb-badge').textContent = 'Checking…';
   document.getElementById('runtime-panel').style.display = 'block';
   document.getElementById('results').style.display = 'none';
   document.getElementById('results').innerHTML = '';
+}
+
+function setVersionBanner(current, latest) {
+  if (current) {
+    const el = document.getElementById('vb-current');
+    el.className = 'vb-pill cur';
+    el.textContent = current;
+  }
+  if (latest) {
+    const el = document.getElementById('vb-latest');
+    el.className = 'vb-pill lat';
+    el.textContent = latest;
+    document.getElementById('vb-arrow').style.display = 'inline';
+  }
+  if (current && latest) {
+    const badge = document.getElementById('vb-badge');
+    if (current === latest) {
+      badge.className = 'vb-badge uptodate';
+      badge.textContent = '✓ Up to date';
+    } else {
+      badge.className = 'vb-badge outdated';
+      badge.textContent = '↑ Upgrade available';
+      document.getElementById('vb-latest').className = 'vb-pill lat warn';
+    }
+  }
 }
 
 function updatePhase(phase, status, msg) {
@@ -312,6 +376,8 @@ function runUpgradeCheck() {
 
   _es = new EventSource(`/api/upgrade/stream?context=${encodeURIComponent(ctx)}`);
 
+  let _curVer = null, _latVer = null;
+
   _es.onmessage = e => {
     const d = JSON.parse(e.data);
 
@@ -325,20 +391,24 @@ function runUpgradeCheck() {
       } else {
         dot.className = 'dot ok';
         msg.textContent = d.plan.upToDate
-          ? `Cluster is up to date (${d.plan.current})`
+          ? `Cluster is up to date — ${d.plan.current}`
           : `Upgrade available: ${d.plan.current} → ${d.plan.latest}`;
+        setVersionBanner(d.plan.current, d.plan.latest);
         renderResults(d.plan);
       }
       return;
     }
 
     updatePhase(d.phase, d.status, d.message);
-    if (d.status === 'done') {
-      // auto-advance next phase to running (visual polish)
-      const idx = PHASES.findIndex(p => p.id === d.phase);
-      if (idx >= 0 && idx < PHASES.length - 1) {
-        // backend will emit the next running event shortly
-      }
+
+    // Populate version banner live as phases complete
+    if (d.phase === 'connect' && d.status === 'done' && d.version) {
+      _curVer = d.version;
+      setVersionBanner(_curVer, _latVer);
+    }
+    if (d.phase === 'latest' && d.status === 'done' && d.version) {
+      _latVer = d.version;
+      setVersionBanner(_curVer, _latVer);
     }
   };
 
