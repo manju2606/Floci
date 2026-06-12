@@ -237,6 +237,11 @@
     .term-step-err{color:#e74c3c;margin:6px 0 14px;padding:5px 10px;background:rgba(231,76,60,.1);border-left:3px solid #e74c3c;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;font-size:12px}
     .term-complete{color:#3fb950;font-size:14px;font-weight:700;margin-top:20px;padding:12px 16px;background:rgba(63,185,80,.1);border-left:3px solid #3fb950;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
     .term-error{color:#e74c3c;font-size:13px;font-weight:700;margin-top:20px;padding:12px 16px;background:rgba(231,76,60,.1);border-left:3px solid #e74c3c;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .term-node-only{margin:6px 0 10px;border:1px solid rgba(243,156,18,.35);border-left:4px solid #f39c12;border-radius:4px;padding:8px 12px;background:rgba(243,156,18,.07);font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
+    .term-node-only .noc-cmd{font-family:"Courier New",monospace;color:#e67e22;font-size:12px;margin-bottom:4px;display:flex;gap:6px;align-items:flex-start}
+    .term-node-only .noc-cmd::before{content:"$";color:#f39c12;flex-shrink:0}
+    .term-node-only .noc-tip{font-size:11px;color:#e3b341;margin-bottom:3px}
+    .term-node-only .noc-badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:8px;background:rgba(243,156,18,.2);color:#f39c12;font-weight:700;border:1px solid rgba(243,156,18,.3)}
 
     /* Status bar at bottom of terminal */
     .exec-statusbar{background:#161b22;border-top:1px solid #30363d;padding:8px 20px;font-size:11px;color:#8b949e;display:flex;align-items:center;gap:12px;flex-shrink:0;font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif}
@@ -757,6 +762,18 @@ function startExecution() {
         el.className = 'term-cmd skipped';
         el.textContent = d.cmd;
         term.appendChild(el);
+        scrollTerm();
+        break;
+      }
+
+      case 'cmd-node-only': {
+        const wrap = document.createElement('div');
+        wrap.className = 'term-node-only';
+        wrap.innerHTML =
+          `<div class="noc-cmd">${escHtml(d.cmd)}</div>` +
+          `<div class="noc-tip">&#9888; ${escHtml(d.tip)}</div>` +
+          `<div><span class="noc-badge">&#128187; Run on node via SSH</span></div>`;
+        term.appendChild(wrap);
         scrollTerm();
         break;
       }

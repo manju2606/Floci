@@ -1503,6 +1503,19 @@ app.get('/api/upgrade/execute', async (req, res) => {
 
     const env = { ...process.env, KUBECONFIG: '/root/.kube/config' };
 
+    // Commands that must run on the actual Kubernetes node — cannot execute from container
+    const NODE_ONLY_PREFIXES = ['apt-get', 'apt ', 'yum ', 'dnf ', 'systemctl', 'kubeadm'];
+    function isNodeOnly(cmd) {
+      const t = cmd.trim().toLowerCase();
+      return NODE_ONLY_PREFIXES.some(p => t.startsWith(p));
+    }
+    function nodeOnlyTip(cmd) {
+      if (/^apt(-get)?/.test(cmd.trim())) return 'Package manager — run on each Kubernetes node via SSH.';
+      if (/^systemctl/.test(cmd.trim()))  return 'Systemd — run on each Kubernetes node via SSH.';
+      if (/^kubeadm/.test(cmd.trim()))    return 'kubeadm — run on the control-plane node via SSH.';
+      return 'This command must run directly on the Kubernetes node via SSH.';
+    }
+
     for (let si = 0; si < plan.steps.length; si++) {
       if (aborted) break;
       const step = plan.steps[si];
@@ -1515,6 +1528,12 @@ app.get('/api/upgrade/execute', async (req, res) => {
         const trimmed = rawCmd.trim();
         if (!trimmed || trimmed.startsWith('#')) {
           emit({ type: 'cmd-skip', cmd: rawCmd });
+          continue;
+        }
+
+        // Node-only commands — skip execution, show SSH tip instead
+        if (isNodeOnly(trimmed)) {
+          emit({ type: 'cmd-node-only', cmd: trimmed, tip: nodeOnlyTip(trimmed) });
           continue;
         }
 
