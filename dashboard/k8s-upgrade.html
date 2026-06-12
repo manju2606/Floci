@@ -207,6 +207,13 @@
     .setup-result-bar.fail{background:rgba(231,76,60,.07);color:#e74c3c}
     .setup-result-bar.idle{background:var(--th-bg);color:var(--text-muted)}
 
+    /* Flow step dividers */
+    .flow-divider{display:flex;align-items:center;gap:12px;margin:28px 0 16px;padding:0 2px}
+    .flow-step-num{width:26px;height:26px;border-radius:50%;background:#e67e22;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+    .flow-step-label{font-size:15px;font-weight:700;color:var(--text-primary)}
+    .flow-step-hint{font-size:12px;color:var(--text-muted);margin-left:4px}
+    .flow-divider::after{content:'';flex:1;height:1px;background:var(--border);margin-left:8px}
+
     /* Execute button banner */
     .exec-banner{background:linear-gradient(90deg,#1a0f00,#2d1a00);border:1px solid rgba(230,126,34,.4);border-radius:8px;padding:18px 24px;margin-bottom:24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
     .exec-btn{padding:11px 28px;background:#e67e22;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap;transition:background .15s}
@@ -667,6 +674,12 @@ function renderResults(plan) {
 
   // ── Upgrade steps ─────────────────────────────────────────────────────────────
   if (plan.steps && plan.steps.length) {
+    html += `
+    <div class="flow-divider">
+      <span class="flow-step-num">1</span>
+      <span class="flow-step-label">Upgrade Plan</span>
+      <span class="flow-step-hint">Review each step before proceeding</span>
+    </div>`;
     html += `<div class="steps-title">&#128196; Upgrade Playbook</div>`;
     plan.steps.forEach((step, i) => {
       const warningHtml = step.warning
@@ -694,15 +707,29 @@ function renderResults(plan) {
     });
   }
 
-  // Setup environment panel (only when upgrade is needed)
-  if (!plan.upToDate) {
-    html = `
+  // Setup environment panel + Execute button — appended AFTER the plan so the
+  // flow reads top-to-bottom: 1) Check  2) Plan  3) Setup Environment  4) Execute
+  if (!plan.upToDate && plan.steps && plan.steps.length) {
+    const warnings = plan.clusterType === 'kind'
+      ? ['Kind clusters must be <strong>deleted and recreated</strong> to upgrade — all workloads will be lost unless backed up first.',
+         'The backup step saves manifests to /tmp in the backend container.']
+      : ['kubeadm upgrades run one minor version at a time — this may take 20–35 min per hop.',
+         'apt-get and systemctl commands must run on the actual nodes — those steps will fail from the container.'];
+
+    window._upgradeWarnings = warnings;
+
+    html += `
+    <div class="flow-divider">
+      <span class="flow-step-num">2</span>
+      <span class="flow-step-label">Setup Upgrade Environment</span>
+      <span class="flow-step-hint">Verify tools and cluster access before executing</span>
+    </div>
     <div class="setup-panel" id="setup-panel">
       <div class="setup-hdr" onclick="toggleSetupBody()">
         <div class="setup-hdr-icon">&#9881;</div>
         <div>
           <div class="setup-hdr-title">Setup Upgrade Environment</div>
-          <div class="setup-hdr-sub">Verify kubectl · kind · Docker socket · cluster access · node health before executing</div>
+          <div class="setup-hdr-sub">Verify kubectl · kind · Docker socket · cluster access · node health</div>
         </div>
         <button class="setup-run-btn" id="setup-btn" onclick="event.stopPropagation();runSetup()">
           <div class="spin"></div>&#9881; Check Environment
@@ -712,18 +739,13 @@ function renderResults(plan) {
         <div id="setup-checks"></div>
         <div class="setup-result-bar idle" id="setup-result">Run the environment check to verify readiness before executing the upgrade.</div>
       </div>
-    </div>` + html;
-  }
+    </div>
 
-  // Execute upgrade banner (only when upgrade is needed)
-  if (!plan.upToDate && plan.steps && plan.steps.length) {
-    const warnings = plan.clusterType === 'kind'
-      ? ['Kind clusters must be <strong>deleted and recreated</strong> to upgrade — all workloads will be lost unless backed up first.',
-         'The backup step saves manifests to /tmp in the backend container.']
-      : ['kubeadm upgrades run one minor version at a time — this may take 20–35 min per hop.',
-         'apt-get and systemctl commands must run on the actual nodes — those steps will fail from the container.'];
-
-    html = `
+    <div class="flow-divider">
+      <span class="flow-step-num">3</span>
+      <span class="flow-step-label">Execute Upgrade</span>
+      <span class="flow-step-hint">Run each step in real time — review the plan above first</span>
+    </div>
     <div class="exec-banner">
       <button class="exec-btn" id="exec-run-btn" onclick="showConfirmModal()">
         <div class="spin"></div>
@@ -731,12 +753,9 @@ function renderResults(plan) {
       </button>
       <div class="exec-banner-note">
         Runs each step's commands in real time inside the backend container using your kubeconfig.<br/>
-        <strong>Review the plan below carefully before executing.</strong>
+        <strong>Review the plan above carefully before executing.</strong>
       </div>
-    </div>` + html;
-
-    // Store warnings for modal
-    window._upgradeWarnings = warnings;
+    </div>`;
   }
 
   const el = document.getElementById('results');
