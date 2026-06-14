@@ -7,6 +7,10 @@ const { S3Client, ListBucketsCommand, ListObjectsV2Command, GetBucketLocationCom
 const { DynamoDBClient, ListTablesCommand, DescribeTableCommand,
         CreateTableCommand, PutItemCommand, ScanCommand, GetItemCommand,
         QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { EC2Client, DescribeInstancesCommand, DescribeImagesCommand,
+        DescribeSecurityGroupsCommand, DescribeKeyPairsCommand,
+        DescribeVolumesCommand, DescribeVpcsCommand,
+        DescribeSubnetsCommand } = require('@aws-sdk/client-ec2');
 
 const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
 const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
@@ -1251,6 +1255,95 @@ app.get('/api/dynamo/table/:name/items', async (req, res) => {
     if (e.name === 'ResourceNotFoundException') return res.json({ items: [], count: 0 });
     res.status(500).json({ error: e.message });
   }
+});
+
+// ── EC2 routes ────────────────────────────────────────────────────────────────
+const ec2 = new EC2Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT, forcePathStyle: true });
+
+app.get('/api/ec2/instances', async (req, res) => {
+  try {
+    const data = await ec2.send(new DescribeInstancesCommand({}));
+    const instances = (data.Reservations || []).flatMap(r => (r.Instances || []).map(i => ({
+      id:           i.InstanceId,
+      type:         i.InstanceType,
+      state:        i.State?.Name,
+      az:           i.Placement?.AvailabilityZone,
+      publicIp:     i.PublicIpAddress || '—',
+      privateIp:    i.PrivateIpAddress || '—',
+      imageId:      i.ImageId,
+      keyName:      i.KeyName || '—',
+      launchTime:   i.LaunchTime,
+      name:         (i.Tags || []).find(t => t.Key === 'Name')?.Value || '—',
+    })));
+    res.json({ instances });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ec2/security-groups', async (req, res) => {
+  try {
+    const data = await ec2.send(new DescribeSecurityGroupsCommand({}));
+    const groups = (data.SecurityGroups || []).map(g => ({
+      id:          g.GroupId,
+      name:        g.GroupName,
+      description: g.Description,
+      vpcId:       g.VpcId || '—',
+      inboundCount: (g.IpPermissions || []).length,
+      outboundCount:(g.IpPermissionsEgress || []).length,
+    }));
+    res.json({ groups });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ec2/key-pairs', async (req, res) => {
+  try {
+    const data = await ec2.send(new DescribeKeyPairsCommand({}));
+    const keys = (data.KeyPairs || []).map(k => ({
+      id:          k.KeyPairId,
+      name:        k.KeyName,
+      fingerprint: k.KeyFingerprint,
+      type:        k.KeyType || 'rsa',
+    }));
+    res.json({ keys });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ec2/volumes', async (req, res) => {
+  try {
+    const data = await ec2.send(new DescribeVolumesCommand({}));
+    const volumes = (data.Volumes || []).map(v => ({
+      id:         v.VolumeId,
+      size:       v.Size,
+      state:      v.State,
+      type:       v.VolumeType,
+      az:         v.AvailabilityZone,
+      encrypted:  v.Encrypted,
+      attachments:(v.Attachments || []).map(a => a.InstanceId).join(', ') || '—',
+      name:       (v.Tags || []).find(t => t.Key === 'Name')?.Value || '—',
+    }));
+    res.json({ volumes });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ec2/vpcs', async (req, res) => {
+  try {
+    const [vpcsData, subnetsData] = await Promise.all([
+      ec2.send(new DescribeVpcsCommand({})),
+      ec2.send(new DescribeSubnetsCommand({})),
+    ]);
+    const vpcs = (vpcsData.Vpcs || []).map(v => ({
+      id:        v.VpcId,
+      cidr:      v.CidrBlock,
+      default:   v.IsDefault,
+      state:     v.State,
+      name:      (v.Tags || []).find(t => t.Key === 'Name')?.Value || '—',
+      subnets:   (subnetsData.Subnets || []).filter(s => s.VpcId === v.VpcId).map(s => ({
+        id:   s.SubnetId,
+        cidr: s.CidrBlock,
+        az:   s.AvailabilityZone,
+      })),
+    }));
+    res.json({ vpcs });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // S3 routes

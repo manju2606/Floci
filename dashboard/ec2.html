@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EC2 — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
+      --text-primary: #16191f; --text-secondary: #687078; --text-muted: #545b64;
+      --th-bg: #f2f3f3; --tr-hover: #fafafa; --code-bg: #1e2a3a;
+    }
+    [data-theme="dark"] {
+      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+      --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #8b949e;
+      --th-bg: #1c2128; --tr-hover: #1c2128; --code-bg: #0d1117;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Amazon Ember","Helvetica Neue",Arial,sans-serif; background:var(--bg); color:var(--text-primary); min-height:100vh; transition:background .2s,color .2s; }
+
+    header { background:#232f3e; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; }
+    header .logo { font-size:22px; font-weight:700; color:#ff9900; letter-spacing:1px; }
+    header .subtitle { font-size:13px; color:#aab7b8; margin-top:2px; }
+    header .right { display:flex; align-items:center; gap:10px; }
+    header a.back { font-size:13px; color:#aab7b8; text-decoration:none; border:1px solid #4a5568; padding:5px 14px; border-radius:3px; }
+    header a.back:hover { color:#fff; border-color:#fff; }
+    .theme-btn { background:none; border:1px solid #4a5568; color:#aab7b8; padding:5px 10px; border-radius:3px; cursor:pointer; font-size:16px; line-height:1; }
+    .theme-btn:hover { border-color:#fff; color:#fff; }
+
+    .hero { background:linear-gradient(135deg,#1a2332 0%,#2d3a4a 100%); padding:40px 32px; display:flex; align-items:center; gap:24px; }
+    .hero-icon { font-size:36px; background:#ff9900; width:80px; height:80px; border-radius:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .hero h1 { font-size:26px; font-weight:700; color:#fff; }
+    .hero p  { font-size:14px; color:#aab7b8; margin-top:6px; line-height:1.6; }
+
+    .banner { background:#1a2332; color:#aab7b8; font-size:12px; text-align:center; padding:6px; }
+    .banner span { color:#ff9900; font-weight:600; }
+
+    /* Tabs */
+    .tabs { background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; padding:0 32px; }
+    .tab  { padding:14px 20px; font-size:14px; font-weight:600; cursor:pointer; color:var(--text-secondary); border-bottom:3px solid transparent; transition:all .15s; }
+    .tab:hover { color:var(--text-primary); }
+    .tab.active { color:#ff9900; border-bottom-color:#ff9900; }
+
+    main { max-width:1200px; margin:32px auto; padding:0 24px; }
+
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* Live data card */
+    .live-card { background:var(--card-bg); border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-bottom:24px; }
+    .live-card-hdr { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); }
+    .live-card-hdr h3 { font-size:15px; font-weight:700; }
+    .live-card-hdr span { font-size:12px; color:var(--text-muted); }
+    .refresh-btn { padding:6px 14px; background:#ff9900; border:none; border-radius:4px; color:#fff; font-size:12px; font-weight:700; cursor:pointer; transition:background .15s; }
+    .refresh-btn:hover { background:#e68900; }
+
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    thead th { background:var(--th-bg); padding:10px 14px; text-align:left; font-weight:700; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+    tbody td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover td { background:var(--tr-hover); }
+
+    /* State badges */
+    .state { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+    .state.running  { background:rgba(39,174,96,.15); color:#27ae60; }
+    .state.stopped  { background:rgba(231,76,60,.15);  color:#e74c3c; }
+    .state.pending  { background:rgba(230,126,34,.15); color:#e67e22; }
+    .state.terminated { background:rgba(100,100,100,.15); color:#888; }
+    .state-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+    .state.available { background:rgba(39,174,96,.15); color:#27ae60; }
+    .state.in-use    { background:rgba(52,152,219,.15); color:#3498db; }
+
+    .empty-row td { text-align:center; padding:32px; color:var(--text-muted); font-style:italic; }
+    .loading-row td { text-align:center; padding:24px; color:var(--text-muted); }
+
+    /* Stats strip */
+    .stats-strip { display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+    .stat-card { flex:1; min-width:140px; background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:16px 20px; }
+    .stat-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+    .stat-val   { font-size:28px; font-weight:700; color:#ff9900; }
+    .stat-sub   { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+
+    /* CLI section */
+    .section { margin-bottom:36px; }
+    .section h2 { font-size:17px; font-weight:600; color:var(--text-primary); margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid var(--border); }
+    .cmd-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+    .cmd-card { background:var(--card-bg); border:1px solid var(--border); border-radius:4px; padding:16px 18px; }
+    .cmd-card h4 { font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:8px; }
+    .cmd-card code { display:block; font-family:"Courier New",monospace; font-size:11.5px; background:var(--code-bg); color:#a8d8a8; padding:10px 12px; border-radius:4px; white-space:pre; overflow-x:auto; cursor:pointer; position:relative; }
+    .cmd-card code:hover::after { content:"Copy"; position:absolute; top:6px; right:8px; font-size:10px; background:#ff9900; color:#fff; padding:2px 6px; border-radius:3px; }
+
+    .mono { font-family:"Courier New",monospace; font-size:12px; }
+    .tag  { display:inline-block; background:var(--th-bg); border:1px solid var(--border); border-radius:3px; padding:1px 6px; font-size:11px; font-family:monospace; }
+
+    footer { text-align:center; padding:32px; font-size:12px; color:#aab7b8; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Local AWS Emulator</div>
+  </div>
+  <div class="right">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()"></button>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#x1F5A5;</div>
+  <div>
+    <h1>Amazon EC2</h1>
+    <p>Elastic Compute Cloud — launch and manage virtual machines, security groups,<br/>
+       key pairs, EBS volumes, and VPCs on your local Floci endpoint.</p>
+  </div>
+</div>
+
+<div class="banner">
+  Endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
+  Region: <span>us-east-1</span> &nbsp;|&nbsp;
+  Access Key: <span>test</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('instances')">Instances</div>
+  <div class="tab" onclick="switchTab('security-groups')">Security Groups</div>
+  <div class="tab" onclick="switchTab('key-pairs')">Key Pairs</div>
+  <div class="tab" onclick="switchTab('volumes')">Volumes</div>
+  <div class="tab" onclick="switchTab('vpcs')">VPCs</div>
+  <div class="tab" onclick="switchTab('cli')">CLI Reference</div>
+</div>
+
+<main>
+
+  <!-- INSTANCES TAB -->
+  <div class="tab-panel active" id="tab-instances">
+    <div class="stats-strip" id="instance-stats">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="stat-total">—</div><div class="stat-sub">instances</div></div>
+      <div class="stat-card"><div class="stat-label">Running</div><div class="stat-val" id="stat-running" style="color:#27ae60">—</div><div class="stat-sub">instances</div></div>
+      <div class="stat-card"><div class="stat-label">Stopped</div><div class="stat-val" id="stat-stopped" style="color:#e74c3c">—</div><div class="stat-sub">instances</div></div>
+      <div class="stat-card"><div class="stat-label">Types</div><div class="stat-val" id="stat-types">—</div><div class="stat-sub">unique</div></div>
+    </div>
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>EC2 Instances</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="instances-ts"></span>
+          <button class="refresh-btn" onclick="loadInstances()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Instance ID</th><th>Type</th><th>State</th>
+          <th>Public IP</th><th>Private IP</th><th>AMI</th><th>Key Pair</th>
+        </tr></thead>
+        <tbody id="instances-tbody"><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECURITY GROUPS TAB -->
+  <div class="tab-panel" id="tab-security-groups">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>Security Groups</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="sg-ts"></span>
+          <button class="refresh-btn" onclick="loadSecurityGroups()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Group ID</th><th>Name</th><th>Description</th><th>VPC</th>
+          <th>Inbound Rules</th><th>Outbound Rules</th>
+        </tr></thead>
+        <tbody id="sg-tbody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Security Group Commands</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create security group</h4><code onclick="copyCmd(this)">aws ec2 create-security-group \
+  --group-name my-sg \
+  --description "My security group" \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Add inbound rule (SSH)</h4><code onclick="copyCmd(this)">aws ec2 authorize-security-group-ingress \
+  --group-id &lt;sg-id&gt; \
+  --protocol tcp --port 22 \
+  --cidr 0.0.0.0/0 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Add inbound rule (HTTP)</h4><code onclick="copyCmd(this)">aws ec2 authorize-security-group-ingress \
+  --group-id &lt;sg-id&gt; \
+  --protocol tcp --port 80 \
+  --cidr 0.0.0.0/0 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete security group</h4><code onclick="copyCmd(this)">aws ec2 delete-security-group \
+  --group-id &lt;sg-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY PAIRS TAB -->
+  <div class="tab-panel" id="tab-key-pairs">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>Key Pairs</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="kp-ts"></span>
+          <button class="refresh-btn" onclick="loadKeyPairs()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Key Pair ID</th><th>Name</th><th>Type</th><th>Fingerprint</th></tr></thead>
+        <tbody id="kp-tbody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Key Pair Commands</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create key pair</h4><code onclick="copyCmd(this)">aws ec2 create-key-pair \
+  --key-name my-key \
+  --query 'KeyMaterial' \
+  --output text > my-key.pem \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>List key pairs</h4><code onclick="copyCmd(this)">aws ec2 describe-key-pairs \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete key pair</h4><code onclick="copyCmd(this)">aws ec2 delete-key-pair \
+  --key-name my-key \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Import existing key</h4><code onclick="copyCmd(this)">aws ec2 import-key-pair \
+  --key-name my-key \
+  --public-key-material fileb://~/.ssh/id_rsa.pub \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOLUMES TAB -->
+  <div class="tab-panel" id="tab-volumes">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>EBS Volumes</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="vol-ts"></span>
+          <button class="refresh-btn" onclick="loadVolumes()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Volume ID</th><th>Name</th><th>Size</th><th>Type</th>
+          <th>State</th><th>AZ</th><th>Encrypted</th><th>Attached To</th>
+        </tr></thead>
+        <tbody id="vol-tbody"><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Volume Commands</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create volume</h4><code onclick="copyCmd(this)">aws ec2 create-volume \
+  --size 20 --volume-type gp3 \
+  --availability-zone us-east-1a \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Attach volume</h4><code onclick="copyCmd(this)">aws ec2 attach-volume \
+  --volume-id &lt;vol-id&gt; \
+  --instance-id &lt;instance-id&gt; \
+  --device /dev/xvdf \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create snapshot</h4><code onclick="copyCmd(this)">aws ec2 create-snapshot \
+  --volume-id &lt;vol-id&gt; \
+  --description "My snapshot" \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete volume</h4><code onclick="copyCmd(this)">aws ec2 delete-volume \
+  --volume-id &lt;vol-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VPCS TAB -->
+  <div class="tab-panel" id="tab-vpcs">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>VPCs &amp; Subnets</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="vpc-ts"></span>
+          <button class="refresh-btn" onclick="loadVpcs()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>VPC ID</th><th>Name</th><th>CIDR</th><th>Default</th><th>State</th><th>Subnets</th></tr></thead>
+        <tbody id="vpc-tbody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>VPC Commands</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create VPC</h4><code onclick="copyCmd(this)">aws ec2 create-vpc \
+  --cidr-block 10.0.0.0/16 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create subnet</h4><code onclick="copyCmd(this)">aws ec2 create-subnet \
+  --vpc-id &lt;vpc-id&gt; \
+  --cidr-block 10.0.1.0/24 \
+  --availability-zone us-east-1a \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create internet gateway</h4><code onclick="copyCmd(this)">aws ec2 create-internet-gateway \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Attach IGW to VPC</h4><code onclick="copyCmd(this)">aws ec2 attach-internet-gateway \
+  --internet-gateway-id &lt;igw-id&gt; \
+  --vpc-id &lt;vpc-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLI REFERENCE TAB -->
+  <div class="tab-panel" id="tab-cli">
+    <div class="section">
+      <h2>Launch Instances</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Run instance (Amazon Linux 2)</h4><code onclick="copyCmd(this)">aws ec2 run-instances \
+  --image-id ami-0abcdef1234567890 \
+  --instance-type t2.micro \
+  --key-name my-key \
+  --security-group-ids &lt;sg-id&gt; \
+  --count 1 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Run instance with user data</h4><code onclick="copyCmd(this)">aws ec2 run-instances \
+  --image-id ami-0abcdef1234567890 \
+  --instance-type t2.micro \
+  --user-data file://init.sh \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Run multiple instances</h4><code onclick="copyCmd(this)">aws ec2 run-instances \
+  --image-id ami-0abcdef1234567890 \
+  --instance-type t3.small \
+  --count 3 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Describe instances</h4><code onclick="copyCmd(this)">aws ec2 describe-instances \
+  --output table \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Instance Lifecycle</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Start instance</h4><code onclick="copyCmd(this)">aws ec2 start-instances \
+  --instance-ids &lt;instance-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Stop instance</h4><code onclick="copyCmd(this)">aws ec2 stop-instances \
+  --instance-ids &lt;instance-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Reboot instance</h4><code onclick="copyCmd(this)">aws ec2 reboot-instances \
+  --instance-ids &lt;instance-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Terminate instance</h4><code onclick="copyCmd(this)">aws ec2 terminate-instances \
+  --instance-ids &lt;instance-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>AMI Management</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create AMI from instance</h4><code onclick="copyCmd(this)">aws ec2 create-image \
+  --instance-id &lt;instance-id&gt; \
+  --name "My AMI" \
+  --no-reboot \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Describe AMIs (owned)</h4><code onclick="copyCmd(this)">aws ec2 describe-images \
+  --owners self \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Deregister AMI</h4><code onclick="copyCmd(this)">aws ec2 deregister-image \
+  --image-id &lt;ami-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Tag a resource</h4><code onclick="copyCmd(this)">aws ec2 create-tags \
+  --resources &lt;resource-id&gt; \
+  --tags Key=Name,Value=my-instance \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+const TAB_LOADERS = {
+  'instances':      loadInstances,
+  'security-groups':loadSecurityGroups,
+  'key-pairs':      loadKeyPairs,
+  'volumes':        loadVolumes,
+  'vpcs':           loadVpcs,
+};
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', t.textContent.trim().toLowerCase().replace(/ /g,'-') === id || t.onclick.toString().includes(`'${id}'`)));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${id}`).classList.add('active');
+  if (TAB_LOADERS[id]) TAB_LOADERS[id]();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function ts() { return new Date().toLocaleTimeString(); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function stateBadge(state) {
+  const cls = state === 'running' || state === 'available' ? 'running'
+            : state === 'stopped' ? 'stopped'
+            : state === 'pending' ? 'pending'
+            : state === 'terminated' ? 'terminated'
+            : state === 'in-use' ? 'in-use' : '';
+  return `<span class="state ${cls}"><span class="state-dot"></span>${esc(state)}</span>`;
+}
+
+function copyCmd(el) {
+  navigator.clipboard.writeText(el.textContent.trim()).catch(() => {});
+  const old = el.style.outline;
+  el.style.outline = '2px solid #ff9900';
+  setTimeout(() => { el.style.outline = old; }, 600);
+}
+
+function emptyRow(cols, msg) {
+  return `<tr class="empty-row"><td colspan="${cols}">${msg}</td></tr>`;
+}
+
+// ── Instances ─────────────────────────────────────────────────────────────────
+async function loadInstances() {
+  const tbody = document.getElementById('instances-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+  try {
+    const r = await fetch('/api/ec2/instances');
+    const { instances, error } = await r.json();
+    if (error) { tbody.innerHTML = emptyRow(8, 'Error: ' + esc(error)); return; }
+
+    document.getElementById('stat-total').textContent   = instances.length;
+    document.getElementById('stat-running').textContent = instances.filter(i => i.state === 'running').length;
+    document.getElementById('stat-stopped').textContent = instances.filter(i => i.state === 'stopped').length;
+    const types = new Set(instances.map(i => i.type).filter(Boolean));
+    document.getElementById('stat-types').textContent   = types.size;
+    document.getElementById('instances-ts').textContent = 'Updated ' + ts();
+
+    if (!instances.length) { tbody.innerHTML = emptyRow(8, 'No instances found — launch one using the CLI Reference tab.'); return; }
+
+    tbody.innerHTML = instances.map(i => `<tr>
+      <td>${esc(i.name)}</td>
+      <td class="mono">${esc(i.id)}</td>
+      <td><span class="tag">${esc(i.type)}</span></td>
+      <td>${stateBadge(i.state)}</td>
+      <td class="mono">${esc(i.publicIp)}</td>
+      <td class="mono">${esc(i.privateIp)}</td>
+      <td class="mono" style="font-size:11px">${esc(i.imageId)}</td>
+      <td>${esc(i.keyName)}</td>
+    </tr>`).join('');
+  } catch (e) { tbody.innerHTML = emptyRow(8, 'Failed to load: ' + esc(e.message)); }
+}
+
+// ── Security Groups ───────────────────────────────────────────────────────────
+async function loadSecurityGroups() {
+  const tbody = document.getElementById('sg-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="6">Loading…</td></tr>';
+  try {
+    const r = await fetch('/api/ec2/security-groups');
+    const { groups, error } = await r.json();
+    if (error) { tbody.innerHTML = emptyRow(6, 'Error: ' + esc(error)); return; }
+    document.getElementById('sg-ts').textContent = 'Updated ' + ts();
+    if (!groups.length) { tbody.innerHTML = emptyRow(6, 'No security groups found.'); return; }
+    tbody.innerHTML = groups.map(g => `<tr>
+      <td class="mono">${esc(g.id)}</td>
+      <td><strong>${esc(g.name)}</strong></td>
+      <td style="color:var(--text-secondary)">${esc(g.description)}</td>
+      <td class="mono">${esc(g.vpcId)}</td>
+      <td>${g.inboundCount} rule${g.inboundCount !== 1 ? 's' : ''}</td>
+      <td>${g.outboundCount} rule${g.outboundCount !== 1 ? 's' : ''}</td>
+    </tr>`).join('');
+  } catch (e) { tbody.innerHTML = emptyRow(6, 'Failed to load: ' + esc(e.message)); }
+}
+
+// ── Key Pairs ─────────────────────────────────────────────────────────────────
+async function loadKeyPairs() {
+  const tbody = document.getElementById('kp-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="4">Loading…</td></tr>';
+  try {
+    const r = await fetch('/api/ec2/key-pairs');
+    const { keys, error } = await r.json();
+    if (error) { tbody.innerHTML = emptyRow(4, 'Error: ' + esc(error)); return; }
+    document.getElementById('kp-ts').textContent = 'Updated ' + ts();
+    if (!keys.length) { tbody.innerHTML = emptyRow(4, 'No key pairs found.'); return; }
+    tbody.innerHTML = keys.map(k => `<tr>
+      <td class="mono">${esc(k.id)}</td>
+      <td><strong>${esc(k.name)}</strong></td>
+      <td><span class="tag">${esc(k.type)}</span></td>
+      <td class="mono" style="font-size:11px;color:var(--text-muted)">${esc(k.fingerprint || '—')}</td>
+    </tr>`).join('');
+  } catch (e) { tbody.innerHTML = emptyRow(4, 'Failed to load: ' + esc(e.message)); }
+}
+
+// ── Volumes ───────────────────────────────────────────────────────────────────
+async function loadVolumes() {
+  const tbody = document.getElementById('vol-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+  try {
+    const r = await fetch('/api/ec2/volumes');
+    const { volumes, error } = await r.json();
+    if (error) { tbody.innerHTML = emptyRow(8, 'Error: ' + esc(error)); return; }
+    document.getElementById('vol-ts').textContent = 'Updated ' + ts();
+    if (!volumes.length) { tbody.innerHTML = emptyRow(8, 'No volumes found.'); return; }
+    tbody.innerHTML = volumes.map(v => `<tr>
+      <td class="mono">${esc(v.id)}</td>
+      <td>${esc(v.name)}</td>
+      <td><strong>${v.size} GiB</strong></td>
+      <td><span class="tag">${esc(v.type)}</span></td>
+      <td>${stateBadge(v.state)}</td>
+      <td class="mono">${esc(v.az)}</td>
+      <td>${v.encrypted ? '&#x1F512; Yes' : 'No'}</td>
+      <td class="mono" style="font-size:11px">${esc(v.attachments)}</td>
+    </tr>`).join('');
+  } catch (e) { tbody.innerHTML = emptyRow(8, 'Failed to load: ' + esc(e.message)); }
+}
+
+// ── VPCs ──────────────────────────────────────────────────────────────────────
+async function loadVpcs() {
+  const tbody = document.getElementById('vpc-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="6">Loading…</td></tr>';
+  try {
+    const r = await fetch('/api/ec2/vpcs');
+    const { vpcs, error } = await r.json();
+    if (error) { tbody.innerHTML = emptyRow(6, 'Error: ' + esc(error)); return; }
+    document.getElementById('vpc-ts').textContent = 'Updated ' + ts();
+    if (!vpcs.length) { tbody.innerHTML = emptyRow(6, 'No VPCs found.'); return; }
+    tbody.innerHTML = vpcs.map(v => `<tr>
+      <td class="mono">${esc(v.id)}</td>
+      <td>${esc(v.name)}</td>
+      <td class="mono">${esc(v.cidr)}</td>
+      <td>${v.default ? '<span class="tag">default</span>' : '—'}</td>
+      <td>${stateBadge(v.state)}</td>
+      <td style="font-size:12px;color:var(--text-secondary)">${v.subnets.map(s => `${s.id} (${s.cidr}, ${s.az})`).join('<br/>') || '—'}</td>
+    </tr>`).join('');
+  } catch (e) { tbody.innerHTML = emptyRow(6, 'Failed to load: ' + esc(e.message)); }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadInstances();
+</script>
+</body>
+</html>
