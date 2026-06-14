@@ -201,6 +201,12 @@
           <div class="sum-label">PVCs</div>
           <div class="sum-sub" id="ss-p1-pvc">loading…</div>
         </div>
+        <div class="summary-card" id="sw-p1-ns">
+          <div class="sum-icon">&#9671;</div>
+          <div class="sum-count" id="sc-p1-ns">—</div>
+          <div class="sum-label">Namespaces</div>
+          <div class="sum-sub" id="ss-p1-ns">loading…</div>
+        </div>
       </div>
       <div class="live-grid">
         <div class="live-box">
@@ -298,6 +304,12 @@
           <div class="sum-count" id="sc-p2-pvc">—</div>
           <div class="sum-label">PVCs</div>
           <div class="sum-sub" id="ss-p2-pvc">loading…</div>
+        </div>
+        <div class="summary-card" id="sw-p2-ns">
+          <div class="sum-icon">&#9671;</div>
+          <div class="sum-count" id="sc-p2-ns">—</div>
+          <div class="sum-label">Namespaces</div>
+          <div class="sum-sub" id="ss-p2-ns">loading…</div>
         </div>
       </div>
       <div class="live-grid">
@@ -810,6 +822,14 @@ async function loadCluster({ panel, ctx }) {
         return `<tr><td>${p.metadata.name}</td><td><span class="bk">${p.metadata.namespace}</span></td><td>${b(phase)}</td><td>${cap}</td><td><span class="bk">${p.spec?.storageClassName||'—'}</span></td><td>${age(p.metadata.creationTimestamp)}</td></tr>`;
       }).join('') + `</tbody></table>` : `<div class="loading">No PVCs</div>`);
   } catch(e) { set('tbl-' + panel + '-pvc', err(e.message)); setSummary(panel,'pvc','—',e.message,'error'); }
+
+  // namespaces
+  try {
+    const ns = await fetch(`${API}/api/cluster/${enc}/namespaces`).then(r => r.json());
+    const nsList = ns.items || [];
+    const activeNs = nsList.filter(n => n.status?.phase === 'Active').length;
+    setSummary(panel, 'ns', nsList.length, activeNs + ' Active', activeNs === nsList.length ? 'info' : 'warn');
+  } catch(e) { setSummary(panel,'ns','—',e.message,'error'); }
 }
 
 function loadAll() { CLUSTERS.forEach(loadCluster); }
