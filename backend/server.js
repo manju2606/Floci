@@ -119,12 +119,16 @@ async function fetchK8s(contextName, path) {
 }
 
 const RESOURCE_PATHS = {
-  version:     '/version',
-  nodes:       '/api/v1/nodes',
-  pods:        '/api/v1/pods',
-  services:    '/api/v1/services',
-  namespaces:  '/api/v1/namespaces',
-  deployments: '/apis/apps/v1/deployments',
+  version:      '/version',
+  nodes:        '/api/v1/nodes',
+  pods:         '/api/v1/pods',
+  services:     '/api/v1/services',
+  namespaces:   '/api/v1/namespaces',
+  deployments:  '/apis/apps/v1/deployments',
+  statefulsets: '/apis/apps/v1/statefulsets',
+  daemonsets:   '/apis/apps/v1/daemonsets',
+  configmaps:   '/api/v1/configmaps',
+  pvcs:         '/api/v1/persistentvolumeclaims',
 };
 
 // List all contexts

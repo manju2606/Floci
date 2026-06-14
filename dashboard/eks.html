@@ -58,6 +58,32 @@
     .tip{background:var(--card-bg);border:1px solid var(--border);border-left:4px solid #ff9900;border-radius:4px;padding:12px 16px;font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:16px}
     .tip strong{color:#ff9900}
 
+    /* Live data */
+    .cluster-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+    .ctab{padding:7px 18px;border-radius:4px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--text-primary);transition:all .15s}
+    .ctab:hover{border-color:#326ce5;color:#326ce5}
+    .ctab.active{background:#326ce5;color:#fff;border-color:#326ce5}
+    .ctab .dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0}
+    .ctab .dot.online{background:#27ae60}
+    .ctab .dot.offline{background:#e74c3c}
+    .cpanel{display:none}.cpanel.active{display:block}
+    .live-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    @media(max-width:800px){.live-grid{grid-template-columns:1fr}}
+    .live-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+    .live-box-hd{padding:10px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--card-bg)}
+    .live-box-hd .cnt{font-size:11px;background:#326ce5;color:#fff;padding:1px 8px;border-radius:10px;font-weight:400}
+    .live-box table{width:100%;border-collapse:collapse;font-size:12px}
+    .live-box th{background:#0d1b2a;color:#aab7b8;padding:6px 10px;text-align:left;font-weight:600;font-size:11px}
+    .live-box td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+    .live-box tr:last-child td{border-bottom:none}
+    .live-box .loading{padding:20px;text-align:center;color:var(--text-secondary);font-size:12px}
+    .bg{display:inline-block;padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600;background:#d5f5e3;color:#1e8449}
+    .br{display:inline-block;padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600;background:#fadbd8;color:#922b21}
+    .by{display:inline-block;padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600;background:#fef9e7;color:#7d6608}
+    .bk{display:inline-block;padding:1px 7px;border-radius:8px;font-size:11px;background:rgba(128,128,128,.15);color:var(--text-secondary)}
+    .refresh-all{padding:6px 14px;background:#326ce5;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:12px;font-weight:600}
+    .refresh-all:hover{background:#2554c7}
+
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
   </style>
 </head>
@@ -75,19 +101,198 @@
 <div class="hero">
   <div class="hero-icon">&#9729;</div>
   <div>
-    <h1>Amazon EKS Commands</h1>
-    <p>Elastic Kubernetes Service — manage clusters, node groups, IAM roles, and workloads.<br/>
-       Works with both real AWS and the local Floci emulator at <code style="background:rgba(255,255,255,.1);color:#ff9900;padding:1px 6px;border-radius:3px">localhost:4566</code>.</p>
+    <h1>Amazon EKS — Local (kind)</h1>
+    <p>2 clusters running via kind &mdash; <strong style="color:#ff9900">retail-dev-eksdemo1</strong> (3 nodes) &amp; <strong style="color:#a8d8a8">retail-dev-eksdemo2</strong> (2 nodes) &mdash; K8s v1.35.0.</p>
   </div>
   <a class="open-k8s-btn" href="kubernetes.html">&#9096; Open K8s Dashboard</a>
 </div>
 
 <div class="banner">
-  Local endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
-  Set: <span>export AWS_ENDPOINT_URL=http://localhost:4566</span>
+  Clusters: <span>retail-dev-eksdemo1</span> &nbsp;&amp;&nbsp; <span>retail-dev-eksdemo2</span> &nbsp;|&nbsp;
+  Engine: <span>kind</span> &nbsp;|&nbsp;
+  K8s: <span>v1.35.0</span> &nbsp;|&nbsp;
+  Total nodes: <span>5 Ready</span>
 </div>
 
 <main>
+
+  <!-- ── Live Cluster Data ─────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Live Cluster Data <span class="badge" style="background:#326ce5">LIVE</span>
+      <button class="refresh-all" style="margin-left:auto" onclick="loadAll()">&#8635; Refresh</button>
+    </h2>
+    <div class="cluster-tabs">
+      <div class="ctab active" data-panel="p1" onclick="switchTab(this)">
+        <span class="dot" id="dot-p1"></span> retail-dev-eksdemo1
+      </div>
+      <div class="ctab" data-panel="p2" onclick="switchTab(this)">
+        <span class="dot" id="dot-p2"></span> retail-dev-eksdemo2
+      </div>
+    </div>
+
+    <!-- Panel eksdemo1 -->
+    <div class="cpanel active" id="p1">
+      <div class="live-grid">
+        <div class="live-box">
+          <div class="live-box-hd">Nodes <span class="cnt" id="cnt-p1-nodes">—</span></div>
+          <div id="tbl-p1-nodes"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="live-box">
+          <div class="live-box-hd">Deployments <span class="cnt" id="cnt-p1-deploy">—</span></div>
+          <div id="tbl-p1-deploy"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+      <div class="live-box" style="margin-bottom:16px">
+        <div class="live-box-hd">Pods <span class="cnt" id="cnt-p1-pods">—</span></div>
+        <div id="tbl-p1-pods"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="live-box" style="margin-bottom:16px">
+        <div class="live-box-hd">Services <span class="cnt" id="cnt-p1-svc">—</span></div>
+        <div id="tbl-p1-svc"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="live-grid" style="margin-bottom:16px">
+        <div class="live-box">
+          <div class="live-box-hd">StatefulSets <span class="cnt" id="cnt-p1-sts">—</span></div>
+          <div id="tbl-p1-sts"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="live-box">
+          <div class="live-box-hd">DaemonSets <span class="cnt" id="cnt-p1-ds">—</span></div>
+          <div id="tbl-p1-ds"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+      <div class="live-grid">
+        <div class="live-box">
+          <div class="live-box-hd">ConfigMaps <span class="cnt" id="cnt-p1-cm">—</span></div>
+          <div id="tbl-p1-cm"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="live-box">
+          <div class="live-box-hd">PersistentVolumeClaims <span class="cnt" id="cnt-p1-pvc">—</span></div>
+          <div id="tbl-p1-pvc"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel eksdemo2 -->
+    <div class="cpanel" id="p2">
+      <div class="live-grid">
+        <div class="live-box">
+          <div class="live-box-hd">Nodes <span class="cnt" id="cnt-p2-nodes">—</span></div>
+          <div id="tbl-p2-nodes"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="live-box">
+          <div class="live-box-hd">Deployments <span class="cnt" id="cnt-p2-deploy">—</span></div>
+          <div id="tbl-p2-deploy"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+      <div class="live-box" style="margin-bottom:16px">
+        <div class="live-box-hd">Pods <span class="cnt" id="cnt-p2-pods">—</span></div>
+        <div id="tbl-p2-pods"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="live-box" style="margin-bottom:16px">
+        <div class="live-box-hd">Services <span class="cnt" id="cnt-p2-svc">—</span></div>
+        <div id="tbl-p2-svc"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="live-grid" style="margin-bottom:16px">
+        <div class="live-box">
+          <div class="live-box-hd">StatefulSets <span class="cnt" id="cnt-p2-sts">—</span></div>
+          <div id="tbl-p2-sts"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="live-box">
+          <div class="live-box-hd">DaemonSets <span class="cnt" id="cnt-p2-ds">—</span></div>
+          <div id="tbl-p2-ds"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+      <div class="live-grid">
+        <div class="live-box">
+          <div class="live-box-hd">ConfigMaps <span class="cnt" id="cnt-p2-cm">—</span></div>
+          <div id="tbl-p2-cm"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="live-box">
+          <div class="live-box-hd">PersistentVolumeClaims <span class="cnt" id="cnt-p2-pvc">—</span></div>
+          <div id="tbl-p2-pvc"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cluster 1 -->
+  <div class="section">
+    <h2>retail-dev-eksdemo1 <span class="badge" style="background:#27ae60">RUNNING</span> <span class="badge" style="background:#555;font-size:10px">3 nodes</span></h2>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Switch to eksdemo1</h4>
+        <code onclick="copyCmd(this)">kubectl config use-context kind-retail-dev-eksdemo1</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Get nodes</h4>
+        <p>1 control-plane + 2 workers.</p>
+        <code onclick="copyCmd(this)">kubectl get nodes -o wide --context kind-retail-dev-eksdemo1</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Get all pods</h4>
+        <code onclick="copyCmd(this)">kubectl get pods -A --context kind-retail-dev-eksdemo1</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Cluster info</h4>
+        <code onclick="copyCmd(this)">kubectl cluster-info --context kind-retail-dev-eksdemo1</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Delete eksdemo1</h4>
+        <code onclick="copyCmd(this)">kind delete cluster --name retail-dev-eksdemo1</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Recreate eksdemo1</h4>
+        <p>1 control-plane + 2 workers.</p>
+        <code onclick="copyCmd(this)">kind create cluster --name retail-dev-eksdemo1 --config - <<'EOF'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+EOF</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cluster 2 -->
+  <div class="section">
+    <h2>retail-dev-eksdemo2 <span class="badge" style="background:#27ae60">RUNNING</span> <span class="badge" style="background:#555;font-size:10px">2 nodes</span></h2>
+    <div class="cmd-grid">
+      <div class="cmd-card green">
+        <h4>Switch to eksdemo2</h4>
+        <code onclick="copyCmd(this)">kubectl config use-context kind-retail-dev-eksdemo2</code>
+      </div>
+      <div class="cmd-card green">
+        <h4>Get nodes</h4>
+        <p>1 control-plane + 1 worker.</p>
+        <code onclick="copyCmd(this)">kubectl get nodes -o wide --context kind-retail-dev-eksdemo2</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Get all pods</h4>
+        <code onclick="copyCmd(this)">kubectl get pods -A --context kind-retail-dev-eksdemo2</code>
+      </div>
+      <div class="cmd-card blue">
+        <h4>Cluster info</h4>
+        <code onclick="copyCmd(this)">kubectl cluster-info --context kind-retail-dev-eksdemo2</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Delete eksdemo2</h4>
+        <code onclick="copyCmd(this)">kind delete cluster --name retail-dev-eksdemo2</code>
+      </div>
+      <div class="cmd-card warn">
+        <h4>Recreate eksdemo2</h4>
+        <p>1 control-plane + 1 worker.</p>
+        <code onclick="copyCmd(this)">kind create cluster --name retail-dev-eksdemo2 --config - <<'EOF'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+EOF</code>
+      </div>
+    </div>
+  </div>
 
   <!-- Cluster Management -->
   <div class="section">
@@ -280,6 +485,176 @@ function copyCmd(el) {
   el.classList.add('copied');
   setTimeout(() => el.classList.remove('copied'), 800);
 }
+
+// ── Live data ────────────────────────────────────────────────────────
+const API = '';
+const CLUSTERS = [
+  { panel: 'p1', ctx: 'kind-retail-dev-eksdemo1' },
+  { panel: 'p2', ctx: 'kind-retail-dev-eksdemo2' },
+];
+
+function switchTab(el) {
+  document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.cpanel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(el.dataset.panel).classList.add('active');
+}
+
+function age(ts) {
+  if (!ts) return '—';
+  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s/60) + 'm';
+  if (s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+}
+function b(s) {
+  if (!s) return `<span class="bk">—</span>`;
+  const l = s.toLowerCase();
+  if (['running','ready','active','true','available'].includes(l)) return `<span class="bg">${s}</span>`;
+  if (['pending','containercreating','terminating'].includes(l))   return `<span class="by">${s}</span>`;
+  return `<span class="br">${s}</span>`;
+}
+function podStatus(p) {
+  if (p.metadata.deletionTimestamp) return 'Terminating';
+  for (const cs of (p.status.containerStatuses||[])) {
+    if (cs.state?.waiting?.reason)    return cs.state.waiting.reason;
+    if (cs.state?.terminated?.reason) return cs.state.terminated.reason;
+  }
+  return p.status.phase || 'Unknown';
+}
+
+function setDot(panel, online) {
+  const dot = document.getElementById('dot-' + panel);
+  if (dot) { dot.className = 'dot ' + (online ? 'online' : 'offline'); }
+}
+
+async function loadCluster({ panel, ctx }) {
+  const enc = encodeURIComponent(ctx);
+  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  const cnt = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  const err = msg => `<div class="loading" style="color:#e74c3c">${msg}</div>`;
+
+  try {
+    // nodes
+    const nd = await fetch(`${API}/api/cluster/${enc}/nodes`).then(r => r.json());
+    if (nd.offline) throw new Error(nd.error);
+    setDot(panel, true);
+    const nodes = nd.items || [];
+    cnt('cnt-' + panel + '-nodes', nodes.length);
+    set('tbl-' + panel + '-nodes', nodes.length ? `<table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Version</th><th>Age</th></tr></thead><tbody>` +
+      nodes.map(n => {
+        const ready = n.status.conditions?.find(c=>c.type==='Ready')?.status==='True' ? 'Ready' : 'NotReady';
+        const role  = n.metadata.labels?.['node-role.kubernetes.io/control-plane']!==undefined ? 'control-plane' : 'worker';
+        return `<tr><td>${n.metadata.name}</td><td><span class="bk">${role}</span></td><td>${b(ready)}</td><td>${n.status.nodeInfo?.kubeletVersion||'—'}</td><td>${age(n.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No nodes</div>`);
+  } catch(e) {
+    setDot(panel, false);
+    set('tbl-' + panel + '-nodes', err('Offline — ' + e.message));
+    ['pods','deploy','svc'].forEach(r => set('tbl-' + panel + '-' + r, err('Cluster offline')));
+    return;
+  }
+
+  // pods
+  try {
+    const pd = await fetch(`${API}/api/cluster/${enc}/pods`).then(r => r.json());
+    const pods = (pd.items||[]).filter(p => p.metadata.namespace !== 'kube-system' && p.metadata.namespace !== 'local-path-storage' || true);
+    const allPods = pd.items || [];
+    cnt('cnt-' + panel + '-pods', allPods.length);
+    set('tbl-' + panel + '-pods', allPods.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead><tbody>` +
+      allPods.map(p => {
+        const st = podStatus(p);
+        const ready = (p.status.containerStatuses?.filter(c=>c.ready).length||0) + '/' + (p.spec.containers?.length||0);
+        const restarts = p.status.containerStatuses?.reduce((a,c)=>a+c.restartCount,0)||0;
+        const cls = ['running','succeeded'].includes(st.toLowerCase()) ? '' : ' style="background:rgba(231,76,60,.06)"';
+        return `<tr${cls}><td>${p.metadata.name}</td><td><span class="bk">${p.metadata.namespace}</span></td><td>${b(st)}</td><td>${ready}</td><td>${restarts>5?`<span class="br">${restarts}</span>`:restarts}</td><td>${p.spec.nodeName||'—'}</td><td>${age(p.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No pods</div>`);
+  } catch(e) { set('tbl-' + panel + '-pods', err(e.message)); }
+
+  // deployments
+  try {
+    const dd = await fetch(`${API}/api/cluster/${enc}/deployments`).then(r => r.json());
+    const deps = dd.items || [];
+    cnt('cnt-' + panel + '-deploy', deps.length);
+    set('tbl-' + panel + '-deploy', deps.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
+      deps.map(d => {
+        const ready = (d.status?.readyReplicas||0) + '/' + (d.spec?.replicas||0);
+        const ok = (d.status?.readyReplicas||0) === (d.spec?.replicas||0);
+        return `<tr><td>${d.metadata.name}</td><td><span class="bk">${d.metadata.namespace}</span></td><td>${ok ? `<span class="bg">${ready}</span>` : `<span class="by">${ready}</span>`}</td><td>${age(d.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No deployments</div>`);
+  } catch(e) { set('tbl-' + panel + '-deploy', err(e.message)); }
+
+  // services
+  try {
+    const sv = await fetch(`${API}/api/cluster/${enc}/services`).then(r => r.json());
+    const svcs = sv.items || [];
+    cnt('cnt-' + panel + '-svc', svcs.length);
+    set('tbl-' + panel + '-svc', svcs.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>Port(s)</th><th>Age</th></tr></thead><tbody>` +
+      svcs.map(s => {
+        const ports = (s.spec?.ports||[]).map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}/${p.protocol||'TCP'}`).join(', ');
+        return `<tr><td>${s.metadata.name}</td><td><span class="bk">${s.metadata.namespace}</span></td><td><span class="bk">${s.spec?.type||'—'}</span></td><td>${s.spec?.clusterIP||'—'}</td><td>${ports||'—'}</td><td>${age(s.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No services</div>`);
+  } catch(e) { set('tbl-' + panel + '-svc', err(e.message)); }
+
+  // statefulsets
+  try {
+    const st = await fetch(`${API}/api/cluster/${enc}/statefulsets`).then(r => r.json());
+    const stsList = st.items || [];
+    cnt('cnt-' + panel + '-sts', stsList.length);
+    set('tbl-' + panel + '-sts', stsList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
+      stsList.map(s => {
+        const ready = (s.status?.readyReplicas||0) + '/' + (s.spec?.replicas||0);
+        const ok = (s.status?.readyReplicas||0) === (s.spec?.replicas||0);
+        return `<tr><td>${s.metadata.name}</td><td><span class="bk">${s.metadata.namespace}</span></td><td>${ok ? `<span class="bg">${ready}</span>` : `<span class="by">${ready}</span>`}</td><td>${age(s.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No StatefulSets</div>`);
+  } catch(e) { set('tbl-' + panel + '-sts', err(e.message)); }
+
+  // daemonsets
+  try {
+    const ds = await fetch(`${API}/api/cluster/${enc}/daemonsets`).then(r => r.json());
+    const dsList = ds.items || [];
+    cnt('cnt-' + panel + '-ds', dsList.length);
+    set('tbl-' + panel + '-ds', dsList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Desired</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
+      dsList.map(d => {
+        const desired = d.status?.desiredNumberScheduled || 0;
+        const ready   = d.status?.numberReady || 0;
+        const ok = ready === desired;
+        return `<tr><td>${d.metadata.name}</td><td><span class="bk">${d.metadata.namespace}</span></td><td>${desired}</td><td>${ok ? `<span class="bg">${ready}</span>` : `<span class="by">${ready}</span>`}</td><td>${age(d.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No DaemonSets</div>`);
+  } catch(e) { set('tbl-' + panel + '-ds', err(e.message)); }
+
+  // configmaps
+  try {
+    const cm = await fetch(`${API}/api/cluster/${enc}/configmaps`).then(r => r.json());
+    const cmList = (cm.items || []).filter(c => !c.metadata.namespace.startsWith('kube-'));
+    cnt('cnt-' + panel + '-cm', cmList.length);
+    set('tbl-' + panel + '-cm', cmList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Keys</th><th>Age</th></tr></thead><tbody>` +
+      cmList.map(c => {
+        const keys = Object.keys(c.data || {}).length + Object.keys(c.binaryData || {}).length;
+        return `<tr><td>${c.metadata.name}</td><td><span class="bk">${c.metadata.namespace}</span></td><td>${keys}</td><td>${age(c.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No ConfigMaps</div>`);
+  } catch(e) { set('tbl-' + panel + '-cm', err(e.message)); }
+
+  // pvcs
+  try {
+    const pv = await fetch(`${API}/api/cluster/${enc}/pvcs`).then(r => r.json());
+    const pvcList = pv.items || [];
+    cnt('cnt-' + panel + '-pvc', pvcList.length);
+    set('tbl-' + panel + '-pvc', pvcList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Capacity</th><th>StorageClass</th><th>Age</th></tr></thead><tbody>` +
+      pvcList.map(p => {
+        const phase = p.status?.phase || '—';
+        const cap   = p.status?.capacity?.storage || p.spec?.resources?.requests?.storage || '—';
+        return `<tr><td>${p.metadata.name}</td><td><span class="bk">${p.metadata.namespace}</span></td><td>${b(phase)}</td><td>${cap}</td><td><span class="bk">${p.spec?.storageClassName||'—'}</span></td><td>${age(p.metadata.creationTimestamp)}</td></tr>`;
+      }).join('') + `</tbody></table>` : `<div class="loading">No PVCs</div>`);
+  } catch(e) { set('tbl-' + panel + '-pvc', err(e.message)); }
+}
+
+function loadAll() { CLUSTERS.forEach(loadCluster); }
+
+// load on page open
+loadAll();
+// auto-refresh every 30s
+setInterval(loadAll, 30000);
 </script>
 </body>
 </html>
