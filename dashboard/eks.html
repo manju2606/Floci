@@ -246,6 +246,10 @@
           <div id="tbl-p1-pvc"><div class="loading">Loading…</div></div>
         </div>
       </div>
+      <div class="live-box" style="margin-top:16px">
+        <div class="live-box-hd">Namespaces <span class="cnt" id="cnt-p1-ns">—</span></div>
+        <div id="tbl-p1-ns"><div class="loading">Loading…</div></div>
+      </div>
     </div>
 
     <!-- Panel eksdemo2 -->
@@ -349,6 +353,10 @@
           <div class="live-box-hd">PersistentVolumeClaims <span class="cnt" id="cnt-p2-pvc">—</span></div>
           <div id="tbl-p2-pvc"><div class="loading">Loading…</div></div>
         </div>
+      </div>
+      <div class="live-box" style="margin-top:16px">
+        <div class="live-box-hd">Namespaces <span class="cnt" id="cnt-p2-ns">—</span></div>
+        <div id="tbl-p2-ns"><div class="loading">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -706,9 +714,9 @@ async function loadCluster({ panel, ctx }) {
   } catch(e) {
     setDot(panel, false);
     setSummary(panel, 'nodes', '!', 'Offline', 'error');
-    ['pods','deploy','svc','sts','ds','cm','pvc'].forEach(r => {
-      setSummary(panel, r === 'deploy' ? 'deploy' : r, '—', 'offline', 'error');
-      set('tbl-' + panel + '-' + (r === 'deploy' ? 'deploy' : r), err('Cluster offline'));
+    ['pods','deploy','svc','sts','ds','cm','pvc','ns'].forEach(r => {
+      setSummary(panel, r, '—', 'offline', 'error');
+      set('tbl-' + panel + '-' + r, err('Cluster offline'));
     });
     set('tbl-' + panel + '-nodes', err('Offline — ' + e.message));
     return;
@@ -828,8 +836,30 @@ async function loadCluster({ panel, ctx }) {
     const ns = await fetch(`${API}/api/cluster/${enc}/namespaces`).then(r => r.json());
     const nsList = ns.items || [];
     const activeNs = nsList.filter(n => n.status?.phase === 'Active').length;
-    setSummary(panel, 'ns', nsList.length, activeNs + ' Active', activeNs === nsList.length ? 'info' : 'warn');
-  } catch(e) { setSummary(panel,'ns','—',e.message,'error'); }
+    const SYSTEM_NS = new Set(['kube-system','kube-public','kube-node-lease','local-path-storage']);
+    const isSystem = name => SYSTEM_NS.has(name) || name.startsWith('kube-');
+    const sysNs  = nsList.filter(n => isSystem(n.metadata.name));
+    const userNs = nsList.filter(n => !isSystem(n.metadata.name));
+    cnt('cnt-' + panel + '-ns', nsList.length);
+    setSummary(panel, 'ns', nsList.length, sysNs.length + ' sys · ' + userNs.length + ' user', activeNs === nsList.length ? 'info' : 'warn');
+
+    const nsRow = (n, type) => {
+      const phase = n.status?.phase || '—';
+      return `<tr><td>${n.metadata.name}</td><td>${type}</td><td>${b(phase)}</td><td>${age(n.metadata.creationTimestamp)}</td></tr>`;
+    };
+    let rows = '';
+    if (sysNs.length) {
+      rows += `<tr style="background:rgba(50,108,229,.07)"><td colspan="4" style="font-size:11px;font-weight:700;color:#326ce5;padding:5px 10px;letter-spacing:.5px">SYSTEM</td></tr>`;
+      rows += sysNs.map(n => nsRow(n, '<span class="bk">system</span>')).join('');
+    }
+    if (userNs.length) {
+      rows += `<tr style="background:rgba(39,174,96,.07)"><td colspan="4" style="font-size:11px;font-weight:700;color:#27ae60;padding:5px 10px;letter-spacing:.5px">USER-CREATED</td></tr>`;
+      rows += userNs.map(n => nsRow(n, '<span class="bg">user</span>')).join('');
+    }
+    set('tbl-' + panel + '-ns', nsList.length
+      ? `<table><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`
+      : `<div class="loading">No namespaces</div>`);
+  } catch(e) { setSummary(panel,'ns','—',e.message,'error'); set('tbl-' + panel + '-ns', err(e.message)); }
 }
 
 function loadAll() { CLUSTERS.forEach(loadCluster); }
