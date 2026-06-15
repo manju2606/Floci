@@ -684,6 +684,22 @@ function setSummary(panel, key, count, sub, status) {
   if (sw) sw.setAttribute('data-status', status);
 }
 
+const SYSTEM_NS = new Set(['kube-system','kube-public','kube-node-lease','local-path-storage']);
+const isSystemNs = ns => SYSTEM_NS.has(ns) || ns.startsWith('kube-');
+function sHdr(label, colspan, isSys) {
+  const color = isSys ? '#326ce5' : '#27ae60';
+  const bg    = isSys ? 'rgba(50,108,229,.07)' : 'rgba(39,174,96,.07)';
+  return `<tr style="background:${bg}"><td colspan="${colspan}" style="font-size:11px;font-weight:700;color:${color};padding:5px 10px;letter-spacing:.5px">${label}</td></tr>`;
+}
+function grouped(items, getNs, rowFn, colspan) {
+  const sys  = items.filter(i => isSystemNs(getNs(i)));
+  const user = items.filter(i => !isSystemNs(getNs(i)));
+  let rows = '';
+  if (sys.length)  rows += sHdr('SYSTEM', colspan, true)  + sys.map(rowFn).join('');
+  if (user.length) rows += sHdr('USER-CREATED', colspan, false) + user.map(rowFn).join('');
+  return rows;
+}
+
 async function loadCluster({ panel, ctx }) {
   const enc = encodeURIComponent(ctx);
   const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
@@ -734,13 +750,13 @@ async function loadCluster({ panel, ctx }) {
     cnt('cnt-' + panel + '-pods', allPods.length);
     setSummary(panel, 'pods', allPods.length, runningPods + ' Running', badPods > 0 ? 'warn' : 'ok');
     set('tbl-' + panel + '-pods', allPods.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead><tbody>` +
-      allPods.map(p => {
+      grouped(allPods, p => p.metadata.namespace, p => {
         const st = podStatus(p);
         const ready = (p.status.containerStatuses?.filter(c=>c.ready).length||0) + '/' + (p.spec.containers?.length||0);
         const restarts = p.status.containerStatuses?.reduce((a,c)=>a+c.restartCount,0)||0;
         const cls = ['running','succeeded'].includes(st.toLowerCase()) ? '' : ' style="background:rgba(231,76,60,.06)"';
         return `<tr${cls}><td>${p.metadata.name}</td><td><span class="bk">${p.metadata.namespace}</span></td><td>${b(st)}</td><td>${ready}</td><td>${restarts>5?`<span class="br">${restarts}</span>`:restarts}</td><td>${p.spec.nodeName||'—'}</td><td>${age(p.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No pods</div>`);
+      }, 7) + `</tbody></table>` : `<div class="loading">No pods</div>`);
   } catch(e) { set('tbl-' + panel + '-pods', err(e.message)); setSummary(panel,'pods','—',e.message,'error'); }
 
   // deployments
@@ -751,11 +767,11 @@ async function loadCluster({ panel, ctx }) {
     cnt('cnt-' + panel + '-deploy', deps.length);
     setSummary(panel, 'deploy', deps.length, readyDeps + '/' + deps.length + ' Ready', readyDeps === deps.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-deploy', deps.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
-      deps.map(d => {
+      grouped(deps, d => d.metadata.namespace, d => {
         const ready = (d.status?.readyReplicas||0) + '/' + (d.spec?.replicas||0);
         const ok = (d.status?.readyReplicas||0) === (d.spec?.replicas||0);
         return `<tr><td>${d.metadata.name}</td><td><span class="bk">${d.metadata.namespace}</span></td><td>${ok ? `<span class="bg">${ready}</span>` : `<span class="by">${ready}</span>`}</td><td>${age(d.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No deployments</div>`);
+      }, 4) + `</tbody></table>` : `<div class="loading">No deployments</div>`);
   } catch(e) { set('tbl-' + panel + '-deploy', err(e.message)); setSummary(panel,'deploy','—',e.message,'error'); }
 
   // services
@@ -766,10 +782,10 @@ async function loadCluster({ panel, ctx }) {
     cnt('cnt-' + panel + '-svc', svcs.length);
     setSummary(panel, 'svc', svcs.length, types || '—', 'info');
     set('tbl-' + panel + '-svc', svcs.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>Port(s)</th><th>Age</th></tr></thead><tbody>` +
-      svcs.map(s => {
+      grouped(svcs, s => s.metadata.namespace, s => {
         const ports = (s.spec?.ports||[]).map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}/${p.protocol||'TCP'}`).join(', ');
         return `<tr><td>${s.metadata.name}</td><td><span class="bk">${s.metadata.namespace}</span></td><td><span class="bk">${s.spec?.type||'—'}</span></td><td>${s.spec?.clusterIP||'—'}</td><td>${ports||'—'}</td><td>${age(s.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No services</div>`);
+      }, 6) + `</tbody></table>` : `<div class="loading">No services</div>`);
   } catch(e) { set('tbl-' + panel + '-svc', err(e.message)); setSummary(panel,'svc','—',e.message,'error'); }
 
   // statefulsets
@@ -780,11 +796,11 @@ async function loadCluster({ panel, ctx }) {
     cnt('cnt-' + panel + '-sts', stsList.length);
     setSummary(panel, 'sts', stsList.length, stsList.length ? readySts + '/' + stsList.length + ' Ready' : 'none', stsList.length === 0 || readySts === stsList.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-sts', stsList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
-      stsList.map(s => {
+      grouped(stsList, s => s.metadata.namespace, s => {
         const ready = (s.status?.readyReplicas||0) + '/' + (s.spec?.replicas||0);
         const ok = (s.status?.readyReplicas||0) === (s.spec?.replicas||0);
         return `<tr><td>${s.metadata.name}</td><td><span class="bk">${s.metadata.namespace}</span></td><td>${ok ? `<span class="bg">${ready}</span>` : `<span class="by">${ready}</span>`}</td><td>${age(s.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No StatefulSets</div>`);
+      }, 4) + `</tbody></table>` : `<div class="loading">No StatefulSets</div>`);
   } catch(e) { set('tbl-' + panel + '-sts', err(e.message)); setSummary(panel,'sts','—',e.message,'error'); }
 
   // daemonsets
@@ -795,25 +811,26 @@ async function loadCluster({ panel, ctx }) {
     cnt('cnt-' + panel + '-ds', dsList.length);
     setSummary(panel, 'ds', dsList.length, dsList.length ? readyDs + '/' + dsList.length + ' Ready' : 'none', dsList.length === 0 || readyDs === dsList.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-ds', dsList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Desired</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
-      dsList.map(d => {
+      grouped(dsList, d => d.metadata.namespace, d => {
         const desired = d.status?.desiredNumberScheduled || 0;
         const ready   = d.status?.numberReady || 0;
         const ok = ready === desired;
         return `<tr><td>${d.metadata.name}</td><td><span class="bk">${d.metadata.namespace}</span></td><td>${desired}</td><td>${ok ? `<span class="bg">${ready}</span>` : `<span class="by">${ready}</span>`}</td><td>${age(d.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No DaemonSets</div>`);
+      }, 5) + `</tbody></table>` : `<div class="loading">No DaemonSets</div>`);
   } catch(e) { set('tbl-' + panel + '-ds', err(e.message)); setSummary(panel,'ds','—',e.message,'error'); }
 
   // configmaps
   try {
     const cm = await fetch(`${API}/api/cluster/${enc}/configmaps`).then(r => r.json());
-    const cmList = (cm.items || []).filter(c => !c.metadata.namespace.startsWith('kube-'));
+    const cmList = cm.items || [];
+    const cmUser = cmList.filter(c => !isSystemNs(c.metadata.namespace));
     cnt('cnt-' + panel + '-cm', cmList.length);
-    setSummary(panel, 'cm', cmList.length, cmList.length + ' user-defined', 'info');
+    setSummary(panel, 'cm', cmList.length, cmUser.length + ' user · ' + (cmList.length - cmUser.length) + ' sys', 'info');
     set('tbl-' + panel + '-cm', cmList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Keys</th><th>Age</th></tr></thead><tbody>` +
-      cmList.map(c => {
+      grouped(cmList, c => c.metadata.namespace, c => {
         const keys = Object.keys(c.data || {}).length + Object.keys(c.binaryData || {}).length;
         return `<tr><td>${c.metadata.name}</td><td><span class="bk">${c.metadata.namespace}</span></td><td>${keys}</td><td>${age(c.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No ConfigMaps</div>`);
+      }, 4) + `</tbody></table>` : `<div class="loading">No ConfigMaps</div>`);
   } catch(e) { set('tbl-' + panel + '-cm', err(e.message)); setSummary(panel,'cm','—',e.message,'error'); }
 
   // pvcs
@@ -824,11 +841,11 @@ async function loadCluster({ panel, ctx }) {
     cnt('cnt-' + panel + '-pvc', pvcList.length);
     setSummary(panel, 'pvc', pvcList.length, pvcList.length ? boundPvcs + ' Bound' : 'none', pvcList.length === 0 || boundPvcs === pvcList.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-pvc', pvcList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Capacity</th><th>StorageClass</th><th>Age</th></tr></thead><tbody>` +
-      pvcList.map(p => {
+      grouped(pvcList, p => p.metadata.namespace, p => {
         const phase = p.status?.phase || '—';
         const cap   = p.status?.capacity?.storage || p.spec?.resources?.requests?.storage || '—';
         return `<tr><td>${p.metadata.name}</td><td><span class="bk">${p.metadata.namespace}</span></td><td>${b(phase)}</td><td>${cap}</td><td><span class="bk">${p.spec?.storageClassName||'—'}</span></td><td>${age(p.metadata.creationTimestamp)}</td></tr>`;
-      }).join('') + `</tbody></table>` : `<div class="loading">No PVCs</div>`);
+      }, 6) + `</tbody></table>` : `<div class="loading">No PVCs</div>`);
   } catch(e) { set('tbl-' + panel + '-pvc', err(e.message)); setSummary(panel,'pvc','—',e.message,'error'); }
 
   // namespaces
@@ -836,28 +853,17 @@ async function loadCluster({ panel, ctx }) {
     const ns = await fetch(`${API}/api/cluster/${enc}/namespaces`).then(r => r.json());
     const nsList = ns.items || [];
     const activeNs = nsList.filter(n => n.status?.phase === 'Active').length;
-    const SYSTEM_NS = new Set(['kube-system','kube-public','kube-node-lease','local-path-storage']);
-    const isSystem = name => SYSTEM_NS.has(name) || name.startsWith('kube-');
-    const sysNs  = nsList.filter(n => isSystem(n.metadata.name));
-    const userNs = nsList.filter(n => !isSystem(n.metadata.name));
+    const sysNs  = nsList.filter(n => isSystemNs(n.metadata.name));
+    const userNs = nsList.filter(n => !isSystemNs(n.metadata.name));
     cnt('cnt-' + panel + '-ns', nsList.length);
     setSummary(panel, 'ns', nsList.length, sysNs.length + ' sys · ' + userNs.length + ' user', activeNs === nsList.length ? 'info' : 'warn');
-
-    const nsRow = (n, type) => {
-      const phase = n.status?.phase || '—';
-      return `<tr><td>${n.metadata.name}</td><td>${type}</td><td>${b(phase)}</td><td>${age(n.metadata.creationTimestamp)}</td></tr>`;
-    };
-    let rows = '';
-    if (sysNs.length) {
-      rows += `<tr style="background:rgba(50,108,229,.07)"><td colspan="4" style="font-size:11px;font-weight:700;color:#326ce5;padding:5px 10px;letter-spacing:.5px">SYSTEM</td></tr>`;
-      rows += sysNs.map(n => nsRow(n, '<span class="bk">system</span>')).join('');
-    }
-    if (userNs.length) {
-      rows += `<tr style="background:rgba(39,174,96,.07)"><td colspan="4" style="font-size:11px;font-weight:700;color:#27ae60;padding:5px 10px;letter-spacing:.5px">USER-CREATED</td></tr>`;
-      rows += userNs.map(n => nsRow(n, '<span class="bg">user</span>')).join('');
-    }
     set('tbl-' + panel + '-ns', nsList.length
-      ? `<table><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`
+      ? `<table><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Age</th></tr></thead><tbody>` +
+        grouped(nsList, n => n.metadata.name, n => {
+          const phase = n.status?.phase || '—';
+          const type  = isSystemNs(n.metadata.name) ? '<span class="bk">system</span>' : '<span class="bg">user</span>';
+          return `<tr><td>${n.metadata.name}</td><td>${type}</td><td>${b(phase)}</td><td>${age(n.metadata.creationTimestamp)}</td></tr>`;
+        }, 4) + `</tbody></table>`
       : `<div class="loading">No namespaces</div>`);
   } catch(e) { setSummary(panel,'ns','—',e.message,'error'); set('tbl-' + panel + '-ns', err(e.message)); }
 }
