@@ -719,8 +719,10 @@ async function loadCluster({ panel, ctx }) {
     setDot(panel, true);
     const nodes = nd.items || [];
     const readyNodes = nodes.filter(n => n.status.conditions?.find(c=>c.type==='Ready')?.status==='True').length;
+    const cpNodes   = nodes.filter(n => n.metadata.labels?.['node-role.kubernetes.io/control-plane'] !== undefined).length;
+    const wkNodes   = nodes.length - cpNodes;
     cnt('cnt-' + panel + '-nodes', nodes.length);
-    setSummary(panel, 'nodes', nodes.length, readyNodes + ' Ready', readyNodes === nodes.length ? 'ok' : 'warn');
+    setSummary(panel, 'nodes', nodes.length, cpNodes + ' ctrl-plane · ' + wkNodes + ' worker', readyNodes === nodes.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-nodes', nodes.length ? `<table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Version</th><th>Age</th></tr></thead><tbody>` +
       nodes.map(n => {
         const ready = n.status.conditions?.find(c=>c.type==='Ready')?.status==='True' ? 'Ready' : 'NotReady';
@@ -747,8 +749,10 @@ async function loadCluster({ panel, ctx }) {
       const st = podStatus(p);
       return !['Running','Succeeded'].includes(st);
     }).length;
+    const sysPods  = allPods.filter(p => isSystemNs(p.metadata.namespace)).length;
+    const userPods = allPods.length - sysPods;
     cnt('cnt-' + panel + '-pods', allPods.length);
-    setSummary(panel, 'pods', allPods.length, runningPods + ' Running', badPods > 0 ? 'warn' : 'ok');
+    setSummary(panel, 'pods', allPods.length, sysPods + ' sys · ' + userPods + ' user', badPods > 0 ? 'warn' : 'ok');
     set('tbl-' + panel + '-pods', allPods.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead><tbody>` +
       grouped(allPods, p => p.metadata.namespace, p => {
         const st = podStatus(p);
@@ -764,8 +768,10 @@ async function loadCluster({ panel, ctx }) {
     const dd = await fetch(`${API}/api/cluster/${enc}/deployments`).then(r => r.json());
     const deps = dd.items || [];
     const readyDeps = deps.filter(d => (d.status?.readyReplicas||0) === (d.spec?.replicas||0)).length;
+    const sysDeps   = deps.filter(d => isSystemNs(d.metadata.namespace)).length;
+    const userDeps  = deps.length - sysDeps;
     cnt('cnt-' + panel + '-deploy', deps.length);
-    setSummary(panel, 'deploy', deps.length, readyDeps + '/' + deps.length + ' Ready', readyDeps === deps.length ? 'ok' : 'warn');
+    setSummary(panel, 'deploy', deps.length, sysDeps + ' sys · ' + userDeps + ' user', readyDeps === deps.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-deploy', deps.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
       grouped(deps, d => d.metadata.namespace, d => {
         const ready = (d.status?.readyReplicas||0) + '/' + (d.spec?.replicas||0);
@@ -778,9 +784,10 @@ async function loadCluster({ panel, ctx }) {
   try {
     const sv = await fetch(`${API}/api/cluster/${enc}/services`).then(r => r.json());
     const svcs = sv.items || [];
-    const types = [...new Set(svcs.map(s => s.spec?.type||'ClusterIP'))].join(' · ');
+    const sysSvcs  = svcs.filter(s => isSystemNs(s.metadata.namespace)).length;
+    const userSvcs = svcs.length - sysSvcs;
     cnt('cnt-' + panel + '-svc', svcs.length);
-    setSummary(panel, 'svc', svcs.length, types || '—', 'info');
+    setSummary(panel, 'svc', svcs.length, sysSvcs + ' sys · ' + userSvcs + ' user', 'info');
     set('tbl-' + panel + '-svc', svcs.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>Port(s)</th><th>Age</th></tr></thead><tbody>` +
       grouped(svcs, s => s.metadata.namespace, s => {
         const ports = (s.spec?.ports||[]).map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}/${p.protocol||'TCP'}`).join(', ');
@@ -793,8 +800,10 @@ async function loadCluster({ panel, ctx }) {
     const st = await fetch(`${API}/api/cluster/${enc}/statefulsets`).then(r => r.json());
     const stsList = st.items || [];
     const readySts = stsList.filter(s => (s.status?.readyReplicas||0) === (s.spec?.replicas||0)).length;
+    const sysSts   = stsList.filter(s => isSystemNs(s.metadata.namespace)).length;
+    const userSts  = stsList.length - sysSts;
     cnt('cnt-' + panel + '-sts', stsList.length);
-    setSummary(panel, 'sts', stsList.length, stsList.length ? readySts + '/' + stsList.length + ' Ready' : 'none', stsList.length === 0 || readySts === stsList.length ? 'ok' : 'warn');
+    setSummary(panel, 'sts', stsList.length, stsList.length ? sysSts + ' sys · ' + userSts + ' user' : 'none', stsList.length === 0 || readySts === stsList.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-sts', stsList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
       grouped(stsList, s => s.metadata.namespace, s => {
         const ready = (s.status?.readyReplicas||0) + '/' + (s.spec?.replicas||0);
@@ -808,8 +817,10 @@ async function loadCluster({ panel, ctx }) {
     const ds = await fetch(`${API}/api/cluster/${enc}/daemonsets`).then(r => r.json());
     const dsList = ds.items || [];
     const readyDs = dsList.filter(d => (d.status?.numberReady||0) === (d.status?.desiredNumberScheduled||0)).length;
+    const sysDs   = dsList.filter(d => isSystemNs(d.metadata.namespace)).length;
+    const userDs  = dsList.length - sysDs;
     cnt('cnt-' + panel + '-ds', dsList.length);
-    setSummary(panel, 'ds', dsList.length, dsList.length ? readyDs + '/' + dsList.length + ' Ready' : 'none', dsList.length === 0 || readyDs === dsList.length ? 'ok' : 'warn');
+    setSummary(panel, 'ds', dsList.length, dsList.length ? sysDs + ' sys · ' + userDs + ' user' : 'none', dsList.length === 0 || readyDs === dsList.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-ds', dsList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Desired</th><th>Ready</th><th>Age</th></tr></thead><tbody>` +
       grouped(dsList, d => d.metadata.namespace, d => {
         const desired = d.status?.desiredNumberScheduled || 0;
@@ -838,8 +849,10 @@ async function loadCluster({ panel, ctx }) {
     const pv = await fetch(`${API}/api/cluster/${enc}/pvcs`).then(r => r.json());
     const pvcList = pv.items || [];
     const boundPvcs = pvcList.filter(p => p.status?.phase === 'Bound').length;
+    const sysPvcs   = pvcList.filter(p => isSystemNs(p.metadata.namespace)).length;
+    const userPvcs  = pvcList.length - sysPvcs;
     cnt('cnt-' + panel + '-pvc', pvcList.length);
-    setSummary(panel, 'pvc', pvcList.length, pvcList.length ? boundPvcs + ' Bound' : 'none', pvcList.length === 0 || boundPvcs === pvcList.length ? 'ok' : 'warn');
+    setSummary(panel, 'pvc', pvcList.length, pvcList.length ? sysPvcs + ' sys · ' + userPvcs + ' user' : 'none', pvcList.length === 0 || boundPvcs === pvcList.length ? 'ok' : 'warn');
     set('tbl-' + panel + '-pvc', pvcList.length ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Capacity</th><th>StorageClass</th><th>Age</th></tr></thead><tbody>` +
       grouped(pvcList, p => p.metadata.namespace, p => {
         const phase = p.status?.phase || '—';
