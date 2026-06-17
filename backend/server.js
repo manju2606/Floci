@@ -1479,23 +1479,56 @@ app.get('/api/elb/summary', async (req, res) => {
 
 // ── ECR routes ────────────────────────────────────────────────────────────────
 
+const http = require('http');
+const OCI_REGISTRY = process.env.OCI_REGISTRY || 'http://host.docker.internal:5100';
+
+function ociGet(path) {
+  return new Promise((resolve, reject) => {
+    const url = OCI_REGISTRY + path;
+    const mod = url.startsWith('https') ? require('https') : http;
+    mod.get(url, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve({}); } });
+    }).on('error', reject);
+  });
+}
+
+function ociHead(path) {
+  return new Promise((resolve) => {
+    const url = OCI_REGISTRY + path;
+    const mod = url.startsWith('https') ? require('https') : http;
+    const opts = Object.assign(require('url').parse(url), { method: 'HEAD', headers: { Accept: 'application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json,*/*' } });
+    const req = mod.request(opts, res => resolve({ status: res.statusCode, headers: res.headers }));
+    req.on('error', () => resolve({ status: 0, headers: {} }));
+    req.end();
+  });
+}
+
 app.get('/api/ecr/repositories', async (req, res) => {
   try {
     const data = await ecr.send(new DescribeRepositoriesCommand({}));
     const repos = (data.repositories || []).map(r => ({
-      arn:          r.repositoryArn,
-      name:         r.repositoryName,
-      uri:          r.repositoryUri,
-      registryId:   r.registryId,
-      createdAt:    r.createdAt,
+      arn:           r.repositoryArn,
+      name:          r.repositoryName,
+      uri:           r.repositoryUri,
+      registryId:    r.registryId,
+      createdAt:     r.createdAt,
       tagMutability: r.imageTagMutability,
-      scanOnPush:   r.imageScanningConfiguration?.scanOnPush || false,
-      encryption:   r.encryptionConfiguration?.encryptionType || 'AES256',
+      scanOnPush:    r.imageScanningConfiguration?.scanOnPush || false,
+      encryption:    r.encryptionConfiguration?.encryptionType || 'AES256',
     }));
+
     const withCounts = await Promise.all(repos.map(async r => {
+      // Try ECR API first; fall back to OCI registry at port 5100
       try {
         const imgs = await ecr.send(new ListImagesCommand({ repositoryName: r.name }));
-        r.imageCount = (imgs.imageIds || []).length;
+        const ecrCount = (imgs.imageIds || []).length;
+        if (ecrCount > 0) { r.imageCount = ecrCount; return r; }
+      } catch {}
+      try {
+        const oci = await ociGet(`/v2/${r.name}/${r.name}/tags/list`);
+        r.imageCount = (oci.tags || []).length;
       } catch { r.imageCount = 0; }
       return r;
     }));
@@ -1506,15 +1539,38 @@ app.get('/api/ecr/repositories', async (req, res) => {
 app.get('/api/ecr/repositories/:name/images', async (req, res) => {
   const name = req.params.name;
   try {
+    // Try ECR SDK first
     const data = await ecr.send(new ECRDescribeImagesCommand({ repositoryName: name }));
-    const images = (data.imageDetails || []).map(i => ({
-      digest:      i.imageDigest,
-      tags:        i.imageTags || [],
-      pushedAt:    i.imagePushedAt,
-      sizeBytes:   i.imageSizeInBytes,
-      mediaType:   i.imageManifestMediaType,
-      scanStatus:  i.imageScanStatus?.status || '—',
-    })).sort((a, b) => new Date(b.pushedAt) - new Date(a.pushedAt));
+    let images = (data.imageDetails || []).map(i => ({
+      digest:     i.imageDigest,
+      tags:       i.imageTags || [],
+      pushedAt:   i.imagePushedAt,
+      sizeBytes:  i.imageSizeInBytes,
+      mediaType:  i.imageManifestMediaType,
+      scanStatus: i.imageScanStatus?.status || '—',
+      source:     'ecr',
+    }));
+
+    // If ECR returned nothing, query the OCI registry at port 5100 directly
+    if (!images.length) {
+      const ociPath = `/v2/${name}/${name}/tags/list`;
+      const tagData = await ociGet(ociPath).catch(() => ({}));
+      const tags = tagData.tags || [];
+      images = await Promise.all(tags.map(async tag => {
+        const head = await ociHead(`/v2/${name}/${name}/manifests/${tag}`);
+        return {
+          digest:    head.headers['docker-content-digest'] || '—',
+          tags:      [tag],
+          pushedAt:  null,
+          sizeBytes: parseInt(head.headers['content-length'] || '0') || null,
+          mediaType: head.headers['content-type'] || '—',
+          scanStatus:'—',
+          source:    'oci-registry',
+        };
+      }));
+    }
+
+    images.sort((a, b) => new Date(b.pushedAt || 0) - new Date(a.pushedAt || 0));
     res.json({ images });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
