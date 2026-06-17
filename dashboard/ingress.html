@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Ingress / Load Balancer — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root{--bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;--text-primary:#16191f;--text-secondary:#687078;--text-muted:#545b64}
+    [data-theme="dark"]{--bg:#0d1117;--card-bg:#161b22;--border:#30363d;--text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#8b949e}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#ff9900;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+    .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:40px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#4f6ef7;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero h1{font-size:26px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px}
+    .banner span{color:#ff9900;font-weight:600}
+    main{max-width:1200px;margin:40px auto;padding:0 24px}
+    .cluster-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+    .ctab{padding:7px 18px;border-radius:4px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--text-primary);transition:all .15s}
+    .ctab:hover{border-color:#4f6ef7;color:#4f6ef7}
+    .ctab.active{background:#4f6ef7;color:#fff;border-color:#4f6ef7}
+    .ctab .dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0}
+    .ctab .dot.online{background:#27ae60}
+    .ctab .dot.offline{background:#e74c3c}
+    .cpanel{display:none}.cpanel.active{display:block}
+    .summary-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+    .sum-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:14px 20px;flex:1;min-width:140px}
+    .sum-box .num{font-size:28px;font-weight:700;color:#4f6ef7}
+    .sum-box .lbl{font-size:12px;color:var(--text-secondary);margin-top:2px}
+    .sum-box.warn .num{color:#e67e22}
+    .sum-box.ok .num{color:#27ae60}
+    .section{margin-bottom:32px}
+    .section-hd{font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
+    .section-hd .badge{font-size:11px;background:#4f6ef7;color:#fff;padding:2px 8px;border-radius:10px;font-weight:400}
+    .live-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--bg);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
+    tbody td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text-primary)}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:hover{background:rgba(79,110,247,.04)}
+    .bk{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:1px 7px;font-size:11px;font-family:monospace}
+    .bg{display:inline-block;background:#eaf7f0;color:#1e8449;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .by{display:inline-block;background:#fdf3e3;color:#b7770d;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .br{display:inline-block;background:#fdecea;color:#c0392b;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .bi{display:inline-block;background:#eef2ff;color:#4f6ef7;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .loading{padding:20px;text-align:center;color:var(--text-muted);font-size:13px}
+    .refresh-btn{background:none;border:1px solid var(--border);color:var(--text-secondary);padding:4px 12px;border-radius:3px;cursor:pointer;font-size:12px}
+    .refresh-btn:hover{border-color:#4f6ef7;color:#4f6ef7}
+    .anno-list{font-size:11px;color:var(--text-muted);font-family:monospace;line-height:1.7}
+    .anno-key{color:#4f6ef7}
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Ingress / Load Balancer</div>
+  </div>
+  <div class="right">
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#127760;</div>
+  <div>
+    <h1>Ingress &amp; Load Balancer</h1>
+    <p>ALB Ingress resources, NodePort &amp; LoadBalancer services across all active clusters.<br>Auto-refreshes every 30 seconds.</p>
+  </div>
+  <button class="refresh-btn" style="margin-left:auto;padding:8px 18px;font-size:13px" onclick="loadAll()">&#8635; Refresh</button>
+</div>
+
+<div class="banner">
+  API Group: <span>networking.k8s.io/v1</span> &nbsp;|&nbsp; Backend: <span>localhost:9000/api</span>
+</div>
+
+<main>
+  <div class="cluster-tabs" id="cluster-tabs"></div>
+  <div id="cluster-panels"></div>
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+const API = '';
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function age(ts) {
+  if (!ts) return '—';
+  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s/60) + 'm';
+  if (s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+}
+
+let CLUSTERS = [];
+
+async function initClusters() {
+  try {
+    const d = await fetch(`${API}/api/contexts`).then(r => r.json());
+    CLUSTERS = d.contexts.map(c => ({ name: c.name, ctx: c.name }));
+    const tabs = document.getElementById('cluster-tabs');
+    const panels = document.getElementById('cluster-panels');
+    tabs.innerHTML = '';
+    panels.innerHTML = '';
+    CLUSTERS.forEach((cl, i) => {
+      const shortName = cl.name.replace(/^kind-/, '');
+      tabs.innerHTML += `<div class="ctab${i===0?' active':''}" id="tab-${i}" onclick="switchTab(${i})">
+        <span class="dot" id="dot-${i}"></span>${shortName}
+      </div>`;
+      panels.innerHTML += `<div class="cpanel${i===0?' active':''}" id="panel-${i}">
+        <div class="summary-row">
+          <div class="sum-box" id="sum-ingress-${i}"><div class="num" id="num-ingress-${i}">—</div><div class="lbl">Ingresses</div></div>
+          <div class="sum-box" id="sum-lb-${i}"><div class="num" id="num-lb-${i}">—</div><div class="lbl">LoadBalancer Svcs</div></div>
+          <div class="sum-box" id="sum-np-${i}"><div class="num" id="num-np-${i}">—</div><div class="lbl">NodePort Svcs</div></div>
+          <div class="sum-box" id="sum-svc-${i}"><div class="num" id="num-svc-${i}">—</div><div class="lbl">Total Services</div></div>
+        </div>
+        <div class="section">
+          <div class="section-hd">Ingress Resources <span class="badge" id="badge-ingress-${i}">0</span></div>
+          <div class="live-box" id="tbl-ingress-${i}"><div class="loading">Loading...</div></div>
+        </div>
+        <div class="section">
+          <div class="section-hd">Services (NodePort &amp; LoadBalancer) <span class="badge" id="badge-svc-${i}">0</span></div>
+          <div class="live-box" id="tbl-svc-${i}"><div class="loading">Loading...</div></div>
+        </div>
+      </div>`;
+    });
+    loadAll();
+  } catch(e) {
+    document.getElementById('cluster-panels').innerHTML =
+      `<div class="loading" style="color:#e74c3c">Failed to reach backend: ${e.message}</div>`;
+  }
+}
+
+function switchTab(i) {
+  document.querySelectorAll('.ctab').forEach((t,j) => t.classList.toggle('active', i===j));
+  document.querySelectorAll('.cpanel').forEach((p,j) => p.classList.toggle('active', i===j));
+}
+
+function setDot(i, online) {
+  const d = document.getElementById('dot-'+i);
+  if (d) { d.className = 'dot ' + (online ? 'online' : 'offline'); }
+}
+
+async function loadCluster(cl, i) {
+  const enc = encodeURIComponent(cl.ctx);
+  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  const num = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+
+  // ingresses
+  try {
+    const ig = await fetch(`${API}/api/cluster/${enc}/ingresses`).then(r => r.json());
+    if (ig.offline) throw new Error(ig.error);
+    setDot(i, true);
+    const items = ig.items || [];
+    num('num-ingress-'+i, items.length);
+    num('badge-ingress-'+i, items.length);
+    const el = document.getElementById('sum-ingress-'+i);
+    if (el) el.className = 'sum-box ' + (items.length > 0 ? 'ok' : '');
+
+    set('tbl-ingress-'+i, items.length
+      ? `<table><thead><tr>
+          <th>Name</th><th>Namespace</th><th>Class</th><th>Target Type</th>
+          <th>Scheme</th><th>Default Backend</th><th>Address</th><th>Age</th>
+        </tr></thead><tbody>` +
+        items.map(ing => {
+          const ann = ing.metadata.annotations || {};
+          const cls = ing.spec.ingressClassName || ann['kubernetes.io/ingress.class'] || '—';
+          const targetType = ann['alb.ingress.kubernetes.io/target-type'] || '—';
+          const scheme = ann['alb.ingress.kubernetes.io/scheme'] || '—';
+          const lbName = ann['alb.ingress.kubernetes.io/load-balancer-name'] || '';
+          const backend = ing.spec.defaultBackend
+            ? `${ing.spec.defaultBackend.service.name}:${ing.spec.defaultBackend.service.port.number}`
+            : (ing.spec.rules ? ing.spec.rules.length + ' rule(s)' : '—');
+          const addrs = (ing.status?.loadBalancer?.ingress || []).map(a => a.hostname || a.ip).join(', ') || '—';
+          return `<tr>
+            <td><strong>${ing.metadata.name}</strong>${lbName ? `<br><span style="font-size:10px;color:var(--text-muted)">${lbName}</span>` : ''}</td>
+            <td><span class="bk">${ing.metadata.namespace}</span></td>
+            <td><span class="bi">${cls}</span></td>
+            <td><span class="bk">${targetType}</span></td>
+            <td><span class="${scheme==='internet-facing'?'bg':'bk'}">${scheme}</span></td>
+            <td><span class="bk">${backend}</span></td>
+            <td>${addrs === '—' ? '<span style="color:var(--text-muted)">pending</span>' : `<span class="bg">${addrs}</span>`}</td>
+            <td>${age(ing.metadata.creationTimestamp)}</td>
+          </tr>`;
+        }).join('') + `</tbody></table>`
+      : `<div class="loading">No Ingress resources found</div>`
+    );
+  } catch(e) {
+    setDot(i, false);
+    set('tbl-ingress-'+i, `<div class="loading" style="color:#e74c3c">Cluster offline — ${e.message}</div>`);
+    num('num-ingress-'+i, '!');
+  }
+
+  // services (NodePort + LoadBalancer)
+  try {
+    const sv = await fetch(`${API}/api/cluster/${enc}/services`).then(r => r.json());
+    const allSvcs = sv.items || [];
+    const exposed = allSvcs.filter(s => ['NodePort','LoadBalancer'].includes(s.spec?.type));
+    const lbSvcs  = allSvcs.filter(s => s.spec?.type === 'LoadBalancer');
+    const npSvcs  = allSvcs.filter(s => s.spec?.type === 'NodePort');
+
+    num('num-svc-'+i, allSvcs.length);
+    num('num-lb-'+i, lbSvcs.length);
+    num('num-np-'+i, npSvcs.length);
+    num('badge-svc-'+i, exposed.length);
+
+    const lbEl = document.getElementById('sum-lb-'+i);
+    if (lbEl) lbEl.className = 'sum-box ' + (lbSvcs.length > 0 ? 'ok' : '');
+    const npEl = document.getElementById('sum-np-'+i);
+    if (npEl) npEl.className = 'sum-box ' + (npSvcs.length > 0 ? 'ok' : '');
+
+    set('tbl-svc-'+i, exposed.length
+      ? `<table><thead><tr>
+          <th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th>
+          <th>External IP</th><th>Port(s)</th><th>Age</th>
+        </tr></thead><tbody>` +
+        exposed.map(s => {
+          const ports = (s.spec?.ports||[]).map(p => {
+            let str = `${p.port}`;
+            if (p.nodePort) str += `:${p.nodePort}`;
+            str += `/${p.protocol||'TCP'}`;
+            return str;
+          }).join(', ');
+          const extIp = (s.spec?.externalIPs||[]).join(', ') ||
+                        (s.status?.loadBalancer?.ingress||[]).map(a=>a.hostname||a.ip).join(', ') || '—';
+          const typeClass = s.spec?.type === 'LoadBalancer' ? 'bg' : 'bi';
+          return `<tr>
+            <td>${s.metadata.name}</td>
+            <td><span class="bk">${s.metadata.namespace}</span></td>
+            <td><span class="${typeClass}">${s.spec?.type}</span></td>
+            <td>${s.spec?.clusterIP||'—'}</td>
+            <td>${extIp === '—' ? '<span style="color:var(--text-muted)">—</span>' : `<span class="bg">${extIp}</span>`}</td>
+            <td><span class="bk">${ports||'—'}</span></td>
+            <td>${age(s.metadata.creationTimestamp)}</td>
+          </tr>`;
+        }).join('') + `</tbody></table>`
+      : `<div class="loading">No NodePort or LoadBalancer services found</div>`
+    );
+  } catch(e) {
+    set('tbl-svc-'+i, `<div class="loading" style="color:#e74c3c">${e.message}</div>`);
+  }
+}
+
+function loadAll() {
+  CLUSTERS.forEach((cl, i) => loadCluster(cl, i));
+}
+
+initClusters();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

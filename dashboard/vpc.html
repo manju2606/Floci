@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>VPC — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root{--bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;--text-primary:#16191f;--text-secondary:#687078;--text-muted:#545b64;--th-bg:#f2f3f3}
+    [data-theme="dark"]{--bg:#0d1117;--card-bg:#161b22;--border:#30363d;--text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#8b949e;--th-bg:#1c2128}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    header .logo{font-size:22px;font-weight:700;color:#ff9900;letter-spacing:1px}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px}
+    header .right{display:flex;align-items:center;gap:10px}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px}
+    header a.back:hover{color:#fff;border-color:#fff}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
+    .theme-btn:hover{border-color:#fff;color:#fff}
+    .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:40px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#1abc9c;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero h1{font-size:26px;font-weight:700;color:#fff}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px}
+    .banner span{color:#ff9900;font-weight:600}
+    .tabs{background:var(--card-bg);border-bottom:1px solid var(--border);display:flex;padding:0 32px}
+    .tab{padding:14px 20px;font-size:14px;font-weight:600;cursor:pointer;color:var(--text-secondary);border-bottom:3px solid transparent;transition:all .15s}
+    .tab:hover{color:var(--text-primary)}
+    .tab.active{color:#1abc9c;border-bottom-color:#1abc9c}
+    main{max-width:1200px;margin:32px auto;padding:0 24px}
+    .tab-panel{display:none}.tab-panel.active{display:block}
+    .summary-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+    .sum-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 20px;flex:1;min-width:130px}
+    .sum-box .num{font-size:28px;font-weight:700;color:#1abc9c}
+    .sum-box .lbl{font-size:12px;color:var(--text-secondary);margin-top:2px}
+    .live-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;margin-bottom:24px;overflow:hidden}
+    .live-card-hdr{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+    .live-card-hdr h3{font-size:15px;font-weight:600}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--th-bg);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
+    tbody td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:top}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:hover{background:rgba(26,188,156,.04)}
+    .mono{font-family:monospace;font-size:12px}
+    .tag{display:inline-block;background:#e8f8f5;color:#1a8a6a;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .tag-def{display:inline-block;background:#fdf3e3;color:#b7770d;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .tag-pub{display:inline-block;background:#eaf4fe;color:#1a6fa8;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .tag-pri{display:inline-block;background:#f4f4f4;color:#555;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .tag-main{display:inline-block;background:#fdecea;color:#c0392b;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
+    .bk{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:1px 7px;font-size:11px;font-family:monospace}
+    .loading-row td{text-align:center;padding:20px;color:var(--text-muted);font-style:italic}
+    .refresh-btn{background:none;border:1px solid var(--border);color:var(--text-secondary);padding:4px 12px;border-radius:3px;cursor:pointer;font-size:12px}
+    .refresh-btn:hover{border-color:#1abc9c;color:#1abc9c}
+    .ts{font-size:11px;color:var(--text-muted)}
+    .section{margin-bottom:28px}
+    .section h2{font-size:15px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    .cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+    .cmd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:14px 16px;border-top:3px solid #1abc9c}
+    .cmd-card h4{font-size:13px;font-weight:600;margin-bottom:6px}
+    .cmd-card code{display:block;font-family:"Courier New",monospace;font-size:11px;background:#1e2a3a;color:#a8d8a8;padding:10px 12px;border-radius:4px;white-space:pre;overflow-x:auto;cursor:pointer;position:relative}
+    .cmd-card code:hover::after{content:"Copy";position:absolute;top:6px;right:8px;font-size:10px;background:#ff9900;color:#fff;padding:2px 6px;border-radius:3px}
+    .cmd-card code.copied{outline:2px solid #ff9900}
+    .vpc-block{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;margin-bottom:20px;overflow:hidden}
+    .vpc-block-hdr{background:linear-gradient(90deg,rgba(26,188,156,.1),transparent);padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+    .vpc-block-hdr .vpc-id{font-family:monospace;font-weight:700;font-size:14px;color:#1abc9c}
+    .vpc-block-hdr .vpc-cidr{font-family:monospace;font-size:12px;color:var(--text-muted)}
+    .vpc-block-body{padding:16px}
+    .vpc-sub-section{margin-bottom:14px}
+    .vpc-sub-section h4{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+    .subnet-chips{display:flex;flex-wrap:wrap;gap:8px}
+    .subnet-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:11px;font-family:monospace}
+    .subnet-chip .cidr{font-weight:700;color:var(--text-primary)}
+    .subnet-chip .az{color:var(--text-muted);margin-top:2px}
+    .igw-chip{display:inline-flex;align-items:center;gap:6px;background:#e8f8f5;border:1px solid #a9dfcf;border-radius:4px;padding:5px 10px;font-size:11px;font-family:monospace}
+    .route-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;font-family:monospace}
+    .route-arrow{color:var(--text-muted)}
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Amazon VPC</div>
+  </div>
+  <div class="right">
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#127981;</div>
+  <div>
+    <h1>Amazon VPC</h1>
+    <p>Virtual Private Cloud — browse VPCs, subnets, internet gateways, and route tables.<br>Connected to Floci at <strong>localhost:4566</strong>.</p>
+  </div>
+  <button class="refresh-btn" style="margin-left:auto;padding:8px 18px;font-size:13px" onclick="loadAll()">&#8635; Refresh</button>
+</div>
+
+<div class="banner">
+  Endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
+  Region: <span>us-east-1</span> &nbsp;|&nbsp;
+  Access Key: <span>test</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('topology')">Topology</div>
+  <div class="tab" onclick="switchTab('subnets')">Subnets</div>
+  <div class="tab" onclick="switchTab('igw')">Internet Gateways</div>
+  <div class="tab" onclick="switchTab('routes')">Route Tables</div>
+  <div class="tab" onclick="switchTab('commands')">CLI Commands</div>
+</div>
+
+<main>
+
+  <!-- TOPOLOGY TAB -->
+  <div class="tab-panel active" id="tab-topology">
+    <div class="summary-row">
+      <div class="sum-box"><div class="num" id="sum-vpcs">—</div><div class="lbl">VPCs</div></div>
+      <div class="sum-box"><div class="num" id="sum-subnets">—</div><div class="lbl">Subnets</div></div>
+      <div class="sum-box"><div class="num" id="sum-igws">—</div><div class="lbl">Internet Gateways</div></div>
+      <div class="sum-box"><div class="num" id="sum-rts">—</div><div class="lbl">Route Tables</div></div>
+    </div>
+    <div id="topology-container"><div class="loading-row" style="text-align:center;padding:40px;color:var(--text-muted)">Loading VPC topology…</div></div>
+  </div>
+
+  <!-- SUBNETS TAB -->
+  <div class="tab-panel" id="tab-subnets">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>Subnets</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="ts" id="subnet-ts"></span>
+          <button class="refresh-btn" onclick="loadTopology()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Subnet ID</th><th>Name</th><th>VPC</th><th>CIDR</th><th>AZ</th><th>Type</th><th>State</th></tr></thead>
+        <tbody id="subnet-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INTERNET GATEWAYS TAB -->
+  <div class="tab-panel" id="tab-igw">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>Internet Gateways</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="ts" id="igw-ts"></span>
+          <button class="refresh-btn" onclick="loadTopology()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>IGW ID</th><th>Name</th><th>Attached VPC</th><th>State</th></tr></thead>
+        <tbody id="igw-tbody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROUTE TABLES TAB -->
+  <div class="tab-panel" id="tab-routes">
+    <div class="live-card">
+      <div class="live-card-hdr">
+        <h3>Route Tables</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="ts" id="rt-ts"></span>
+          <button class="refresh-btn" onclick="loadTopology()">&#8635; Refresh</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Route Table ID</th><th>Name</th><th>VPC</th><th>Type</th><th>Routes</th><th>Subnets</th></tr></thead>
+        <tbody id="rt-tbody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CLI COMMANDS TAB -->
+  <div class="tab-panel" id="tab-commands">
+    <div class="section">
+      <h2>VPC</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List VPCs</h4><code onclick="copyCmd(this)">aws ec2 describe-vpcs \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create VPC</h4><code onclick="copyCmd(this)">aws ec2 create-vpc \
+  --cidr-block 10.0.0.0/16 \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete VPC</h4><code onclick="copyCmd(this)">aws ec2 delete-vpc \
+  --vpc-id &lt;vpc-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Tag VPC</h4><code onclick="copyCmd(this)">aws ec2 create-tags \
+  --resources &lt;vpc-id&gt; \
+  --tags Key=Name,Value=my-vpc \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Subnets</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List subnets</h4><code onclick="copyCmd(this)">aws ec2 describe-subnets \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create subnet</h4><code onclick="copyCmd(this)">aws ec2 create-subnet \
+  --vpc-id &lt;vpc-id&gt; \
+  --cidr-block 10.0.1.0/24 \
+  --availability-zone us-east-1a \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Enable public IP on subnet</h4><code onclick="copyCmd(this)">aws ec2 modify-subnet-attribute \
+  --subnet-id &lt;subnet-id&gt; \
+  --map-public-ip-on-launch \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete subnet</h4><code onclick="copyCmd(this)">aws ec2 delete-subnet \
+  --subnet-id &lt;subnet-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Internet Gateways</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>Create IGW</h4><code onclick="copyCmd(this)">aws ec2 create-internet-gateway \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Attach IGW to VPC</h4><code onclick="copyCmd(this)">aws ec2 attach-internet-gateway \
+  --internet-gateway-id &lt;igw-id&gt; \
+  --vpc-id &lt;vpc-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Detach IGW</h4><code onclick="copyCmd(this)">aws ec2 detach-internet-gateway \
+  --internet-gateway-id &lt;igw-id&gt; \
+  --vpc-id &lt;vpc-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>List IGWs</h4><code onclick="copyCmd(this)">aws ec2 describe-internet-gateways \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Route Tables</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List route tables</h4><code onclick="copyCmd(this)">aws ec2 describe-route-tables \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create route table</h4><code onclick="copyCmd(this)">aws ec2 create-route-table \
+  --vpc-id &lt;vpc-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Add route to IGW</h4><code onclick="copyCmd(this)">aws ec2 create-route \
+  --route-table-id &lt;rtb-id&gt; \
+  --destination-cidr-block 0.0.0.0/0 \
+  --gateway-id &lt;igw-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Associate subnet with RT</h4><code onclick="copyCmd(this)">aws ec2 associate-route-table \
+  --route-table-id &lt;rtb-id&gt; \
+  --subnet-id &lt;subnet-id&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const panels = ['topology','subnets','igw','routes','commands'];
+    t.classList.toggle('active', panels[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function ts() {
+  return new Date().toLocaleTimeString();
+}
+function copyCmd(el) {
+  navigator.clipboard.writeText(el.textContent.trim());
+  el.classList.add('copied');
+  setTimeout(() => el.classList.remove('copied'), 1200);
+}
+
+let _cachedData = null;
+
+async function loadTopology() {
+  try {
+    const r = await fetch('/api/ec2/vpc-topology');
+    const { vpcs, error } = await r.json();
+    if (error) throw new Error(error);
+    _cachedData = vpcs;
+    renderAll(vpcs);
+  } catch(e) {
+    document.getElementById('topology-container').innerHTML =
+      `<div style="text-align:center;padding:40px;color:#e74c3c">Failed to load: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderAll(vpcs) {
+  const now = ts();
+
+  // summary
+  let totalSubnets = 0, totalIgws = 0, totalRts = 0;
+  vpcs.forEach(v => {
+    totalSubnets += v.subnets.length;
+    totalIgws    += v.igws.length;
+    totalRts     += v.routeTables.length;
+  });
+  document.getElementById('sum-vpcs').textContent    = vpcs.length;
+  document.getElementById('sum-subnets').textContent = totalSubnets;
+  document.getElementById('sum-igws').textContent    = totalIgws;
+  document.getElementById('sum-rts').textContent     = totalRts;
+
+  // topology view
+  const topo = document.getElementById('topology-container');
+  if (!vpcs.length) {
+    topo.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">No VPCs found.</div>';
+  } else {
+    topo.innerHTML = vpcs.map(v => `
+      <div class="vpc-block">
+        <div class="vpc-block-hdr">
+          <span class="vpc-id">${esc(v.id)}</span>
+          <span class="vpc-cidr">${esc(v.cidr)}</span>
+          ${v.name !== '—' ? `<span class="bk">${esc(v.name)}</span>` : ''}
+          ${v.default ? '<span class="tag-def">default</span>' : ''}
+          <span class="tag">${esc(v.state)}</span>
+        </div>
+        <div class="vpc-block-body">
+          ${v.igws.length ? `<div class="vpc-sub-section">
+            <h4>Internet Gateways (${v.igws.length})</h4>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${v.igws.map(g => `<span class="igw-chip">&#127760; ${esc(g.id)}${g.name!=='—'?' · '+esc(g.name):''} <span class="tag">${esc(g.state)}</span></span>`).join('')}
+            </div>
+          </div>` : ''}
+          ${v.subnets.length ? `<div class="vpc-sub-section">
+            <h4>Subnets (${v.subnets.length})</h4>
+            <div class="subnet-chips">
+              ${v.subnets.map(s => `<div class="subnet-chip">
+                <div class="cidr">${esc(s.cidr)}</div>
+                <div class="az">${esc(s.id)}</div>
+                <div class="az">${esc(s.az)} &nbsp; ${s.public ? '<span class="tag-pub">public</span>' : '<span class="tag-pri">private</span>'}</div>
+              </div>`).join('')}
+            </div>
+          </div>` : '<div class="vpc-sub-section"><h4>Subnets</h4><span style="color:var(--text-muted);font-size:13px">None</span></div>'}
+          ${v.routeTables.length ? `<div class="vpc-sub-section">
+            <h4>Route Tables (${v.routeTables.length})</h4>
+            ${v.routeTables.map(rt => `<div style="margin-bottom:8px">
+              <span class="bk">${esc(rt.id)}</span>
+              ${rt.main ? ' <span class="tag-main">main</span>' : ''}
+              ${rt.name!=='—'?` <span style="font-size:11px;color:var(--text-muted)">${esc(rt.name)}</span>`:''}
+              <div style="margin-top:6px;padding-left:8px">
+                ${rt.routes.map(r => `<div class="route-row">
+                  <span style="color:var(--text-muted)">&#8594;</span>
+                  <span>${esc(r.dest)}</span>
+                  <span style="color:var(--text-muted)">via</span>
+                  <span class="bk">${esc(r.target)}</span>
+                  <span class="tag" style="font-size:10px">${esc(r.state||'active')}</span>
+                </div>`).join('')}
+              </div>
+            </div>`).join('')}
+          </div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+
+  // subnets flat table
+  const sRows = vpcs.flatMap(v => v.subnets.map(s => `<tr>
+    <td class="mono">${esc(s.id)}</td>
+    <td>${esc(s.name)}</td>
+    <td class="mono">${esc(v.id)}</td>
+    <td class="mono">${esc(s.cidr)}</td>
+    <td><span class="bk">${esc(s.az)}</span></td>
+    <td>${s.public ? '<span class="tag-pub">public</span>' : '<span class="tag-pri">private</span>'}</td>
+    <td><span class="tag">${esc(s.state||'available')}</span></td>
+  </tr>`));
+  document.getElementById('subnet-tbody').innerHTML = sRows.length
+    ? sRows.join('')
+    : '<tr class="loading-row"><td colspan="7">No subnets found.</td></tr>';
+  document.getElementById('subnet-ts').textContent = 'Updated ' + now;
+
+  // IGW flat table
+  const igwRows = vpcs.flatMap(v => v.igws.map(g => `<tr>
+    <td class="mono">${esc(g.id)}</td>
+    <td>${esc(g.name)}</td>
+    <td class="mono">${esc(v.id)}</td>
+    <td><span class="tag">${esc(g.state)}</span></td>
+  </tr>`));
+  document.getElementById('igw-tbody').innerHTML = igwRows.length
+    ? igwRows.join('')
+    : '<tr class="loading-row"><td colspan="4">No internet gateways found.</td></tr>';
+  document.getElementById('igw-ts').textContent = 'Updated ' + now;
+
+  // Route tables flat table
+  const rtRows = vpcs.flatMap(v => v.routeTables.map(rt => `<tr>
+    <td class="mono">${esc(rt.id)}</td>
+    <td>${esc(rt.name)}</td>
+    <td class="mono">${esc(v.id)}</td>
+    <td>${rt.main ? '<span class="tag-main">main</span>' : '<span class="tag-pri">custom</span>'}</td>
+    <td style="font-size:11px;line-height:1.8">${rt.routes.map(r => `<span class="bk">${esc(r.dest)}</span> &#8594; <span class="bk">${esc(r.target)}</span>`).join('<br>')}</td>
+    <td style="font-size:11px">${rt.associations.map(s => `<span class="bk">${esc(s)}</span>`).join(' ') || '—'}</td>
+  </tr>`));
+  document.getElementById('rt-tbody').innerHTML = rtRows.length
+    ? rtRows.join('')
+    : '<tr class="loading-row"><td colspan="6">No route tables found.</td></tr>';
+  document.getElementById('rt-ts').textContent = 'Updated ' + now;
+}
+
+function loadAll() { loadTopology(); }
+
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

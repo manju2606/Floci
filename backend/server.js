@@ -10,7 +10,8 @@ const { DynamoDBClient, ListTablesCommand, DescribeTableCommand,
 const { EC2Client, DescribeInstancesCommand, DescribeImagesCommand,
         DescribeSecurityGroupsCommand, DescribeKeyPairsCommand,
         DescribeVolumesCommand, DescribeVpcsCommand,
-        DescribeSubnetsCommand } = require('@aws-sdk/client-ec2');
+        DescribeSubnetsCommand, DescribeInternetGatewaysCommand,
+        DescribeRouteTablesCommand } = require('@aws-sdk/client-ec2');
 
 const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
 const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
@@ -129,6 +130,7 @@ const RESOURCE_PATHS = {
   daemonsets:   '/apis/apps/v1/daemonsets',
   configmaps:   '/api/v1/configmaps',
   pvcs:         '/api/v1/persistentvolumeclaims',
+  ingresses:    '/apis/networking.k8s.io/v1/ingresses',
 };
 
 // List all contexts
@@ -1345,6 +1347,50 @@ app.get('/api/ec2/vpcs', async (req, res) => {
         cidr: s.CidrBlock,
         az:   s.AvailabilityZone,
       })),
+    }));
+    res.json({ vpcs });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ec2/vpc-topology', async (req, res) => {
+  try {
+    const [vpcsData, subnetsData, igwData, rtData] = await Promise.all([
+      ec2.send(new DescribeVpcsCommand({})),
+      ec2.send(new DescribeSubnetsCommand({})),
+      ec2.send(new DescribeInternetGatewaysCommand({})),
+      ec2.send(new DescribeRouteTablesCommand({})),
+    ]);
+    const name = tags => (tags || []).find(t => t.Key === 'Name')?.Value || '—';
+    const vpcs = (vpcsData.Vpcs || []).map(v => ({
+      id:       v.VpcId,
+      cidr:     v.CidrBlock,
+      default:  v.IsDefault,
+      state:    v.State,
+      name:     name(v.Tags),
+      subnets:  (subnetsData.Subnets || []).filter(s => s.VpcId === v.VpcId).map(s => ({
+        id:     s.SubnetId,
+        cidr:   s.CidrBlock,
+        az:     s.AvailabilityZone,
+        public: s.MapPublicIpOnLaunch,
+        state:  s.State,
+        name:   name(s.Tags),
+      })),
+      igws: (igwData.InternetGateways || [])
+        .filter(i => (i.Attachments || []).some(a => a.VpcId === v.VpcId))
+        .map(i => ({ id: i.InternetGatewayId, state: (i.Attachments[0]||{}).State || 'attached', name: name(i.Tags) })),
+      routeTables: (rtData.RouteTables || [])
+        .filter(rt => rt.VpcId === v.VpcId)
+        .map(rt => ({
+          id:   rt.RouteTableId,
+          main: (rt.Associations || []).some(a => a.Main),
+          name: name(rt.Tags),
+          routes: (rt.Routes || []).map(r => ({
+            dest:   r.DestinationCidrBlock || r.DestinationIpv6CidrBlock || '—',
+            target: r.GatewayId || r.NatGatewayId || r.InstanceId || r.TransitGatewayId || 'local',
+            state:  r.State,
+          })),
+          associations: (rt.Associations || []).filter(a => a.SubnetId).map(a => a.SubnetId),
+        })),
     }));
     res.json({ vpcs });
   } catch (e) { res.status(500).json({ error: e.message }); }
