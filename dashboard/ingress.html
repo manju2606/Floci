@@ -6,8 +6,8 @@
   <title>Ingress / Load Balancer — Floci Dashboard</title>
   <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
   <style>
-    :root{--bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;--text-primary:#16191f;--text-secondary:#687078;--text-muted:#545b64}
-    [data-theme="dark"]{--bg:#0d1117;--card-bg:#161b22;--border:#30363d;--text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#8b949e}
+    :root{--bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;--text-primary:#16191f;--text-secondary:#687078;--text-muted:#545b64;--th-bg:#f2f3f3}
+    [data-theme="dark"]{--bg:#0d1117;--card-bg:#161b22;--border:#30363d;--text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#8b949e;--th-bg:#1c2128}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s}
     header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
@@ -18,47 +18,87 @@
     header a.back:hover{color:#fff;border-color:#fff}
     .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1}
     .theme-btn:hover{border-color:#fff;color:#fff}
-    .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:40px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-    .hero-icon{font-size:36px;background:#4f6ef7;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-    .hero h1{font-size:26px;font-weight:700;color:#fff}
-    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6}
+    .hero{background:linear-gradient(135deg,#1a2332,#2d3a4a);padding:32px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .hero-icon{font-size:36px;background:#4f6ef7;width:72px;height:72px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .hero h1{font-size:24px;font-weight:700;color:#fff}
+    .hero p{font-size:13px;color:#aab7b8;margin-top:4px;line-height:1.6}
     .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px}
     .banner span{color:#ff9900;font-weight:600}
-    main{max-width:1200px;margin:40px auto;padding:0 24px}
-    .cluster-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
-    .ctab{padding:7px 18px;border-radius:4px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--text-primary);transition:all .15s}
-    .ctab:hover{border-color:#4f6ef7;color:#4f6ef7}
-    .ctab.active{background:#4f6ef7;color:#fff;border-color:#4f6ef7}
-    .ctab .dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0}
-    .ctab .dot.online{background:#27ae60}
-    .ctab .dot.offline{background:#e74c3c}
-    .cpanel{display:none}.cpanel.active{display:block}
+    .tabs{background:var(--card-bg);border-bottom:1px solid var(--border);display:flex;padding:0 32px;overflow-x:auto}
+    .tab{padding:14px 18px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-secondary);border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap}
+    .tab:hover{color:var(--text-primary)}
+    .tab.active{color:#4f6ef7;border-bottom-color:#4f6ef7}
+    main{max-width:1300px;margin:28px auto;padding:0 24px}
+    .tab-panel{display:none}.tab-panel.active{display:block}
+
+    /* summary row */
     .summary-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
-    .sum-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:14px 20px;flex:1;min-width:140px}
-    .sum-box .num{font-size:28px;font-weight:700;color:#4f6ef7}
-    .sum-box .lbl{font-size:12px;color:var(--text-secondary);margin-top:2px}
-    .sum-box.warn .num{color:#e67e22}
+    .sum-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:14px 20px;flex:1;min-width:120px}
+    .sum-box .num{font-size:26px;font-weight:700;color:#4f6ef7}
+    .sum-box .lbl{font-size:11px;color:var(--text-secondary);margin-top:2px}
     .sum-box.ok .num{color:#27ae60}
-    .section{margin-bottom:32px}
-    .section-hd{font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
-    .section-hd .badge{font-size:11px;background:#4f6ef7;color:#fff;padding:2px 8px;border-radius:10px;font-weight:400}
-    .live-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+    .sum-box.warn .num{color:#e67e22}
+
+    /* tables */
+    .live-box{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px}
+    .live-box-hd{padding:11px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+    .live-box-hd .cnt{font-size:11px;background:#4f6ef7;color:#fff;padding:1px 8px;border-radius:10px}
     table{width:100%;border-collapse:collapse;font-size:13px}
-    thead th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--bg);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
-    tbody td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text-primary)}
+    thead th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--th-bg);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px}
+    tbody td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:top}
     tbody tr:last-child td{border-bottom:none}
     tbody tr:hover{background:rgba(79,110,247,.04)}
+    .loading{padding:24px;text-align:center;color:var(--text-muted);font-size:13px}
+
+    /* badges */
     .bk{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:1px 7px;font-size:11px;font-family:monospace}
     .bg{display:inline-block;background:#eaf7f0;color:#1e8449;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
     .by{display:inline-block;background:#fdf3e3;color:#b7770d;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
     .br{display:inline-block;background:#fdecea;color:#c0392b;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
     .bi{display:inline-block;background:#eef2ff;color:#4f6ef7;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}
-    .loading{padding:20px;text-align:center;color:var(--text-muted);font-size:13px}
+
+    /* cluster tabs (K8s panels) */
+    .cluster-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+    .ctab{padding:7px 18px;border-radius:4px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--text-primary);transition:all .15s}
+    .ctab:hover{border-color:#326ce5;color:#326ce5}
+    .ctab.active{background:#326ce5;color:#fff;border-color:#326ce5}
+    .ctab .dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0}
+    .ctab .dot.online{background:#27ae60}
+    .ctab .dot.offline{background:#e74c3c}
+    .cpanel{display:none}.cpanel.active{display:block}
+    .expand-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:12px;white-space:nowrap}
+    .expand-btn:hover{border-color:#e74c3c;color:#e74c3c}
+
+    /* refresh */
     .refresh-btn{background:none;border:1px solid var(--border);color:var(--text-secondary);padding:4px 12px;border-radius:3px;cursor:pointer;font-size:12px}
     .refresh-btn:hover{border-color:#4f6ef7;color:#4f6ef7}
-    .anno-list{font-size:11px;color:var(--text-muted);font-family:monospace;line-height:1.7}
-    .anno-key{color:#4f6ef7}
+
+    /* ── RESOURCE MAP ───────────────────────────────── */
+    .rmap{display:flex;gap:0;overflow-x:auto;padding-bottom:16px;align-items:flex-start}
+    .rmap-col{flex-shrink:0;width:220px}
+    .rmap-col-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);padding:8px 12px;border-bottom:2px solid var(--border);margin-bottom:8px}
+    .rmap-node{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:12px;position:relative}
+    .rmap-node.ingress{border-left:3px solid #4f6ef7}
+    .rmap-node.lb{border-left:3px solid #ff9900}
+    .rmap-node.listener{border-left:3px solid #9b59b6}
+    .rmap-node.tg{border-left:3px solid #27ae60}
+    .rmap-node.target{border-left:3px solid #e67e22}
+    .rmap-node .nn{font-weight:700;color:var(--text-primary);margin-bottom:4px;word-break:break-all}
+    .rmap-node .nd{color:var(--text-muted);font-size:11px;line-height:1.5}
+    .rmap-arrow{display:flex;align-items:flex-start;padding-top:32px;flex-shrink:0;width:32px;color:var(--text-muted);font-size:18px;justify-content:center}
+
+    /* target health */
+    .th-healthy{color:#27ae60;font-weight:600}
+    .th-unhealthy{color:#e74c3c;font-weight:600}
+    .th-initial{color:#e67e22;font-weight:600}
+    .th-draining{color:#95a5a6;font-weight:600}
+
+    /* health check details */
+    .hc-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .hc-chip{font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-family:monospace}
+
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+    .offline-banner{background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.4);border-radius:4px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
   </style>
 </head>
 <body>
@@ -78,24 +118,79 @@
   <div class="hero-icon">&#127760;</div>
   <div>
     <h1>Ingress &amp; Load Balancer</h1>
-    <p>ALB Ingress resources, NodePort &amp; LoadBalancer services across all active clusters.<br>Auto-refreshes every 30 seconds.</p>
+    <p>Resource map · ALB/NLB · Target Groups · Listeners · K8s Ingresses · Services<br>Auto-refreshes every 30 seconds.</p>
   </div>
   <button class="refresh-btn" style="margin-left:auto;padding:8px 18px;font-size:13px" onclick="loadAll()">&#8635; Refresh</button>
 </div>
 
 <div class="banner">
-  API Group: <span>networking.k8s.io/v1</span> &nbsp;|&nbsp; Backend: <span>localhost:9000/api</span>
+  ELBv2: <span>localhost:4566</span> &nbsp;|&nbsp; K8s: <span>kubectl</span> &nbsp;|&nbsp; Region: <span>us-east-1</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('map')">&#128506; Resource Map</div>
+  <div class="tab" onclick="switchTab('lbs')">&#9878; Load Balancers</div>
+  <div class="tab" onclick="switchTab('tgs')">&#127919; Target Groups</div>
+  <div class="tab" onclick="switchTab('ingresses')">&#9096; K8s Ingresses</div>
+  <div class="tab" onclick="switchTab('services')">&#128279; Services</div>
 </div>
 
 <main>
-  <div class="cluster-tabs" id="cluster-tabs"></div>
-  <div id="cluster-panels"></div>
+
+  <!-- RESOURCE MAP -->
+  <div class="tab-panel active" id="tab-map">
+    <div class="summary-row" id="map-summary">
+      <div class="sum-box"><div class="num" id="s-lbs">—</div><div class="lbl">Load Balancers</div></div>
+      <div class="sum-box"><div class="num" id="s-listeners">—</div><div class="lbl">Listeners</div></div>
+      <div class="sum-box"><div class="num" id="s-tgs">—</div><div class="lbl">Target Groups</div></div>
+      <div class="sum-box"><div class="num" id="s-targets">—</div><div class="lbl">Registered Targets</div></div>
+      <div class="sum-box"><div class="num" id="s-healthy">—</div><div class="lbl">Healthy Targets</div></div>
+    </div>
+    <div id="rmap-container"><div class="loading">Loading resource map…</div></div>
+  </div>
+
+  <!-- LOAD BALANCERS -->
+  <div class="tab-panel" id="tab-lbs">
+    <div class="live-box">
+      <div class="live-box-hd">Load Balancers <span class="cnt" id="cnt-lbs">0</span></div>
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Scheme</th><th>State</th><th>DNS</th><th>VPC</th><th>AZs</th><th>Listeners</th></tr></thead>
+        <tbody id="tbody-lbs"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TARGET GROUPS -->
+  <div class="tab-panel" id="tab-tgs">
+    <div class="live-box">
+      <div class="live-box-hd">Target Groups <span class="cnt" id="cnt-tgs">0</span></div>
+      <table>
+        <thead><tr><th>Name</th><th>Protocol:Port</th><th>Target Type</th><th>Health Check</th><th>Targets</th><th>Load Balancer</th></tr></thead>
+        <tbody id="tbody-tgs"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- K8S INGRESSES -->
+  <div class="tab-panel" id="tab-ingresses">
+    <div class="cluster-tabs" id="cluster-tabs-ing"></div>
+    <div id="cluster-panels-ing"></div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="tab-panel" id="tab-services">
+    <div class="cluster-tabs" id="cluster-tabs-svc"></div>
+    <div id="cluster-panels-svc"></div>
+  </div>
+
 </main>
 
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
 const API = '';
+let _elb = null;
+let CLUSTERS = [];
 
 function toggleTheme() {
   const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -106,169 +201,422 @@ function toggleTheme() {
 document.getElementById('theme-btn').textContent =
   document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
 
-function age(ts) {
-  if (!ts) return '—';
-  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (s < 60) return s + 's';
-  if (s < 3600) return Math.floor(s/60) + 'm';
-  if (s < 86400) return Math.floor(s/3600) + 'h';
-  return Math.floor(s/86400) + 'd';
+function switchTab(name) {
+  const names = ['map','lbs','tgs','ingresses','services'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-'+name));
 }
 
-let CLUSTERS = [];
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function age(ts){
+  if(!ts) return '—';
+  const s=Math.floor((Date.now()-new Date(ts))/1000);
+  if(s<60) return s+'s'; if(s<3600) return Math.floor(s/60)+'m';
+  if(s<86400) return Math.floor(s/3600)+'h'; return Math.floor(s/86400)+'d';
+}
+function stateBadge(st){
+  if(!st) return '<span class="bk">—</span>';
+  const s=st.toLowerCase();
+  if(['active','healthy','running','available'].includes(s)) return `<span class="bg">${esc(st)}</span>`;
+  if(['inactive','unhealthy','failed','error'].includes(s)) return `<span class="br">${esc(st)}</span>`;
+  if(['provisioning','initial','draining'].includes(s)) return `<span class="by">${esc(st)}</span>`;
+  return `<span class="bk">${esc(st)}</span>`;
+}
+function healthClass(h){
+  if(!h) return '';
+  const s=h.toLowerCase();
+  if(s==='healthy') return 'th-healthy';
+  if(s==='unhealthy') return 'th-unhealthy';
+  if(s==='initial') return 'th-initial';
+  if(s==='draining') return 'th-draining';
+  return '';
+}
+function shortArn(arn){
+  if(!arn) return '—';
+  const p=arn.split('/');
+  return p[p.length-1]||arn;
+}
 
+// ── ELB data ──────────────────────────────────────────────────────────────────
+async function loadElb() {
+  try {
+    const d = await fetch(`${API}/api/elb/summary`).then(r=>r.json());
+    if(d.error) throw new Error(d.error);
+    _elb = d;
+    renderMap(d);
+    renderLbs(d);
+    renderTgs(d);
+  } catch(e) {
+    document.getElementById('rmap-container').innerHTML =
+      `<div class="loading" style="color:#e74c3c">ELBv2 error: ${esc(e.message)}</div>`;
+    ['tbody-lbs','tbody-tgs'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = `<tr><td colspan="8" class="loading" style="color:#e74c3c">${esc(e.message)}</td></tr>`;
+    });
+  }
+}
+
+function renderMap(d) {
+  const lbs  = d.loadBalancers  || [];
+  const tgs  = d.targetGroups   || [];
+  const tgMap = Object.fromEntries(tgs.map(t=>[t.arn,t]));
+
+  let totalListeners=0, totalTargets=0, totalHealthy=0;
+  lbs.forEach(lb => { totalListeners += lb.listeners.length; });
+  tgs.forEach(tg => {
+    totalTargets  += tg.targets.length;
+    totalHealthy  += tg.targets.filter(t=>t.health==='healthy').length;
+  });
+
+  document.getElementById('s-lbs').textContent       = lbs.length;
+  document.getElementById('s-listeners').textContent = totalListeners;
+  document.getElementById('s-tgs').textContent       = tgs.length;
+  document.getElementById('s-targets').textContent   = totalTargets;
+  const hEl = document.getElementById('s-healthy');
+  hEl.textContent = totalHealthy;
+  hEl.closest('.sum-box').className = 'sum-box ' + (totalTargets>0 && totalHealthy===totalTargets ? 'ok' : totalHealthy<totalTargets&&totalTargets>0 ? 'warn' : '');
+
+  if(!lbs.length && !tgs.length) {
+    document.getElementById('rmap-container').innerHTML =
+      `<div class="loading">No load balancers or target groups found in Floci.<br><span style="font-size:11px">Create them with <code>aws elbv2 create-load-balancer --endpoint-url http://localhost:4566</code></span></div>`;
+    return;
+  }
+
+  let html = '';
+  lbs.forEach(lb => {
+    html += `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:6px;margin-bottom:20px;overflow:hidden">
+      <div style="background:linear-gradient(90deg,rgba(255,153,0,.1),transparent);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:18px">&#9878;</span>
+        <strong style="color:#ff9900">${esc(lb.name)}</strong>
+        <span class="bk">${esc(lb.type||'application')}</span>
+        ${stateBadge(lb.state)}
+        <span class="${lb.scheme==='internet-facing'?'bg':'bk'}">${esc(lb.scheme||'—')}</span>
+        ${lb.dns ? `<span style="font-size:11px;color:var(--text-muted);font-family:monospace">${esc(lb.dns)}</span>` : ''}
+      </div>
+      <div style="padding:16px;overflow-x:auto">
+        <div class="rmap">`;
+
+    // LB node
+    html += `<div class="rmap-col">
+        <div class="rmap-col-hd">Load Balancer</div>
+        <div class="rmap-node lb">
+          <div class="nn">${esc(lb.name)}</div>
+          <div class="nd">${esc(lb.type||'application')}<br>${lb.vpcId?esc(lb.vpcId):''}<br>${(lb.azs||[]).join(', ')}</div>
+        </div>
+      </div>
+      <div class="rmap-arrow">&#8594;</div>`;
+
+    // Listeners
+    html += `<div class="rmap-col">
+        <div class="rmap-col-hd">Listeners (${lb.listeners.length})</div>`;
+    if(lb.listeners.length) {
+      lb.listeners.forEach(l => {
+        html += `<div class="rmap-node listener">
+          <div class="nn">${esc(l.protocol||'HTTP')}:${esc(l.port)}</div>
+          <div class="nd">${l.actions.map(a=>esc(a.type)).join(', ')}</div>
+        </div>`;
+      });
+    } else {
+      html += `<div class="rmap-node listener"><div class="nd" style="color:var(--text-muted)">No listeners</div></div>`;
+    }
+    html += `</div><div class="rmap-arrow">&#8594;</div>`;
+
+    // Target groups linked to this LB
+    const linkedTgs = tgs.filter(tg => (tg.lbArns||[]).includes(lb.arn));
+    html += `<div class="rmap-col">
+        <div class="rmap-col-hd">Target Groups (${linkedTgs.length})</div>`;
+    if(linkedTgs.length) {
+      linkedTgs.forEach(tg => {
+        const h = tg.targets.filter(t=>t.health==='healthy').length;
+        html += `<div class="rmap-node tg">
+          <div class="nn">${esc(tg.name)}</div>
+          <div class="nd">${esc(tg.protocol)}:${esc(tg.port)} · ${esc(tg.targetType)}<br>
+          <span class="${h===tg.targets.length&&tg.targets.length>0?'th-healthy':'th-unhealthy'}">${h}/${tg.targets.length} healthy</span></div>
+        </div>`;
+      });
+    } else {
+      const allLinked = tgs.filter(tg => lb.listeners.some(l=>l.actions.some(a=>a.tgArn===tg.arn)));
+      if(allLinked.length) {
+        allLinked.forEach(tg => {
+          html += `<div class="rmap-node tg"><div class="nn">${esc(tg.name)}</div><div class="nd">${esc(tg.protocol)}:${esc(tg.port)}</div></div>`;
+        });
+      } else {
+        html += `<div class="rmap-node tg"><div class="nd" style="color:var(--text-muted)">No target groups</div></div>`;
+      }
+    }
+    html += `</div><div class="rmap-arrow">&#8594;</div>`;
+
+    // Targets
+    const allTgsForLb = linkedTgs.length ? linkedTgs : tgs.filter(tg=>lb.listeners.some(l=>l.actions.some(a=>a.tgArn===tg.arn)));
+    const allTargets  = allTgsForLb.flatMap(tg=>tg.targets);
+    html += `<div class="rmap-col">
+        <div class="rmap-col-hd">Targets (${allTargets.length})</div>`;
+    if(allTargets.length) {
+      allTargets.forEach(t => {
+        html += `<div class="rmap-node target">
+          <div class="nn">${esc(t.id||'—')}</div>
+          <div class="nd">port ${esc(t.port||'—')}<br><span class="${healthClass(t.health)}">${esc(t.health||'unknown')}</span>${t.reason?`<br><span style="color:var(--text-muted);font-size:10px">${esc(t.reason)}</span>`:''}</div>
+        </div>`;
+      });
+    } else {
+      html += `<div class="rmap-node target"><div class="nd" style="color:var(--text-muted)">No targets registered</div></div>`;
+    }
+    html += `</div></div></div></div>`;
+  });
+
+  // Unattached target groups
+  const orphanTgs = tgs.filter(tg=>!tg.lbArns.length);
+  if(orphanTgs.length) {
+    html += `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:6px;margin-bottom:20px;overflow:hidden">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px">
+        &#127919; Unattached Target Groups <span class="bk">${orphanTgs.length}</span>
+      </div>
+      <div style="padding:16px;overflow-x:auto"><div class="rmap">
+        <div class="rmap-col"><div class="rmap-col-hd">Target Groups</div>`;
+    orphanTgs.forEach(tg => {
+      html += `<div class="rmap-node tg"><div class="nn">${esc(tg.name)}</div><div class="nd">${esc(tg.protocol)}:${esc(tg.port)} · ${esc(tg.targetType)}</div></div>`;
+    });
+    html += `</div><div class="rmap-arrow">&#8594;</div><div class="rmap-col"><div class="rmap-col-hd">Targets</div>`;
+    orphanTgs.forEach(tg => {
+      if(tg.targets.length) {
+        tg.targets.forEach(t => {
+          html += `<div class="rmap-node target"><div class="nn">${esc(t.id||'—')}</div><div class="nd">port ${esc(t.port||'—')}<br><span class="${healthClass(t.health)}">${esc(t.health||'unknown')}</span></div></div>`;
+        });
+      } else {
+        html += `<div class="rmap-node target"><div class="nd" style="color:var(--text-muted)">No targets</div></div>`;
+      }
+    });
+    html += `</div></div></div></div>`;
+  }
+
+  document.getElementById('rmap-container').innerHTML = html || '<div class="loading">No data</div>';
+}
+
+function renderLbs(d) {
+  const lbs = d.loadBalancers || [];
+  document.getElementById('cnt-lbs').textContent = lbs.length;
+  document.getElementById('tbody-lbs').innerHTML = lbs.length
+    ? lbs.map(lb => `<tr>
+        <td><strong>${esc(lb.name)}</strong></td>
+        <td><span class="bi">${esc(lb.type||'application')}</span></td>
+        <td><span class="${lb.scheme==='internet-facing'?'bg':'bk'}">${esc(lb.scheme||'—')}</span></td>
+        <td>${stateBadge(lb.state)}</td>
+        <td style="font-size:11px;font-family:monospace;max-width:220px;word-break:break-all">${esc(lb.dns||'—')}</td>
+        <td><span class="bk">${esc(lb.vpcId||'—')}</span></td>
+        <td style="font-size:11px">${(lb.azs||[]).map(z=>`<span class="bk">${esc(z)}</span>`).join(' ')}</td>
+        <td>${lb.listeners.map(l=>`<span class="bk">${esc(l.protocol)}:${esc(l.port)}</span>`).join(' ')||'<span style="color:var(--text-muted)">none</span>'}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" class="loading">No load balancers found. Create one with <code>aws elbv2 create-load-balancer</code>.</td></tr>';
+}
+
+function renderTgs(d) {
+  const tgs = d.targetGroups || [];
+  const lbs = d.loadBalancers || [];
+  const lbMap = Object.fromEntries(lbs.map(lb=>[lb.arn, lb.name]));
+  document.getElementById('cnt-tgs').textContent = tgs.length;
+  document.getElementById('tbody-tgs').innerHTML = tgs.length
+    ? tgs.map(tg => {
+        const healthy   = tg.targets.filter(t=>t.health==='healthy').length;
+        const unhealthy = tg.targets.filter(t=>t.health==='unhealthy').length;
+        const hc = tg.healthCheck || {};
+        const targetHtml = tg.targets.length
+          ? tg.targets.map(t=>`<div style="margin-bottom:4px"><span class="bk">${esc(t.id||'—')}</span>:${esc(t.port||'—')} <span class="${healthClass(t.health)}">${esc(t.health||'?')}</span>${t.reason?`<span style="font-size:10px;color:var(--text-muted)"> ${esc(t.reason)}</span>`:''}</div>`).join('')
+          : '<span style="color:var(--text-muted);font-size:11px">none</span>';
+        return `<tr>
+          <td><strong>${esc(tg.name)}</strong><br><span style="font-size:10px;font-family:monospace;color:var(--text-muted)">${esc(shortArn(tg.arn))}</span></td>
+          <td><span class="bk">${esc(tg.protocol||'—')}:${esc(tg.port||'—')}</span></td>
+          <td><span class="bi">${esc(tg.targetType||'—')}</span></td>
+          <td style="font-size:11px">
+            ${hc.path?`<div><span style="color:var(--text-muted)">path</span> ${esc(hc.path)}</div>`:''}
+            <div class="hc-row">
+              ${hc.interval?`<span class="hc-chip">interval ${esc(hc.interval)}s</span>`:''}
+              ${hc.timeout?`<span class="hc-chip">timeout ${esc(hc.timeout)}s</span>`:''}
+              ${hc.healthyThreshold?`<span class="hc-chip">healthy ×${esc(hc.healthyThreshold)}</span>`:''}
+              ${hc.unhealthyThreshold?`<span class="hc-chip">unhealthy ×${esc(hc.unhealthyThreshold)}</span>`:''}
+            </div>
+          </td>
+          <td>
+            <div style="margin-bottom:4px">${tg.targets.length ? (healthy===tg.targets.length?`<span class="bg">${healthy}/${tg.targets.length} healthy</span>`:`<span class="by">${healthy}/${tg.targets.length} healthy</span>`) : '<span style="color:var(--text-muted)">0 targets</span>'}</div>
+            ${targetHtml}
+          </td>
+          <td style="font-size:11px">${(tg.lbArns||[]).map(a=>`<span class="bk">${esc(lbMap[a]||shortArn(a))}</span>`).join('<br>')||'<span style="color:var(--text-muted)">unattached</span>'}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="6" class="loading">No target groups found.</td></tr>';
+}
+
+// ── K8s cluster panels ────────────────────────────────────────────────────────
 async function initClusters() {
   try {
-    const d = await fetch(`${API}/api/contexts`).then(r => r.json());
-    CLUSTERS = d.contexts.map(c => ({ name: c.name, ctx: c.name }));
-    const tabs = document.getElementById('cluster-tabs');
-    const panels = document.getElementById('cluster-panels');
-    tabs.innerHTML = '';
-    panels.innerHTML = '';
-    CLUSTERS.forEach((cl, i) => {
-      const shortName = cl.name.replace(/^kind-/, '');
-      tabs.innerHTML += `<div class="ctab${i===0?' active':''}" id="tab-${i}" onclick="switchTab(${i})">
-        <span class="dot" id="dot-${i}"></span>${shortName}
-      </div>`;
-      panels.innerHTML += `<div class="cpanel${i===0?' active':''}" id="panel-${i}">
-        <div class="summary-row">
-          <div class="sum-box" id="sum-ingress-${i}"><div class="num" id="num-ingress-${i}">—</div><div class="lbl">Ingresses</div></div>
-          <div class="sum-box" id="sum-lb-${i}"><div class="num" id="num-lb-${i}">—</div><div class="lbl">LoadBalancer Svcs</div></div>
-          <div class="sum-box" id="sum-np-${i}"><div class="num" id="num-np-${i}">—</div><div class="lbl">NodePort Svcs</div></div>
-          <div class="sum-box" id="sum-svc-${i}"><div class="num" id="num-svc-${i}">—</div><div class="lbl">Total Services</div></div>
-        </div>
-        <div class="section">
-          <div class="section-hd">Ingress Resources <span class="badge" id="badge-ingress-${i}">0</span></div>
-          <div class="live-box" id="tbl-ingress-${i}"><div class="loading">Loading...</div></div>
-        </div>
-        <div class="section">
-          <div class="section-hd">Services (NodePort &amp; LoadBalancer) <span class="badge" id="badge-svc-${i}">0</span></div>
-          <div class="live-box" id="tbl-svc-${i}"><div class="loading">Loading...</div></div>
-        </div>
-      </div>`;
-    });
-    loadAll();
+    const d = await fetch(`${API}/api/contexts`).then(r=>r.json());
+    CLUSTERS = d.contexts.map(c=>({ name: c.name, ctx: c.name }));
+    buildClusterPanels('ing', 'cluster-tabs-ing', 'cluster-panels-ing');
+    buildClusterPanels('svc', 'cluster-tabs-svc', 'cluster-panels-svc');
+    loadClusters();
   } catch(e) {
-    document.getElementById('cluster-panels').innerHTML =
-      `<div class="loading" style="color:#e74c3c">Failed to reach backend: ${e.message}</div>`;
+    ['cluster-panels-ing','cluster-panels-svc'].forEach(id => {
+      document.getElementById(id).innerHTML = `<div class="loading" style="color:#e74c3c">Backend error: ${esc(e.message)}</div>`;
+    });
   }
 }
 
-function switchTab(i) {
-  document.querySelectorAll('.ctab').forEach((t,j) => t.classList.toggle('active', i===j));
-  document.querySelectorAll('.cpanel').forEach((p,j) => p.classList.toggle('active', i===j));
+function buildClusterPanels(prefix, tabsId, panelsId) {
+  const tabs   = document.getElementById(tabsId);
+  const panels = document.getElementById(panelsId);
+  tabs.innerHTML = '';
+  panels.innerHTML = '';
+  CLUSTERS.forEach((cl,i) => {
+    const short    = cl.name.replace(/^kind-/,'');
+    const shortCtx = cl.ctx.replace(/^kind-/,'');
+
+    tabs.innerHTML += `<div class="ctab${i===0?' active':''}" id="${prefix}-tab-${i}" onclick="switchCluster('${prefix}',${i})">
+      <span class="dot" id="${prefix}-dot-${i}"></span>${short}
+    </div>`;
+
+    const bodyContent = prefix==='ing'
+      ? `<div class="summary-row">
+            <div class="sum-box" id="${prefix}-sum-${i}"><div class="num" id="${prefix}-num-${i}">—</div><div class="lbl">Ingresses</div></div>
+            <div class="sum-box" id="${prefix}-sum-alb-${i}"><div class="num" id="${prefix}-num-alb-${i}">—</div><div class="lbl">ALB Class</div></div>
+            <div class="sum-box" id="${prefix}-sum-nginx-${i}"><div class="num" id="${prefix}-num-nginx-${i}">—</div><div class="lbl">nginx Class</div></div>
+          </div>
+          <div class="live-box"><div class="live-box-hd">Ingress Resources <span class="cnt" id="${prefix}-badge-${i}">0</span></div>
+            <div id="${prefix}-tbl-${i}"><div class="loading">Loading…</div></div></div>`
+      : `<div class="summary-row">
+            <div class="sum-box" id="${prefix}-sum-lb-${i}"><div class="num" id="${prefix}-num-lb-${i}">—</div><div class="lbl">LoadBalancer</div></div>
+            <div class="sum-box" id="${prefix}-sum-np-${i}"><div class="num" id="${prefix}-num-np-${i}">—</div><div class="lbl">NodePort</div></div>
+            <div class="sum-box" id="${prefix}-sum-all-${i}"><div class="num" id="${prefix}-num-all-${i}">—</div><div class="lbl">Total Svcs</div></div>
+          </div>
+          <div class="live-box"><div class="live-box-hd">NodePort &amp; LoadBalancer Services <span class="cnt" id="${prefix}-badge-${i}">0</span></div>
+            <div id="${prefix}-tbl-${i}"><div class="loading">Loading…</div></div></div>`;
+
+    panels.innerHTML += `<div class="cpanel${i===0?' active':''}" id="${prefix}-panel-${i}">
+      <div class="offline-banner" id="${prefix}-offline-${i}" style="display:none">
+        <div>
+          <div class="msg">&#9940; Cluster offline</div>
+          <div class="hint">Containers stopped &mdash; start with: docker start ${shortCtx}-control-plane</div>
+        </div>
+        <button class="expand-btn" onclick="toggleClusterBody('${prefix}',${i})">&#9660; Show anyway</button>
+      </div>
+      <div class="cluster-body" id="${prefix}-body-${i}">
+        ${bodyContent}
+      </div>
+    </div>`;
+  });
 }
 
-function setDot(i, online) {
-  const d = document.getElementById('dot-'+i);
-  if (d) { d.className = 'dot ' + (online ? 'online' : 'offline'); }
+function switchCluster(prefix, i) {
+  document.querySelectorAll(`[id^="${prefix}-tab-"]`).forEach((t,j) => t.classList.toggle('active', j===i));
+  document.querySelectorAll(`[id^="${prefix}-panel-"]`).forEach((p,j) => p.classList.toggle('active', j===i));
+}
+function setDot(prefix,i,online){
+  const dot    = document.getElementById(`${prefix}-dot-${i}`);
+  const banner = document.getElementById(`${prefix}-offline-${i}`);
+  const body   = document.getElementById(`${prefix}-body-${i}`);
+  if(dot) dot.className = 'dot '+(online?'online':'offline');
+  if(banner && body){
+    banner.style.display = online ? 'none' : 'flex';
+    body.style.display   = online ? 'block' : 'none';
+  }
+}
+function toggleClusterBody(prefix,i){
+  const body = document.getElementById(`${prefix}-body-${i}`);
+  const btn  = document.querySelector(`#${prefix}-offline-${i} .expand-btn`);
+  if(!body) return;
+  const hidden = body.style.display==='none';
+  body.style.display = hidden ? 'block' : 'none';
+  if(btn) btn.textContent = hidden ? '▲ Hide' : '▼ Show anyway';
 }
 
-async function loadCluster(cl, i) {
+async function loadIngresses(cl, i) {
   const enc = encodeURIComponent(cl.ctx);
-  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-  const num = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
-
-  // ingresses
+  const set = (id,h) => { const e=document.getElementById(id); if(e) e.innerHTML=h; };
+  const num = (id,n) => { const e=document.getElementById(id); if(e) e.textContent=n; };
   try {
-    const ig = await fetch(`${API}/api/cluster/${enc}/ingresses`).then(r => r.json());
-    if (ig.offline) throw new Error(ig.error);
-    setDot(i, true);
-    const items = ig.items || [];
-    num('num-ingress-'+i, items.length);
-    num('badge-ingress-'+i, items.length);
-    const el = document.getElementById('sum-ingress-'+i);
-    if (el) el.className = 'sum-box ' + (items.length > 0 ? 'ok' : '');
-
-    set('tbl-ingress-'+i, items.length
-      ? `<table><thead><tr>
-          <th>Name</th><th>Namespace</th><th>Class</th><th>Target Type</th>
-          <th>Scheme</th><th>Default Backend</th><th>Address</th><th>Age</th>
-        </tr></thead><tbody>` +
+    const d = await fetch(`${API}/api/cluster/${enc}/ingresses`).then(r=>r.json());
+    if(d.offline) throw new Error(d.error);
+    setDot('ing',i,true);
+    const items = d.items||[];
+    const alb   = items.filter(x=>(x.spec?.ingressClassName||x.metadata?.annotations?.['kubernetes.io/ingress.class']||'').includes('alb'));
+    const nginx = items.filter(x=>(x.spec?.ingressClassName||x.metadata?.annotations?.['kubernetes.io/ingress.class']||'').includes('nginx'));
+    num('ing-num-'+i, items.length);
+    num('ing-num-alb-'+i, alb.length);
+    num('ing-num-nginx-'+i, nginx.length);
+    document.getElementById('ing-badge-'+i).textContent = items.length;
+    set('ing-tbl-'+i, items.length
+      ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Class</th><th>Target Type</th><th>Scheme</th><th>LB Name</th><th>Default Backend</th><th>Address</th><th>Age</th></tr></thead><tbody>`+
         items.map(ing => {
-          const ann = ing.metadata.annotations || {};
-          const cls = ing.spec.ingressClassName || ann['kubernetes.io/ingress.class'] || '—';
-          const targetType = ann['alb.ingress.kubernetes.io/target-type'] || '—';
-          const scheme = ann['alb.ingress.kubernetes.io/scheme'] || '—';
-          const lbName = ann['alb.ingress.kubernetes.io/load-balancer-name'] || '';
-          const backend = ing.spec.defaultBackend
-            ? `${ing.spec.defaultBackend.service.name}:${ing.spec.defaultBackend.service.port.number}`
-            : (ing.spec.rules ? ing.spec.rules.length + ' rule(s)' : '—');
-          const addrs = (ing.status?.loadBalancer?.ingress || []).map(a => a.hostname || a.ip).join(', ') || '—';
+          const ann=ing.metadata.annotations||{};
+          const cls=ing.spec?.ingressClassName||ann['kubernetes.io/ingress.class']||'—';
+          const targetType=ann['alb.ingress.kubernetes.io/target-type']||'—';
+          const scheme=ann['alb.ingress.kubernetes.io/scheme']||'—';
+          const lbName=ann['alb.ingress.kubernetes.io/load-balancer-name']||'—';
+          const backend=ing.spec?.defaultBackend?`${ing.spec.defaultBackend.service.name}:${ing.spec.defaultBackend.service.port.number}`:(ing.spec?.rules?ing.spec.rules.length+' rule(s)':'—');
+          const addrs=(ing.status?.loadBalancer?.ingress||[]).map(a=>a.hostname||a.ip).join(', ')||'—';
           return `<tr>
-            <td><strong>${ing.metadata.name}</strong>${lbName ? `<br><span style="font-size:10px;color:var(--text-muted)">${lbName}</span>` : ''}</td>
-            <td><span class="bk">${ing.metadata.namespace}</span></td>
-            <td><span class="bi">${cls}</span></td>
-            <td><span class="bk">${targetType}</span></td>
-            <td><span class="${scheme==='internet-facing'?'bg':'bk'}">${scheme}</span></td>
-            <td><span class="bk">${backend}</span></td>
-            <td>${addrs === '—' ? '<span style="color:var(--text-muted)">pending</span>' : `<span class="bg">${addrs}</span>`}</td>
+            <td><strong>${esc(ing.metadata.name)}</strong></td>
+            <td><span class="bk">${esc(ing.metadata.namespace)}</span></td>
+            <td><span class="bi">${esc(cls)}</span></td>
+            <td><span class="bk">${esc(targetType)}</span></td>
+            <td><span class="${scheme==='internet-facing'?'bg':'bk'}">${esc(scheme)}</span></td>
+            <td><span class="bk">${esc(lbName)}</span></td>
+            <td><span class="bk">${esc(backend)}</span></td>
+            <td>${addrs==='—'?'<span style="color:var(--text-muted)">pending</span>':`<span class="bg">${esc(addrs)}</span>`}</td>
             <td>${age(ing.metadata.creationTimestamp)}</td>
           </tr>`;
-        }).join('') + `</tbody></table>`
-      : `<div class="loading">No Ingress resources found</div>`
-    );
+        }).join('')+'</tbody></table>'
+      : '<div class="loading">No Ingress resources in this cluster.</div>');
   } catch(e) {
-    setDot(i, false);
-    set('tbl-ingress-'+i, `<div class="loading" style="color:#e74c3c">Cluster offline — ${e.message}</div>`);
-    num('num-ingress-'+i, '!');
+    setDot('ing',i,false);
+    set('ing-tbl-'+i,`<div class="loading" style="color:#e74c3c">Cluster offline — ${esc(e.message)}</div>`);
+    num('ing-num-'+i,'!');
   }
+}
 
-  // services (NodePort + LoadBalancer)
+async function loadServices(cl, i) {
+  const enc=encodeURIComponent(cl.ctx);
+  const set=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h;};
+  const num=(id,n)=>{const e=document.getElementById(id);if(e)e.textContent=n;};
   try {
-    const sv = await fetch(`${API}/api/cluster/${enc}/services`).then(r => r.json());
-    const allSvcs = sv.items || [];
-    const exposed = allSvcs.filter(s => ['NodePort','LoadBalancer'].includes(s.spec?.type));
-    const lbSvcs  = allSvcs.filter(s => s.spec?.type === 'LoadBalancer');
-    const npSvcs  = allSvcs.filter(s => s.spec?.type === 'NodePort');
-
-    num('num-svc-'+i, allSvcs.length);
-    num('num-lb-'+i, lbSvcs.length);
-    num('num-np-'+i, npSvcs.length);
-    num('badge-svc-'+i, exposed.length);
-
-    const lbEl = document.getElementById('sum-lb-'+i);
-    if (lbEl) lbEl.className = 'sum-box ' + (lbSvcs.length > 0 ? 'ok' : '');
-    const npEl = document.getElementById('sum-np-'+i);
-    if (npEl) npEl.className = 'sum-box ' + (npSvcs.length > 0 ? 'ok' : '');
-
-    set('tbl-svc-'+i, exposed.length
-      ? `<table><thead><tr>
-          <th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th>
-          <th>External IP</th><th>Port(s)</th><th>Age</th>
-        </tr></thead><tbody>` +
-        exposed.map(s => {
-          const ports = (s.spec?.ports||[]).map(p => {
-            let str = `${p.port}`;
-            if (p.nodePort) str += `:${p.nodePort}`;
-            str += `/${p.protocol||'TCP'}`;
-            return str;
-          }).join(', ');
-          const extIp = (s.spec?.externalIPs||[]).join(', ') ||
-                        (s.status?.loadBalancer?.ingress||[]).map(a=>a.hostname||a.ip).join(', ') || '—';
-          const typeClass = s.spec?.type === 'LoadBalancer' ? 'bg' : 'bi';
+    const d=await fetch(`${API}/api/cluster/${enc}/services`).then(r=>r.json());
+    const all=d.items||[];
+    const lb=all.filter(s=>s.spec?.type==='LoadBalancer');
+    const np=all.filter(s=>s.spec?.type==='NodePort');
+    const exposed=[...lb,...np];
+    num('svc-num-lb-'+i, lb.length);
+    num('svc-num-np-'+i, np.length);
+    num('svc-num-all-'+i, all.length);
+    document.getElementById('svc-badge-'+i).textContent = exposed.length;
+    setDot('svc',i,true);
+    set('svc-tbl-'+i, exposed.length
+      ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>External IP</th><th>Port(s)</th><th>Age</th></tr></thead><tbody>`+
+        exposed.map(s=>{
+          const ports=(s.spec?.ports||[]).map(p=>`${p.port}${p.nodePort?':'+p.nodePort:''}/${p.protocol||'TCP'}`).join(', ');
+          const ext=(s.spec?.externalIPs||[]).join(', ')||(s.status?.loadBalancer?.ingress||[]).map(a=>a.hostname||a.ip).join(', ')||'—';
           return `<tr>
-            <td>${s.metadata.name}</td>
-            <td><span class="bk">${s.metadata.namespace}</span></td>
-            <td><span class="${typeClass}">${s.spec?.type}</span></td>
-            <td>${s.spec?.clusterIP||'—'}</td>
-            <td>${extIp === '—' ? '<span style="color:var(--text-muted)">—</span>' : `<span class="bg">${extIp}</span>`}</td>
-            <td><span class="bk">${ports||'—'}</span></td>
+            <td>${esc(s.metadata.name)}</td>
+            <td><span class="bk">${esc(s.metadata.namespace)}</span></td>
+            <td><span class="${s.spec?.type==='LoadBalancer'?'bg':'bi'}">${esc(s.spec?.type)}</span></td>
+            <td>${esc(s.spec?.clusterIP||'—')}</td>
+            <td>${ext==='—'?'<span style="color:var(--text-muted)">—</span>':`<span class="bg">${esc(ext)}</span>`}</td>
+            <td><span class="bk">${esc(ports||'—')}</span></td>
             <td>${age(s.metadata.creationTimestamp)}</td>
           </tr>`;
-        }).join('') + `</tbody></table>`
-      : `<div class="loading">No NodePort or LoadBalancer services found</div>`
-    );
+        }).join('')+'</tbody></table>'
+      : '<div class="loading">No NodePort or LoadBalancer services in this cluster.</div>');
   } catch(e) {
-    set('tbl-svc-'+i, `<div class="loading" style="color:#e74c3c">${e.message}</div>`);
+    setDot('svc',i,false);
+    set('svc-tbl-'+i,`<div class="loading" style="color:#e74c3c">${esc(e.message)}</div>`);
   }
 }
 
-function loadAll() {
-  CLUSTERS.forEach((cl, i) => loadCluster(cl, i));
+function loadClusters() {
+  CLUSTERS.forEach((cl,i) => { loadIngresses(cl,i); loadServices(cl,i); });
 }
 
+function loadAll() { loadElb(); loadClusters(); }
+
 initClusters();
+loadElb();
 setInterval(loadAll, 30000);
 </script>
 </body>

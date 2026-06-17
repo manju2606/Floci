@@ -107,6 +107,11 @@
     .cluster-info-bar strong{color:var(--text-primary)}
 
     footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8}
+    .offline-banner{background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.4);border-radius:4px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .offline-banner .msg{color:#e74c3c;font-size:13px;font-weight:600}
+    .offline-banner .hint{color:var(--text-muted);font-size:11px;margin-top:3px}
+    .expand-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:12px;white-space:nowrap}
+    .expand-btn:hover{border-color:#e74c3c;color:#e74c3c}
   </style>
 </head>
 <body>
@@ -154,6 +159,14 @@
 
     <!-- Panel eksdemo1 -->
     <div class="cpanel active" id="p1">
+      <div class="offline-banner" id="offline-p1" style="display:none">
+        <div>
+          <div class="msg">&#9940; Cluster offline</div>
+          <div class="hint">Containers stopped &mdash; start with: docker start retail-dev-eksdemo1-control-plane retail-dev-eksdemo1-worker retail-dev-eksdemo1-worker2</div>
+        </div>
+        <button class="expand-btn" onclick="toggleClusterBody('p1')">&#9660; Show anyway</button>
+      </div>
+      <div class="cluster-body" id="body-p1">
       <div class="cluster-info-bar" id="info-p1">
         <span>Cluster: <strong>retail-dev-eksdemo1</strong></span>
         <span>Context: <strong>kind-retail-dev-eksdemo1</strong></span>
@@ -215,6 +228,12 @@
           <div class="sum-label">Namespaces</div>
           <div class="sum-sub" id="ss-p1-ns">loading…</div>
         </div>
+        <div class="summary-card" id="sw-p1-ingress">
+          <div class="sum-icon">&#127760;</div>
+          <div class="sum-count" id="sc-p1-ingress">—</div>
+          <div class="sum-label">Ingresses</div>
+          <div class="sum-sub" id="ss-p1-ingress">loading…</div>
+        </div>
       </div>
       <div class="live-grid">
         <div class="live-box">
@@ -258,10 +277,23 @@
         <div class="live-box-hd">Namespaces <span class="cnt" id="cnt-p1-ns">—</span></div>
         <div id="tbl-p1-ns"><div class="loading">Loading…</div></div>
       </div>
-    </div>
+      <div class="live-box" style="margin-top:16px">
+        <div class="live-box-hd">Ingresses <span class="cnt" id="cnt-p1-ingress">—</span></div>
+        <div id="tbl-p1-ingress"><div class="loading">Loading…</div></div>
+      </div>
+    </div><!-- /body-p1 -->
+    </div><!-- /cpanel p1 -->
 
     <!-- Panel eksdemo2 -->
     <div class="cpanel" id="p2">
+      <div class="offline-banner" id="offline-p2" style="display:none">
+        <div>
+          <div class="msg">&#9940; Cluster offline</div>
+          <div class="hint">Containers stopped &mdash; start with: docker start retail-dev-eksdemo2-control-plane retail-dev-eksdemo2-worker</div>
+        </div>
+        <button class="expand-btn" onclick="toggleClusterBody('p2')">&#9660; Show anyway</button>
+      </div>
+      <div class="cluster-body" id="body-p2">
       <div class="cluster-info-bar" id="info-p2">
         <span>Cluster: <strong>retail-dev-eksdemo2</strong></span>
         <span>Context: <strong>kind-retail-dev-eksdemo2</strong></span>
@@ -323,6 +355,12 @@
           <div class="sum-label">Namespaces</div>
           <div class="sum-sub" id="ss-p2-ns">loading…</div>
         </div>
+        <div class="summary-card" id="sw-p2-ingress">
+          <div class="sum-icon">&#127760;</div>
+          <div class="sum-count" id="sc-p2-ingress">—</div>
+          <div class="sum-label">Ingresses</div>
+          <div class="sum-sub" id="ss-p2-ingress">loading…</div>
+        </div>
       </div>
       <div class="live-grid">
         <div class="live-box">
@@ -366,7 +404,12 @@
         <div class="live-box-hd">Namespaces <span class="cnt" id="cnt-p2-ns">—</span></div>
         <div id="tbl-p2-ns"><div class="loading">Loading…</div></div>
       </div>
-    </div>
+      <div class="live-box" style="margin-top:16px">
+        <div class="live-box-hd">Ingresses <span class="cnt" id="cnt-p2-ingress">—</span></div>
+        <div id="tbl-p2-ingress"><div class="loading">Loading…</div></div>
+      </div>
+    </div><!-- /body-p2 -->
+    </div><!-- /cpanel p2 -->
   </div>
 
   <!-- Cluster 1 -->
@@ -683,8 +726,23 @@ function podStatus(p) {
 }
 
 function setDot(panel, online) {
-  const dot = document.getElementById('dot-' + panel);
-  if (dot) { dot.className = 'dot ' + (online ? 'online' : 'offline'); }
+  const dot    = document.getElementById('dot-' + panel);
+  const banner = document.getElementById('offline-' + panel);
+  const body   = document.getElementById('body-' + panel);
+  if (dot) dot.className = 'dot ' + (online ? 'online' : 'offline');
+  if (banner && body) {
+    banner.style.display = online ? 'none' : 'flex';
+    body.style.display   = online ? 'block' : 'none';
+  }
+}
+
+function toggleClusterBody(panel) {
+  const body = document.getElementById('body-' + panel);
+  const btn  = document.querySelector('#offline-' + panel + ' .expand-btn');
+  if (!body) return;
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? 'block' : 'none';
+  if (btn) btn.textContent = hidden ? '▲ Hide' : '▼ Show anyway';
 }
 
 function setSummary(panel, key, count, sub, status) {
@@ -758,7 +816,7 @@ async function loadCluster({ panel, ctx }) {
   } catch(e) {
     setDot(panel, false);
     setSummary(panel, 'nodes', '!', 'Offline', 'error');
-    ['pods','deploy','svc','sts','ds','cm','pvc','ns'].forEach(r => {
+    ['pods','deploy','svc','sts','ds','cm','pvc','ns','ingress'].forEach(r => {
       setSummary(panel, r, '—', 'offline', 'error');
       set('tbl-' + panel + '-' + r, err('Cluster offline'));
     });
@@ -905,6 +963,39 @@ async function loadCluster({ panel, ctx }) {
         }, 4) + `</table>`
       : `<div class="loading">No namespaces</div>`);
   } catch(e) { setSummary(panel,'ns','—',e.message,'error'); set('tbl-' + panel + '-ns', err(e.message)); }
+
+  // ingresses
+  try {
+    const ig = await fetch(`${API}/api/cluster/${enc}/ingresses`).then(r => r.json());
+    const ingList  = ig.items || [];
+    const sysIng   = ingList.filter(i => isSystemNs(i.metadata.namespace)).length;
+    const userIng  = ingList.length - sysIng;
+    cnt('cnt-' + panel + '-ingress', ingList.length);
+    setSummary(panel, 'ingress', ingList.length, ingList.length ? sysIng + ' sys · ' + userIng + ' user' : 'none', ingList.length > 0 ? 'info' : 'ok');
+    set('tbl-' + panel + '-ingress', ingList.length
+      ? `<table><thead><tr><th>Name</th><th>Namespace</th><th>Class</th><th>Target Type</th><th>Scheme</th><th>Default Backend</th><th>Address</th><th>Age</th></tr></thead>` +
+        grouped(ingList, i => i.metadata.namespace, i => {
+          const ann        = i.metadata.annotations || {};
+          const cls        = i.spec?.ingressClassName || ann['kubernetes.io/ingress.class'] || '—';
+          const targetType = ann['alb.ingress.kubernetes.io/target-type'] || '—';
+          const scheme     = ann['alb.ingress.kubernetes.io/scheme'] || '—';
+          const backend    = i.spec?.defaultBackend
+            ? `${i.spec.defaultBackend.service.name}:${i.spec.defaultBackend.service.port.number}`
+            : (i.spec?.rules?.length ? i.spec.rules.length + ' rule(s)' : '—');
+          const addrs = (i.status?.loadBalancer?.ingress || []).map(a => a.hostname || a.ip).join(', ') || '—';
+          return `<tr>
+            <td>${i.metadata.name}</td>
+            <td><span class="bk">${i.metadata.namespace}</span></td>
+            <td><span class="bk">${cls}</span></td>
+            <td><span class="bk">${targetType}</span></td>
+            <td><span class="${scheme === 'internet-facing' ? 'bg' : 'bk'}">${scheme}</span></td>
+            <td><span class="bk">${backend}</span></td>
+            <td>${addrs === '—' ? '<span style="color:var(--text-muted)">pending</span>' : `<span class="bg">${addrs}</span>`}</td>
+            <td>${age(i.metadata.creationTimestamp)}</td>
+          </tr>`;
+        }, 8) + `</table>`
+      : `<div class="loading">No Ingress resources</div>`);
+  } catch(e) { setSummary(panel,'ingress','—',e.message,'error'); set('tbl-' + panel + '-ingress', err(e.message)); }
 }
 
 function loadAll() { CLUSTERS.forEach(loadCluster); }

@@ -12,12 +12,16 @@ const { EC2Client, DescribeInstancesCommand, DescribeImagesCommand,
         DescribeVolumesCommand, DescribeVpcsCommand,
         DescribeSubnetsCommand, DescribeInternetGatewaysCommand,
         DescribeRouteTablesCommand } = require('@aws-sdk/client-ec2');
+const { ElasticLoadBalancingV2Client, DescribeLoadBalancersCommand,
+        DescribeTargetGroupsCommand, DescribeListenersCommand,
+        DescribeTargetHealthCommand } = require('@aws-sdk/client-elastic-load-balancing-v2');
 
 const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
 const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
 
 const s3     = new S3Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT, forcePathStyle: true });
 const dynamo = new DynamoDBClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const elb    = new ElasticLoadBalancingV2Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 
 const app  = express();
 const PORT = 3000;
@@ -1394,6 +1398,77 @@ app.get('/api/ec2/vpc-topology', async (req, res) => {
     }));
     res.json({ vpcs });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ELB routes
+app.get('/api/elb/summary', async (req, res) => {
+  try {
+    const [lbData, tgData] = await Promise.all([
+      elb.send(new DescribeLoadBalancersCommand({})),
+      elb.send(new DescribeTargetGroupsCommand({})),
+    ]);
+    const lbs = lbData.LoadBalancers || [];
+    const tgs = tgData.TargetGroups || [];
+
+    const listenersMap = {};
+    await Promise.all(lbs.map(async lb => {
+      try {
+        const d = await elb.send(new DescribeListenersCommand({ LoadBalancerArn: lb.LoadBalancerArn }));
+        listenersMap[lb.LoadBalancerArn] = d.Listeners || [];
+      } catch { listenersMap[lb.LoadBalancerArn] = []; }
+    }));
+
+    const healthMap = {};
+    await Promise.all(tgs.map(async tg => {
+      try {
+        const d = await elb.send(new DescribeTargetHealthCommand({ TargetGroupArn: tg.TargetGroupArn }));
+        healthMap[tg.TargetGroupArn] = d.TargetHealthDescriptions || [];
+      } catch { healthMap[tg.TargetGroupArn] = []; }
+    }));
+
+    res.json({
+      loadBalancers: lbs.map(lb => ({
+        arn:       lb.LoadBalancerArn,
+        name:      lb.LoadBalancerName,
+        type:      lb.Type,
+        scheme:    lb.Scheme,
+        state:     lb.State?.Code,
+        dns:       lb.DNSName,
+        vpcId:     lb.VpcId,
+        azs:       (lb.AvailabilityZones || []).map(z => z.ZoneName),
+        listeners: (listenersMap[lb.LoadBalancerArn] || []).map(l => ({
+          arn:      l.ListenerArn,
+          port:     l.Port,
+          protocol: l.Protocol,
+          actions:  (l.DefaultActions || []).map(a => ({ type: a.Type, tgArn: a.TargetGroupArn })),
+        })),
+      })),
+      targetGroups: tgs.map(tg => ({
+        arn:         tg.TargetGroupArn,
+        name:        tg.TargetGroupName,
+        protocol:    tg.Protocol,
+        port:        tg.Port,
+        targetType:  tg.TargetType,
+        vpcId:       tg.VpcId,
+        lbArns:      tg.LoadBalancerArns || [],
+        healthCheck: {
+          path:               tg.HealthCheckPath,
+          protocol:           tg.HealthCheckProtocol,
+          interval:           tg.HealthCheckIntervalSeconds,
+          timeout:            tg.HealthCheckTimeoutSeconds,
+          healthyThreshold:   tg.HealthyThresholdCount,
+          unhealthyThreshold: tg.UnhealthyThresholdCount,
+        },
+        targets: (healthMap[tg.TargetGroupArn] || []).map(t => ({
+          id:     t.Target?.Id,
+          port:   t.Target?.Port,
+          health: t.TargetHealth?.State,
+          reason: t.TargetHealth?.Reason,
+          desc:   t.TargetHealth?.Description,
+        })),
+      })),
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // S3 routes
