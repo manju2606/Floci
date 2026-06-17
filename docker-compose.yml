@@ -3,6 +3,10 @@ services:
     image: floci/floci:latest
     ports:
       - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
 
   k8s-backend:
     build:

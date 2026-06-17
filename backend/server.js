@@ -15,6 +15,11 @@ const { EC2Client, DescribeInstancesCommand, DescribeImagesCommand,
 const { ElasticLoadBalancingV2Client, DescribeLoadBalancersCommand,
         DescribeTargetGroupsCommand, DescribeListenersCommand,
         DescribeTargetHealthCommand } = require('@aws-sdk/client-elastic-load-balancing-v2');
+const { ECRClient,
+        DescribeRepositoriesCommand,
+        DescribeImagesCommand: ECRDescribeImagesCommand,
+        ListImagesCommand,
+        GetAuthorizationTokenCommand } = require('@aws-sdk/client-ecr');
 
 const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
 const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
@@ -22,6 +27,7 @@ const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', sec
 const s3     = new S3Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT, forcePathStyle: true });
 const dynamo = new DynamoDBClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 const elb    = new ElasticLoadBalancingV2Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const ecr    = new ECRClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 
 const app  = express();
 const PORT = 3000;
@@ -1467,6 +1473,60 @@ app.get('/api/elb/summary', async (req, res) => {
           desc:   t.TargetHealth?.Description,
         })),
       })),
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ECR routes ────────────────────────────────────────────────────────────────
+
+app.get('/api/ecr/repositories', async (req, res) => {
+  try {
+    const data = await ecr.send(new DescribeRepositoriesCommand({}));
+    const repos = (data.repositories || []).map(r => ({
+      arn:          r.repositoryArn,
+      name:         r.repositoryName,
+      uri:          r.repositoryUri,
+      registryId:   r.registryId,
+      createdAt:    r.createdAt,
+      tagMutability: r.imageTagMutability,
+      scanOnPush:   r.imageScanningConfiguration?.scanOnPush || false,
+      encryption:   r.encryptionConfiguration?.encryptionType || 'AES256',
+    }));
+    const withCounts = await Promise.all(repos.map(async r => {
+      try {
+        const imgs = await ecr.send(new ListImagesCommand({ repositoryName: r.name }));
+        r.imageCount = (imgs.imageIds || []).length;
+      } catch { r.imageCount = 0; }
+      return r;
+    }));
+    res.json({ repositories: withCounts });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ecr/repositories/:name/images', async (req, res) => {
+  const name = req.params.name;
+  try {
+    const data = await ecr.send(new ECRDescribeImagesCommand({ repositoryName: name }));
+    const images = (data.imageDetails || []).map(i => ({
+      digest:      i.imageDigest,
+      tags:        i.imageTags || [],
+      pushedAt:    i.imagePushedAt,
+      sizeBytes:   i.imageSizeInBytes,
+      mediaType:   i.imageManifestMediaType,
+      scanStatus:  i.imageScanStatus?.status || '—',
+    })).sort((a, b) => new Date(b.pushedAt) - new Date(a.pushedAt));
+    res.json({ images });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ecr/auth-token', async (req, res) => {
+  try {
+    const data = await ecr.send(new GetAuthorizationTokenCommand({}));
+    const auth = (data.authorizationData || [])[0] || {};
+    res.json({
+      token:       auth.authorizationToken,
+      endpoint:    auth.proxyEndpoint,
+      expiresAt:   auth.expiresAt,
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

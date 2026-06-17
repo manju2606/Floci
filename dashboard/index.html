@@ -77,6 +77,7 @@
     .card-icon.agent  { background: #eaf7f0; }
     .card-icon.eks    { background: #fff8e6; }
     .card-icon.ec2    { background: #fef9e7; }
+    .card-icon.ecr    { background: #fce8e8; }
 
     .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: #0073bb; }
     .card p  { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
@@ -179,6 +180,14 @@
       <p>Virtual Private Cloud — VPCs, subnets, internet gateways, and route tables.</p>
       <div class="endpoint">localhost:4566</div>
       <a class="open-btn" href="vpc.html">Open VPC Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='ecr.html'">
+      <div class="card-icon ecr">&#128230;</div>
+      <h3>Amazon ECR</h3>
+      <p>Elastic Container Registry — manage repositories, push and pull container images and Helm charts.</p>
+      <div class="endpoint">localhost:4566 &nbsp;&bull;&nbsp; registry: localhost:5100</div>
+      <a class="open-btn" href="ecr.html">Open ECR Console</a>
     </div>
 
   </div>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECR – Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg:#f2f3f3; --card-bg:#fff; --border:#d5dbdb;
+      --text-primary:#16191f; --text-secondary:#687078; --text-muted:#545b64;
+      --row-hover:#f8f9fa; --code-bg:#f2f3f3;
+    }
+    [data-theme="dark"] {
+      --bg:#0d1117; --card-bg:#161b22; --border:#30363d;
+      --text-primary:#e6edf3; --text-secondary:#8b949e; --text-muted:#8b949e;
+      --row-hover:#1c2128; --code-bg:#1c2128;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s;}
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+    header .logo{font-size:20px;font-weight:700;color:#ff9900;}
+    header .subtitle{font-size:12px;color:#aab7b8;margin-top:2px;}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1;}
+    .theme-btn:hover{border-color:#fff;color:#fff;}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px;margin-right:10px;}
+    header a.back:hover{color:#fff;border-color:#fff;}
+    .breadcrumb{background:#1a2332;padding:8px 32px;font-size:12px;color:#aab7b8;}
+    .breadcrumb a{color:#ff9900;text-decoration:none;}
+    .breadcrumb a:hover{text-decoration:underline;}
+    main{max-width:1200px;margin:32px auto;padding:0 24px;}
+    h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+    .page-sub{font-size:13px;color:var(--text-secondary);margin-bottom:24px;}
+
+    /* Tabs */
+    .tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:24px;}
+    .tab{padding:10px 20px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s;}
+    .tab:hover{color:var(--text-primary);}
+    .tab.active{color:#0073bb;border-bottom-color:#0073bb;}
+    .panel{display:none;}
+    .panel.active{display:block;}
+
+    /* Summary cards */
+    .summary-row{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;}
+    .scard{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:16px 20px;min-width:160px;flex:1;}
+    .scard .num{font-size:28px;font-weight:700;color:#0073bb;}
+    .scard .lbl{font-size:12px;color:var(--text-secondary);margin-top:2px;}
+
+    /* Tables */
+    .tbl-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+    .tbl-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);}
+    .tbl-hd h3{font-size:15px;font-weight:600;}
+    .refresh-btn{background:#0073bb;color:#fff;border:none;padding:6px 14px;border-radius:3px;font-size:12px;cursor:pointer;font-weight:600;}
+    .refresh-btn:hover{background:#005d9e;}
+    table{width:100%;border-collapse:collapse;}
+    th{text-align:left;padding:10px 14px;font-size:12px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:var(--bg);border-bottom:1px solid var(--border);}
+    td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:var(--row-hover);}
+    .mono{font-family:monospace;font-size:12px;}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+    .badge-mutable{background:#fff3e0;color:#e65100;}
+    .badge-immutable{background:#e8f5e9;color:#2e7d32;}
+    .badge-scan{background:#e8f4fd;color:#0073bb;}
+    .badge-noscan{background:#f5f5f5;color:#757575;}
+    [data-theme="dark"] .badge-mutable{background:#3d2600;color:#ffb74d;}
+    [data-theme="dark"] .badge-immutable{background:#1b3a1f;color:#81c784;}
+    [data-theme="dark"] .badge-scan{background:#1a2d3d;color:#64b5f6;}
+    [data-theme="dark"] .badge-noscan{background:#2a2a2a;color:#9e9e9e;}
+    .link-btn{background:none;border:none;color:#0073bb;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;}
+    .link-btn:hover{color:#005d9e;}
+
+    /* Image drawer */
+    .img-drawer{background:var(--bg);border-top:1px solid var(--border);}
+    .img-drawer-inner{padding:12px 20px;}
+    .img-drawer h4{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text-secondary);}
+    .img-table th{background:var(--bg);}
+    .tag-pill{display:inline-block;background:#e8f4fd;color:#0073bb;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600;margin:1px;}
+    [data-theme="dark"] .tag-pill{background:#1a2d3d;color:#64b5f6;}
+    .no-tag{color:var(--text-muted);font-style:italic;font-size:12px;}
+    .loading{padding:24px;text-align:center;color:var(--text-secondary);font-size:13px;}
+    .empty{padding:24px;text-align:center;color:var(--text-muted);font-size:13px;}
+
+    /* CLI section */
+    .cli-block{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+    .cli-block h3{font-size:15px;font-weight:600;padding:14px 16px;border-bottom:1px solid var(--border);}
+    .cli-section{padding:16px;}
+    .cli-section h4{font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
+    .cli-cmds{display:flex;flex-direction:column;gap:8px;}
+    .cli-cmd{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-primary);position:relative;cursor:pointer;}
+    .cli-cmd:hover{border-color:#0073bb;}
+    .cli-cmd .copy-hint{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-muted);font-family:sans-serif;}
+    .cli-cmd.copied{border-color:#27ae60;}
+    .cli-note{font-size:12px;color:var(--text-secondary);margin-top:8px;padding:8px 12px;background:var(--bg);border-radius:4px;border-left:3px solid #0073bb;}
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Local AWS Emulator</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn"></button>
+  </div>
+</header>
+
+<div class="breadcrumb">
+  <a href="index.html">Floci</a> &rsaquo; Elastic Container Registry
+</div>
+
+<main>
+  <h1>Amazon ECR</h1>
+  <div class="page-sub">Elastic Container Registry &mdash; manage repositories and container images &mdash; <span style="font-family:monospace;font-size:11px;">localhost:4566</span></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('repos')">Repositories</div>
+    <div class="tab" onclick="switchTab('cli')">CLI Commands</div>
+  </div>
+
+  <!-- Repositories tab -->
+  <div class="panel active" id="panel-repos">
+    <div class="summary-row" id="summary-row">
+      <div class="scard"><div class="num" id="cnt-repos">—</div><div class="lbl">Repositories</div></div>
+      <div class="scard"><div class="num" id="cnt-images">—</div><div class="lbl">Total Images</div></div>
+      <div class="scard"><div class="num" id="cnt-scan">—</div><div class="lbl">Scan on Push</div></div>
+      <div class="scard"><div class="num" id="cnt-immutable">—</div><div class="lbl">Immutable Tags</div></div>
+    </div>
+
+    <div class="tbl-wrap">
+      <div class="tbl-hd">
+        <h3>Repositories</h3>
+        <button class="refresh-btn" onclick="loadRepos()">&#8635; Refresh</button>
+      </div>
+      <div id="repos-body"><div class="loading">Loading repositories…</div></div>
+    </div>
+  </div>
+
+  <!-- CLI Commands tab -->
+  <div class="panel" id="panel-cli">
+    <div class="cli-block">
+      <h3>Repository Management</h3>
+      <div class="cli-section">
+        <h4>Create Repository</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr create-repository --repository-name &lt;repo-name&gt; --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+        <h4 style="margin-top:14px;">List Repositories</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr describe-repositories --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+        <h4 style="margin-top:14px;">Delete Repository</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr delete-repository --repository-name &lt;repo-name&gt; --force --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cli-block">
+      <h3>Docker Login &amp; Push</h3>
+      <div class="cli-section">
+        <h4>Authenticate Docker to ECR</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 000000000000.dkr.ecr.us-east-1.localhost:5100<span class="copy-hint">click to copy</span></div>
+        </div>
+        <div class="cli-note">LocalStack ECR registry listens on port <strong>5100</strong>, not 4566. Always use <code>000000000000.dkr.ecr.us-east-1.localhost:5100</code> as the registry hostname.</div>
+
+        <h4 style="margin-top:14px;">Tag &amp; Push Image</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">docker tag &lt;local-image&gt;:&lt;tag&gt; 000000000000.dkr.ecr.us-east-1.localhost:5100/&lt;repo-name&gt;:&lt;tag&gt;<span class="copy-hint">click to copy</span></div>
+          <div class="cli-cmd" onclick="copyCmd(this)">docker push 000000000000.dkr.ecr.us-east-1.localhost:5100/&lt;repo-name&gt;:&lt;tag&gt;<span class="copy-hint">click to copy</span></div>
+        </div>
+
+        <h4 style="margin-top:14px;">Pull Image</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">docker pull 000000000000.dkr.ecr.us-east-1.localhost:5100/&lt;repo-name&gt;:&lt;tag&gt;<span class="copy-hint">click to copy</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cli-block">
+      <h3>Image Management</h3>
+      <div class="cli-section">
+        <h4>List Images in a Repository</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr list-images --repository-name &lt;repo-name&gt; --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+        <h4 style="margin-top:14px;">Describe Images</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr describe-images --repository-name &lt;repo-name&gt; --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+        <h4 style="margin-top:14px;">Delete Image</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr batch-delete-image --repository-name &lt;repo-name&gt; --image-ids imageTag=&lt;tag&gt; --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+        <h4 style="margin-top:14px;">Set Tag Mutability</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">aws --endpoint-url http://localhost:4566 ecr put-image-tag-mutability --repository-name &lt;repo-name&gt; --image-tag-mutability IMMUTABLE --region us-east-1<span class="copy-hint">click to copy</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cli-block">
+      <h3>Helm Chart Push</h3>
+      <div class="cli-section">
+        <h4>Push Helm Chart to ECR</h4>
+        <div class="cli-cmds">
+          <div class="cli-cmd" onclick="copyCmd(this)">helm package ./<span class="copy-hint">click to copy</span></div>
+          <div class="cli-cmd" onclick="copyCmd(this)">helm push &lt;chart-file&gt;.tgz oci://000000000000.dkr.ecr.us-east-1.localhost:5100/&lt;repo-name&gt;<span class="copy-hint">click to copy</span></div>
+        </div>
+        <div class="cli-note">Make sure you are logged in to the registry first using <code>helm registry login</code> or the <code>aws ecr get-login-password</code> pipe above.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+const API = '';
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent =
+  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['repos','cli'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach((p,i) => {
+    const names = ['repos','cli'];
+    p.classList.toggle('active', names[i] === name);
+  });
+}
+
+function fmt(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+function ago(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts), now = new Date();
+  const s = Math.floor((now - d) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+function copyCmd(el) {
+  const text = el.childNodes[0].nodeValue.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    el.classList.add('copied');
+    const hint = el.querySelector('.copy-hint');
+    const orig = hint.textContent;
+    hint.textContent = 'copied!';
+    setTimeout(() => { el.classList.remove('copied'); hint.textContent = orig; }, 1500);
+  });
+}
+
+let openDrawer = null;
+
+async function toggleImages(repoName, btn) {
+  const drawerId = 'drawer-' + repoName.replace(/[^a-z0-9]/gi, '_');
+  let drawer = document.getElementById(drawerId);
+
+  if (drawer) {
+    const visible = drawer.style.display !== 'none';
+    drawer.style.display = visible ? 'none' : '';
+    btn.textContent = visible ? '▶ Images' : '▼ Images';
+    return;
+  }
+
+  btn.textContent = '⏳ Loading…';
+  btn.disabled = true;
+
+  const row = btn.closest('tr');
+  drawer = document.createElement('tr');
+  drawer.id = drawerId;
+  const td = document.createElement('td');
+  td.colSpan = 7;
+  td.className = 'img-drawer';
+  drawer.appendChild(td);
+  row.insertAdjacentElement('afterend', drawer);
+
+  try {
+    const r = await fetch(API + '/api/ecr/repositories/' + encodeURIComponent(repoName) + '/images');
+    const data = await r.json();
+    const imgs = data.images || [];
+
+    if (!imgs.length) {
+      td.innerHTML = '<div class="img-drawer-inner"><div class="empty">No images pushed yet.</div></div>';
+    } else {
+      td.innerHTML = `<div class="img-drawer-inner">
+        <h4>Images (${imgs.length})</h4>
+        <table class="img-table"><thead><tr>
+          <th>Tags</th><th>Digest</th><th>Pushed</th><th>Size</th><th>Media Type</th>
+        </tr></thead><tbody>
+        ${imgs.map(i => `<tr>
+          <td>${i.tags.length ? i.tags.map(t=>`<span class="tag-pill">${t}</span>`).join(' ') : '<span class="no-tag">untagged</span>'}</td>
+          <td class="mono">${(i.digest||'—').substring(0,20)}…</td>
+          <td>${ago(i.pushedAt)}</td>
+          <td>${fmt(i.sizeBytes)}</td>
+          <td class="mono" style="font-size:11px">${(i.mediaType||'—').replace('application/vnd.','')}</td>
+        </tr>`).join('')}
+        </tbody></table>
+      </div>`;
+    }
+  } catch(e) {
+    td.innerHTML = `<div class="img-drawer-inner"><div class="empty" style="color:#e74c3c">${e.message}</div></div>`;
+  }
+
+  btn.textContent = '▼ Images';
+  btn.disabled = false;
+}
+
+async function loadRepos() {
+  const body = document.getElementById('repos-body');
+  body.innerHTML = '<div class="loading">Loading repositories…</div>';
+  try {
+    const r = await fetch(API + '/api/ecr/repositories');
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    const repos = data.repositories || [];
+
+    document.getElementById('cnt-repos').textContent = repos.length;
+    document.getElementById('cnt-images').textContent = repos.reduce((s,r) => s + (r.imageCount||0), 0);
+    document.getElementById('cnt-scan').textContent = repos.filter(r => r.scanOnPush).length;
+    document.getElementById('cnt-immutable').textContent = repos.filter(r => r.tagMutability === 'IMMUTABLE').length;
+
+    if (!repos.length) {
+      body.innerHTML = '<div class="empty">No repositories found. Create one with <code>aws ecr create-repository</code>.</div>';
+      return;
+    }
+
+    body.innerHTML = `<table>
+      <thead><tr>
+        <th>Name</th>
+        <th>URI</th>
+        <th>Images</th>
+        <th>Tag Mutability</th>
+        <th>Scan on Push</th>
+        <th>Encryption</th>
+        <th>Created</th>
+      </tr></thead>
+      <tbody>
+      ${repos.map(r => `<tr>
+        <td style="font-weight:600">${r.name}</td>
+        <td class="mono" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.uri}">${r.uri}</td>
+        <td>
+          <button class="link-btn" onclick="toggleImages('${r.name}', this)">▶ Images</button>
+          <span style="color:var(--text-secondary);font-size:12px;margin-left:4px;">(${r.imageCount})</span>
+        </td>
+        <td><span class="badge ${r.tagMutability==='IMMUTABLE'?'badge-immutable':'badge-mutable'}">${r.tagMutability||'MUTABLE'}</span></td>
+        <td><span class="badge ${r.scanOnPush?'badge-scan':'badge-noscan'}">${r.scanOnPush?'Enabled':'Disabled'}</span></td>
+        <td>${r.encryption}</td>
+        <td>${ago(r.createdAt)}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch(e) {
+    body.innerHTML = `<div class="empty" style="color:#e74c3c">Error: ${e.message}</div>`;
+  }
+}
+
+loadRepos();
+</script>
+</body>
+</html>
