@@ -5,8 +5,10 @@ services:
       - "4566:4566"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - localstack-data:/var/lib/localstack
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - LOCALSTACK_VOLUME_DIR=/var/lib/localstack
 
   k8s-backend:
     build:
@@ -57,3 +59,98 @@ services:
       - SECRET_ACCESS_KEY=test
       - USE_SSL=false
       - FORCE_PATH_STYLE=true
+
+  # ── Data services ──────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=mydb
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=mydb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+      - MONGO_INITDB_DATABASE=mydb
+    volumes:
+      - mongo-data:/data/db
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8082:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=mysql
+    depends_on:
+      - mysql
+      - postgres
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8083:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - "8084:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=root
+      - ME_CONFIG_MONGODB_URL=mongodb://root:root@mongodb:27017/
+      - ME_CONFIG_BASICAUTH=false
+    depends_on:
+      - mongodb
+
+  retail-proxy:
+    image: nginx:alpine
+    ports:
+      - "8090:80"
+    volumes:
+      - ./nginx/retail-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+      - kind
+
+networks:
+  kind:
+    external: true
+
+volumes:
+  localstack-data:
+  mysql-data:
+  postgres-data:
+  redis-data:
+  mongo-data:

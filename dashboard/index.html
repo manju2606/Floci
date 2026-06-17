@@ -78,8 +78,26 @@
     .card-icon.eks    { background: #fff8e6; }
     .card-icon.ec2    { background: #fef9e7; }
     .card-icon.ecr    { background: #fce8e8; }
+    .card-icon.mysql  { background: #e8f4fd; }
+    .card-icon.pg     { background: #eef2ff; }
+    .card-icon.redis  { background: #fdecea; }
+    .card-icon.mongo  { background: #eafaf1; }
 
     .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: #0073bb; }
+
+    .section-hd {
+      display: flex; align-items: center; gap: 12px;
+      margin: 40px 0 20px;
+    }
+    .section-hd h2 { margin: 0; }
+    .section-hd .folder-icon {
+      width: 32px; height: 32px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .section-divider {
+      flex: 1; height: 1px; background: var(--border);
+    }
     .card p  { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 
     .card .endpoint {
@@ -115,7 +133,12 @@
 </div>
 
 <main>
-  <h2>Services</h2>
+
+  <div class="section-hd">
+    <div class="folder-icon" style="background:#fff8e6;">&#9729;</div>
+    <h2>AWS Services</h2>
+    <div class="section-divider"></div>
+  </div>
   <div class="grid">
 
     <div class="card" onclick="location.href='s3.html'">
@@ -124,22 +147,6 @@
       <p>Simple Storage Service — browse buckets, upload and download objects.</p>
       <div class="endpoint">localhost:4566</div>
       <a class="open-btn" href="s3.html">Open S3 Console</a>
-    </div>
-
-    <div class="card" onclick="location.href='dynamodb.html'">
-      <div class="card-icon dynamo">&#x1F5C3;</div>
-      <h3>Amazon DynamoDB</h3>
-      <p>NoSQL database — create tables, add items, run queries and scans.</p>
-      <div class="endpoint">localhost:4566</div>
-      <a class="open-btn" href="dynamodb.html">Open DynamoDB Console</a>
-    </div>
-
-    <div class="card" onclick="location.href='kubernetes.html'">
-      <div class="card-icon k8s">&#9096;</div>
-      <h3>Kubernetes</h3>
-      <p>Container orchestration — manage clusters, deployments, services, and pods.</p>
-      <div class="endpoint">kubectl</div>
-      <a class="open-btn" href="kubernetes.html">Open K8s Page</a>
     </div>
 
     <div class="card" onclick="location.href='sqs.html'">
@@ -190,7 +197,66 @@
       <a class="open-btn" href="ecr.html">Open ECR Console</a>
     </div>
 
+    <div class="card" onclick="location.href='kubernetes.html'">
+      <div class="card-icon k8s">&#9096;</div>
+      <h3>Kubernetes</h3>
+      <p>Container orchestration — manage clusters, deployments, services, and pods.</p>
+      <div class="endpoint">kubectl</div>
+      <a class="open-btn" href="kubernetes.html">Open K8s Page</a>
+    </div>
+
   </div>
+
+  <!-- ── Data Section ─────────────────────────────────────────────────────── -->
+  <div class="section-hd">
+    <div class="folder-icon" style="background:#fdf3e3;">&#128452;</div>
+    <h2>Data</h2>
+    <div class="section-divider"></div>
+  </div>
+  <div class="grid">
+
+    <div class="card" onclick="location.href='dynamodb.html'">
+      <div class="card-icon dynamo">&#x1F5C3;</div>
+      <h3>Amazon DynamoDB</h3>
+      <p>NoSQL key-value &amp; document database — create tables, add items, run queries and scans.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="dynamodb.html">Open DynamoDB Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='mysql.html'">
+      <div class="card-icon mysql">&#x1F42C;</div>
+      <h3>MySQL</h3>
+      <p>Relational database — manage schemas, run queries, browse tables and connections.</p>
+      <div class="endpoint">localhost:3307 &nbsp;&bull;&nbsp; admin: localhost:8082</div>
+      <a class="open-btn" href="mysql.html">Open MySQL Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='postgres.html'">
+      <div class="card-icon pg">&#x1F418;</div>
+      <h3>PostgreSQL</h3>
+      <p>Advanced open-source relational database — schemas, extensions, and full SQL support.</p>
+      <div class="endpoint">localhost:5433 &nbsp;&bull;&nbsp; admin: localhost:8082</div>
+      <a class="open-btn" href="postgres.html">Open PostgreSQL Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='redis.html'">
+      <div class="card-icon redis">&#x1F525;</div>
+      <h3>Redis</h3>
+      <p>In-memory data store — keys, strings, lists, hashes, sets, sorted sets, pub/sub.</p>
+      <div class="endpoint">localhost:6380 &nbsp;&bull;&nbsp; admin: localhost:8083</div>
+      <a class="open-btn" href="redis.html">Open Redis Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='mongodb.html'">
+      <div class="card-icon mongo">&#x1F333;</div>
+      <h3>MongoDB</h3>
+      <p>Document database — collections, BSON documents, aggregations, and indexes.</p>
+      <div class="endpoint">localhost:27017 &nbsp;&bull;&nbsp; admin: localhost:8084</div>
+      <a class="open-btn" href="mongodb.html">Open MongoDB Console</a>
+    </div>
+
+  </div>
+
 </main>
 
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
