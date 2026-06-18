@@ -1,0 +1,17 @@
+app:
+  theme: green # Other options: orange, default, green, teal
+  endpoints:
+    catalog: http://catalog.default.svc.cluster.local:80
+    carts: http://cart-carts.default.svc.cluster.local:80
+    checkout: http://checkout.default.svc.cluster.local:80
+    orders: http://orders.default.svc.cluster.local:80
+
+# Ingress for load balancer
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+  tls: []
+  hosts: []
