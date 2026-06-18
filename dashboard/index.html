@@ -78,11 +78,15 @@
     .card-icon.eks    { background: #fff8e6; }
     .card-icon.ec2    { background: #fef9e7; }
     .card-icon.ecr    { background: #fce8e8; }
+    .card-icon.iam    { background: #fdecea; }
     .card-icon.mysql  { background: #e8f4fd; }
     .card-icon.pg     { background: #eef2ff; }
     .card-icon.redis  { background: #fdecea; }
     .card-icon.mongo  { background: #eafaf1; }
     .card-icon.retail { background: #fff3e0; }
+    .card-icon.sm     { background: #f3e8fd; }
+    .card-icon.kms    { background: #fdf8e8; }
+    .card-icon.sns    { background: #fff0e8; }
 
     .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: #0073bb; }
 
@@ -206,6 +210,38 @@
       <a class="open-btn" href="kubernetes.html">Open K8s Page</a>
     </div>
 
+    <div class="card" onclick="location.href='iam.html'">
+      <div class="card-icon iam">&#x1F510;</div>
+      <h3>AWS IAM</h3>
+      <p>Identity and Access Management — users, roles, policies, and groups.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="iam.html">Open IAM Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='secrets-manager.html'">
+      <div class="card-icon sm">&#128273;</div>
+      <h3>AWS Secrets Manager</h3>
+      <p>Store, rotate, and retrieve secrets — database credentials, API keys, and OAuth tokens.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="secrets-manager.html">Open Secrets Manager</a>
+    </div>
+
+    <div class="card" onclick="location.href='kms.html'">
+      <div class="card-icon kms">&#128272;</div>
+      <h3>AWS KMS</h3>
+      <p>Key Management Service — create and manage cryptographic keys for encryption and signing.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="kms.html">Open KMS Console</a>
+    </div>
+
+    <div class="card" onclick="location.href='sns.html'">
+      <div class="card-icon sns">&#128276;</div>
+      <h3>Amazon SNS</h3>
+      <p>Simple Notification Service — pub/sub topics, fan-out messaging to SQS, HTTP, email, and Lambda.</p>
+      <div class="endpoint">localhost:4566</div>
+      <a class="open-btn" href="sns.html">Open SNS Console</a>
+    </div>
+
   </div>
 
   <!-- ── Data Section ─────────────────────────────────────────────────────── -->
@@ -228,7 +264,7 @@
       <div class="card-icon mysql">&#x1F42C;</div>
       <h3>MySQL</h3>
       <p>Relational database — manage schemas, run queries, browse tables and connections.</p>
-      <div class="endpoint">localhost:3307 &nbsp;&bull;&nbsp; admin: localhost:8082</div>
+      <div class="endpoint">localhost:3307 &nbsp;&bull;&nbsp; admin: localhost:8085</div>
       <a class="open-btn" href="mysql.html">Open MySQL Console</a>
     </div>
 
@@ -236,7 +272,7 @@
       <div class="card-icon pg">&#x1F418;</div>
       <h3>PostgreSQL</h3>
       <p>Advanced open-source relational database — schemas, extensions, and full SQL support.</p>
-      <div class="endpoint">localhost:5433 &nbsp;&bull;&nbsp; admin: localhost:8082</div>
+      <div class="endpoint">localhost:5433 &nbsp;&bull;&nbsp; admin: localhost:8085</div>
       <a class="open-btn" href="postgres.html">Open PostgreSQL Console</a>
     </div>
 

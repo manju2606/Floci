@@ -7,89 +7,87 @@
   <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
   <style>
     :root {
-      --bg: #f2f3f3; --card-bg: #fff; --border: #d5dbdb;
-      --text-primary: #16191f; --text-secondary: #687078;
-      --info-bg: #fdf3e3; --info-border: #f5cba7; --info-text: #16191f;
+      --bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;
+      --text-primary:#16191f;--text-secondary:#687078;
+      --info-bg:#fdf3e3;--info-border:#f5cba7;
+      --table-hover:#f8f9fa;--badge-bg:#eaf3fb;--badge-color:#0073bb;
     }
     [data-theme="dark"] {
-      --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
-      --text-primary: #e6edf3; --text-secondary: #8b949e;
-      --info-bg: #1c1a0f; --info-border: #7a5c1e; --info-text: #e6edf3;
+      --bg:#0d1117;--card-bg:#161b22;--border:#30363d;
+      --text-primary:#e6edf3;--text-secondary:#8b949e;
+      --info-bg:#1c1a0f;--info-border:#7a5c1e;
+      --table-hover:#1c2128;--badge-bg:#1a3a5c;--badge-color:#79b8ff;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: "Amazon Ember", "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg); color: var(--text-primary);
-      min-height: 100vh; transition: background .2s, color .2s;
-    }
-
-    header {
-      background: #232f3e; padding: 12px 32px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    header .logo { font-size: 22px; font-weight: 700; color: #ff9900; letter-spacing: 1px; }
-    header .subtitle { font-size: 13px; color: #aab7b8; margin-top: 2px; }
-    header .right { display: flex; align-items: center; gap: 10px; }
-    header a.back {
-      font-size: 13px; color: #aab7b8; text-decoration: none;
-      border: 1px solid #4a5568; padding: 5px 14px; border-radius: 3px;
-    }
-    header a.back:hover { color: #fff; border-color: #fff; }
-    .theme-btn {
-      background: none; border: 1px solid #4a5568; color: #aab7b8;
-      padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 16px; line-height: 1;
-    }
-    .theme-btn:hover { border-color: #fff; color: #fff; }
-
-    .hero {
-      background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
-      padding: 40px 32px; display: flex; align-items: center; gap: 24px;
-    }
-    .hero-icon {
-      font-size: 36px; background: #ff9900;
-      width: 80px; height: 80px; border-radius: 16px;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .hero h1 { font-size: 26px; font-weight: 700; color: #fff; }
-    .hero p  { font-size: 14px; color: #aab7b8; margin-top: 6px; line-height: 1.6; }
-
-    .banner { background: #1a2332; color: #aab7b8; font-size: 12px; text-align: center; padding: 6px; }
-    .banner span { color: #ff9900; font-weight: 600; }
-
-    main { max-width: 1000px; margin: 40px auto; padding: 0 24px; }
-
-    .section { margin-bottom: 36px; }
-    .section h2 {
-      font-size: 17px; font-weight: 600; color: var(--text-primary);
-      margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border);
-    }
-
-    .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
-
-    .cmd-card {
-      background: var(--card-bg); border: 1px solid var(--border);
-      border-radius: 4px; padding: 16px 18px; transition: background .2s;
-    }
-    .cmd-card h4 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-    .cmd-card code {
-      display: block; font-family: "Courier New", monospace; font-size: 11.5px;
-      background: #1e2a3a; color: #a8d8a8; padding: 10px 12px; border-radius: 4px;
-      white-space: pre; overflow-x: auto; cursor: pointer; position: relative;
-    }
-    .cmd-card code:hover::after {
-      content: "Copy"; position: absolute; top: 6px; right: 8px;
-      font-size: 10px; background: #ff9900; color: #fff; padding: 2px 6px; border-radius: 3px;
-    }
-
-    .info-box {
-      background: var(--info-bg); border: 1px solid var(--info-border);
-      border-left: 4px solid #ff9900; border-radius: 4px;
-      padding: 14px 18px; font-size: 13px; color: var(--info-text); line-height: 1.6;
-    }
-
-    footer { text-align: center; padding: 32px; font-size: 12px; color: #aab7b8; }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;transition:background .2s,color .2s;}
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+    header .logo{font-size:22px;font-weight:700;color:#ff9900;letter-spacing:1px;}
+    header .subtitle{font-size:13px;color:#aab7b8;margin-top:2px;}
+    header .right{display:flex;align-items:center;gap:10px;}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px;}
+    header a.back:hover{color:#fff;border-color:#fff;}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;line-height:1;}
+    .theme-btn:hover{border-color:#fff;color:#fff;}
+    .hero{background:linear-gradient(135deg,#1a2332 0%,#2d3a4a 100%);padding:40px 32px;display:flex;align-items:center;gap:24px;}
+    .hero-icon{font-size:36px;background:#ff9900;width:80px;height:80px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .hero h1{font-size:26px;font-weight:700;color:#fff;}
+    .hero p{font-size:14px;color:#aab7b8;margin-top:6px;line-height:1.6;}
+    .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px;}
+    .banner span{color:#ff9900;font-weight:600;}
+    main{max-width:1100px;margin:32px auto;padding:0 24px;}
+    .stats-bar{display:flex;gap:16px;margin-bottom:28px;}
+    .stat{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:16px 20px;flex:1;text-align:center;}
+    .stat .val{font-size:28px;font-weight:700;color:#ff9900;}
+    .stat .lbl{font-size:12px;color:var(--text-secondary);margin-top:4px;}
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+    .toolbar input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text-primary);font-size:13px;}
+    .btn{padding:8px 16px;border-radius:4px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
+    .btn-primary{background:#ff9900;color:#fff;}
+    .btn-primary:hover{background:#e88900;}
+    .btn-secondary{background:var(--card-bg);color:var(--text-primary);border:1px solid var(--border);}
+    .btn-secondary:hover{background:var(--table-hover);}
+    .btn-danger{background:#d13212;color:#fff;}
+    .btn-danger:hover{background:#b02a0f;}
+    .btn-sm{padding:4px 10px;font-size:12px;}
+    .card{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:28px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:var(--table-hover);font-size:12px;font-weight:600;color:var(--text-secondary);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+    td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:var(--table-hover);}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+    .badge-std{background:#e8f5e9;color:#1b7a3b;}
+    .badge-fifo{background:#e8eaf6;color:#3949ab;}
+    [data-theme="dark"] .badge-std{background:#0d2818;color:#56d364;}
+    [data-theme="dark"] .badge-fifo{background:#1a1e3a;color:#7986cb;}
+    .mono{font-family:"Courier New",monospace;font-size:11.5px;}
+    .num{font-weight:700;color:#ff9900;}
+    .empty{text-align:center;padding:40px;color:var(--text-secondary);}
+    .actions{display:flex;gap:6px;flex-wrap:wrap;}
+    /* Messages panel (inline expansion) */
+    .msgs-row td{padding:0;}
+    .msgs-panel{background:var(--info-bg);border-top:1px solid var(--border);padding:16px 18px;}
+    .msgs-panel h4{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text-primary);}
+    .msg-item{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:10px 14px;margin-bottom:8px;position:relative;}
+    .msg-id{font-size:11px;color:var(--text-secondary);margin-bottom:4px;}
+    .msg-body{font-size:13px;word-break:break-all;white-space:pre-wrap;}
+    .msg-del{position:absolute;top:8px;right:8px;}
+    /* Modal */
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;}
+    .overlay.open{display:flex;}
+    .modal{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:28px;width:500px;max-width:96vw;max-height:90vh;overflow-y:auto;}
+    .modal h3{font-size:17px;font-weight:700;margin-bottom:20px;color:var(--text-primary);}
+    .field{margin-bottom:16px;}
+    .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text-primary);}
+    .field input,.field textarea,.field select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text-primary);font-size:13px;}
+    .field textarea{resize:vertical;min-height:80px;font-family:"Courier New",monospace;}
+    .field .hint{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+    .field-row{display:flex;gap:12px;}
+    .field-row .field{flex:1;}
+    .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+    .checkbox-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+    .checkbox-row input[type=checkbox]{width:auto;}
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8;}
   </style>
 </head>
 <body>
@@ -110,131 +108,346 @@
   <div>
     <h1>Amazon SQS</h1>
     <p>Simple Queue Service — decouple and scale microservices using message queues.<br/>
-       Supports standard queues and FIFO queues with exactly-once processing.</p>
+       Send, receive, and manage messages across Standard and FIFO queues.</p>
   </div>
 </div>
 
 <div class="banner">
   Endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
   Region: <span>us-east-1</span> &nbsp;|&nbsp;
-  Access Key: <span>test</span>
+  Account: <span>000000000000</span>
 </div>
 
 <main>
 
-  <div class="section">
-    <h2>Queue Management</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>Create standard queue</h4>
-        <code onclick="copyCmd(this)">aws sqs create-queue \
-  --queue-name my-queue \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Create FIFO queue</h4>
-        <code onclick="copyCmd(this)">aws sqs create-queue \
-  --queue-name my-queue.fifo \
-  --attributes FifoQueue=true \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>List queues</h4>
-        <code onclick="copyCmd(this)">aws sqs list-queues \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Get queue URL</h4>
-        <code onclick="copyCmd(this)">aws sqs get-queue-url \
-  --queue-name my-queue \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Get queue attributes</h4>
-        <code onclick="copyCmd(this)">aws sqs get-queue-attributes \
-  --queue-url &lt;queue-url&gt; \
-  --attribute-names All \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Delete queue</h4>
-        <code onclick="copyCmd(this)">aws sqs delete-queue \
-  --queue-url &lt;queue-url&gt; \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-    </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="val" id="stat-total">—</div><div class="lbl">Total Queues</div></div>
+    <div class="stat"><div class="val" id="stat-std">—</div><div class="lbl">Standard</div></div>
+    <div class="stat"><div class="val" id="stat-fifo">—</div><div class="lbl">FIFO</div></div>
+    <div class="stat"><div class="val" id="stat-msgs">—</div><div class="lbl">Total Messages</div></div>
   </div>
 
-  <div class="section">
-    <h2>Messages</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>Send message</h4>
-        <code onclick="copyCmd(this)">aws sqs send-message \
-  --queue-url &lt;queue-url&gt; \
-  --message-body "Hello from SQS" \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Receive message</h4>
-        <code onclick="copyCmd(this)">aws sqs receive-message \
-  --queue-url &lt;queue-url&gt; \
-  --max-number-of-messages 10 \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Delete message</h4>
-        <code onclick="copyCmd(this)">aws sqs delete-message \
-  --queue-url &lt;queue-url&gt; \
-  --receipt-handle &lt;handle&gt; \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Purge all messages</h4>
-        <code onclick="copyCmd(this)">aws sqs purge-queue \
-  --queue-url &lt;queue-url&gt; \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-    </div>
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="Filter queues..." oninput="renderQueues()" />
+    <button class="btn btn-secondary" onclick="loadQueues()">&#8635; Refresh</button>
+    <button class="btn btn-primary" onclick="openCreate()">+ Create Queue</button>
   </div>
 
-  <div class="section">
-    <h2>Dead Letter Queue</h2>
-    <div class="cmd-grid">
-      <div class="cmd-card">
-        <h4>Create DLQ</h4>
-        <code onclick="copyCmd(this)">aws sqs create-queue \
-  --queue-name my-queue-dlq \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-      <div class="cmd-card">
-        <h4>Attach DLQ to queue</h4>
-        <code onclick="copyCmd(this)">aws sqs set-queue-attributes \
-  --queue-url &lt;queue-url&gt; \
-  --attributes '{
-    "RedrivePolicy": "{
-      \"deadLetterTargetArn\":\"&lt;dlq-arn&gt;\",
-      \"maxReceiveCount\":\"3\"}"
-  }' \
-  --endpoint-url http://localhost:4566</code>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="info-box">
-      <strong>Floci SQS endpoint:</strong> <code style="background:transparent;padding:0">http://localhost:4566</code><br/>
-      Queue URLs follow the pattern:
-      <code style="background:transparent;padding:0">http://localhost:4566/000000000000/&lt;queue-name&gt;</code>
-    </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Queue Name</th>
+          <th>Type</th>
+          <th>Messages Available</th>
+          <th>In Flight</th>
+          <th>ARN</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="queues-tbody">
+        <tr><td colspan="6" class="empty">Loading queues…</td></tr>
+      </tbody>
+    </table>
   </div>
 
 </main>
 
+<!-- Create Queue Modal -->
+<div class="overlay" id="modal-create">
+  <div class="modal">
+    <h3>&#128232; Create Queue</h3>
+    <div class="field">
+      <label>Queue Name</label>
+      <input id="c-name" type="text" placeholder="my-queue" />
+      <div class="hint">FIFO queues must end in .fifo (added automatically if checked below)</div>
+    </div>
+    <div class="field">
+      <div class="checkbox-row">
+        <input type="checkbox" id="c-fifo" onchange="toggleFifoHint()" />
+        <label for="c-fifo">FIFO Queue (exactly-once, ordered delivery)</label>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Visibility Timeout (s)</label>
+        <input id="c-vis" type="number" placeholder="30" min="0" max="43200" />
+      </div>
+      <div class="field">
+        <label>Message Retention (s)</label>
+        <input id="c-ret" type="number" placeholder="345600" min="60" max="1209600" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create')">Cancel</button>
+      <button class="btn btn-primary" onclick="createQueue()">Create Queue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Message Modal -->
+<div class="overlay" id="modal-send">
+  <div class="modal">
+    <h3>&#128228; Send Message</h3>
+    <div id="send-queue-name" style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;word-break:break-all;"></div>
+    <div class="field">
+      <label>Message Body</label>
+      <textarea id="s-body" placeholder='{"orderId":"123","status":"pending"}'></textarea>
+    </div>
+    <div class="field">
+      <label>Delay (seconds)</label>
+      <input id="s-delay" type="number" placeholder="0" min="0" max="900" />
+    </div>
+    <div id="fifo-fields" style="display:none;">
+      <div class="field">
+        <label>Message Group ID <span style="color:#687078">(FIFO required)</span></label>
+        <input id="s-groupid" type="text" placeholder="default-group" />
+      </div>
+      <div class="field">
+        <label>Message Deduplication ID <span style="color:#687078">(optional)</span></label>
+        <input id="s-dedupid" type="text" placeholder="leave blank to auto-generate" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-send')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendMessage()">Send Message</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="overlay" id="modal-delete">
+  <div class="modal">
+    <h3>&#9888;&#65039; Delete Queue</h3>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:16px;">
+      This will permanently delete the queue and all its messages.<br/>
+      Queue: <strong id="del-queue-name"></strong>
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete')">Cancel</button>
+      <button class="btn btn-danger" onclick="deleteQueue()">Delete Queue</button>
+    </div>
+  </div>
+</div>
+
 <footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
 
 <script>
-function copyCmd(el) { navigator.clipboard.writeText(el.innerText).catch(() => {}); }
+const API = '/api';
+let allQueues = [];
+let activeQueue = null;
+let expandedQueue = null;
+
+async function loadQueues() {
+  document.getElementById('queues-tbody').innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  try {
+    const r = await fetch(`${API}/sqs/queues`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    allQueues = d.queues || [];
+    updateStats();
+    renderQueues();
+  } catch(e) {
+    document.getElementById('queues-tbody').innerHTML = `<tr><td colspan="6" class="empty" style="color:#d13212">${e.message}</td></tr>`;
+  }
+}
+
+function updateStats() {
+  const std  = allQueues.filter(q => !q.fifo).length;
+  const fifo = allQueues.filter(q =>  q.fifo).length;
+  const msgs = allQueues.reduce((s, q) => s + (q.messages || 0), 0);
+  document.getElementById('stat-total').textContent = allQueues.length;
+  document.getElementById('stat-std').textContent   = std;
+  document.getElementById('stat-fifo').textContent  = fifo;
+  document.getElementById('stat-msgs').textContent  = msgs;
+}
+
+function renderQueues() {
+  const filter = document.getElementById('search').value.toLowerCase();
+  const rows = allQueues.filter(q => q.name.toLowerCase().includes(filter));
+  const tbody = document.getElementById('queues-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No queues found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(q => `
+    <tr id="row-${q.name}">
+      <td><strong>${q.name}</strong></td>
+      <td><span class="badge ${q.fifo ? 'badge-fifo' : 'badge-std'}">${q.fifo ? 'FIFO' : 'Standard'}</span></td>
+      <td><span class="num">${q.messages}</span></td>
+      <td><span class="num">${q.messagesNotVisible}</span></td>
+      <td class="mono" style="font-size:10.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${q.arn}">${q.arn || '—'}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-secondary btn-sm" onclick="openSend('${encodeURIComponent(q.url)}','${q.name}',${q.fifo})">Send</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleMessages('${encodeURIComponent(q.url)}','${q.name}')">Messages</button>
+          <button class="btn btn-secondary btn-sm" onclick="purgeQueue('${encodeURIComponent(q.url)}','${q.name}')">Purge</button>
+          <button class="btn btn-danger btn-sm" onclick="openDelete('${encodeURIComponent(q.url)}','${q.name}')">Delete</button>
+        </div>
+      </td>
+    </tr>
+    <tr class="msgs-row" id="msgs-row-${q.name}" style="display:none;">
+      <td colspan="6"><div class="msgs-panel" id="msgs-panel-${q.name}"></div></td>
+    </tr>
+  `).join('');
+}
+
+// ── Messages panel ──────────────────────────────────────────────────────────
+async function toggleMessages(encodedUrl, name) {
+  const row = document.getElementById(`msgs-row-${name}`);
+  if (row.style.display !== 'none') { row.style.display = 'none'; expandedQueue = null; return; }
+  expandedQueue = name;
+  row.style.display = '';
+  await refreshMessages(encodedUrl, name);
+}
+
+async function refreshMessages(encodedUrl, name) {
+  const panel = document.getElementById(`msgs-panel-${name}`);
+  panel.innerHTML = '<h4>&#128241; Messages (peek — visibility timeout 30s)</h4><p style="font-size:13px;color:var(--text-secondary)">Loading…</p>';
+  const url = decodeURIComponent(encodedUrl);
+  try {
+    const r = await fetch(`${API}/sqs/queue/messages?queueUrl=${encodedUrl}&maxMessages=10`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const msgs = d.messages || [];
+    if (!msgs.length) {
+      panel.innerHTML = `<h4>&#128241; Messages</h4><p style="font-size:13px;color:var(--text-secondary)">Queue is empty.</p>`;
+      return;
+    }
+    panel.innerHTML = `<h4>&#128241; Messages (${msgs.length} retrieved)</h4>` +
+      msgs.map(m => `
+        <div class="msg-item">
+          <div class="msg-id">ID: ${m.MessageId} &nbsp;|&nbsp; Sent: ${m.Attributes?.SentTimestamp ? new Date(parseInt(m.Attributes.SentTimestamp)).toLocaleString() : '—'}</div>
+          <div class="msg-body">${escHtml(m.Body)}</div>
+          <button class="btn btn-danger btn-sm msg-del" onclick="deleteMsg('${encodeURIComponent(url)}','${encodeURIComponent(m.ReceiptHandle)}','${name}','${encodeURIComponent(encodedUrl)}')">Delete</button>
+        </div>
+      `).join('');
+  } catch(e) {
+    panel.innerHTML = `<h4>&#128241; Messages</h4><p style="color:#d13212;font-size:13px;">${e.message}</p>`;
+  }
+}
+
+async function deleteMsg(encodedUrl, encodedHandle, name, reloadUrl) {
+  try {
+    const r = await fetch(`${API}/sqs/queue/message`, {
+      method: 'DELETE',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ queueUrl: decodeURIComponent(encodedUrl), receiptHandle: decodeURIComponent(encodedHandle) })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    await refreshMessages(reloadUrl, name);
+    await loadQueues();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Create ───────────────────────────────────────────────────────────────────
+function openCreate() {
+  document.getElementById('c-name').value = '';
+  document.getElementById('c-fifo').checked = false;
+  document.getElementById('c-vis').value = '';
+  document.getElementById('c-ret').value = '';
+  openModal('modal-create');
+}
+
+async function createQueue() {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) { alert('Queue name is required'); return; }
+  const fifo = document.getElementById('c-fifo').checked;
+  const vis  = document.getElementById('c-vis').value;
+  const ret  = document.getElementById('c-ret').value;
+  try {
+    const r = await fetch(`${API}/sqs/queues/create`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, fifo, visibilityTimeout: vis || undefined, messageRetention: ret || undefined })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('modal-create');
+    await loadQueues();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Send ─────────────────────────────────────────────────────────────────────
+function openSend(encodedUrl, name, isFifo) {
+  activeQueue = { url: decodeURIComponent(encodedUrl), name, fifo: isFifo };
+  document.getElementById('send-queue-name').textContent = 'Queue: ' + name;
+  document.getElementById('s-body').value = '';
+  document.getElementById('s-delay').value = '';
+  document.getElementById('s-groupid').value = '';
+  document.getElementById('s-dedupid').value = '';
+  document.getElementById('fifo-fields').style.display = isFifo ? '' : 'none';
+  openModal('modal-send');
+}
+
+async function sendMessage() {
+  const body = document.getElementById('s-body').value.trim();
+  if (!body) { alert('Message body is required'); return; }
+  const delay   = document.getElementById('s-delay').value;
+  const groupId = document.getElementById('s-groupid').value.trim();
+  const dedupId = document.getElementById('s-dedupid').value.trim();
+  try {
+    const r = await fetch(`${API}/sqs/queue/send`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        queueUrl: activeQueue.url,
+        messageBody: body,
+        delaySeconds: delay || undefined,
+        messageGroupId: groupId || undefined,
+        messageDeduplicationId: dedupId || undefined
+      })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('modal-send');
+    await loadQueues();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Purge ─────────────────────────────────────────────────────────────────────
+async function purgeQueue(encodedUrl, name) {
+  if (!confirm(`Purge ALL messages from "${name}"?`)) return;
+  try {
+    const r = await fetch(`${API}/sqs/queue/purge`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ queueUrl: decodeURIComponent(encodedUrl) })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    await loadQueues();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+function openDelete(encodedUrl, name) {
+  activeQueue = { url: decodeURIComponent(encodedUrl), name };
+  document.getElementById('del-queue-name').textContent = name;
+  openModal('modal-delete');
+}
+
+async function deleteQueue() {
+  try {
+    const r = await fetch(`${API}/sqs/queue`, {
+      method: 'DELETE',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ queueUrl: activeQueue.url })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('modal-delete');
+    await loadQueues();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toggleFifoHint() {}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
 
 function toggleTheme() {
   const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -242,8 +455,9 @@ function toggleTheme() {
   localStorage.setItem('floci-theme', next);
   document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
 }
-document.getElementById('theme-btn').textContent =
-  document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+document.getElementById('theme-btn').textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+loadQueues();
 </script>
 
 </body>

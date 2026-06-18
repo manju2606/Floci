@@ -20,6 +20,27 @@ const { ECRClient,
         DescribeImagesCommand: ECRDescribeImagesCommand,
         ListImagesCommand,
         GetAuthorizationTokenCommand } = require('@aws-sdk/client-ecr');
+const { IAMClient,
+        ListUsersCommand, ListRolesCommand, ListGroupsCommand,
+        ListPoliciesCommand, ListAttachedUserPoliciesCommand,
+        ListAttachedRolePoliciesCommand, ListGroupsForUserCommand } = require('@aws-sdk/client-iam');
+const { SecretsManagerClient, ListSecretsCommand, GetSecretValueCommand,
+        DescribeSecretCommand, CreateSecretCommand,
+        DeleteSecretCommand, UpdateSecretCommand } = require('@aws-sdk/client-secrets-manager');
+const { KMSClient, ListKeysCommand, DescribeKeyCommand, ListAliasesCommand,
+        CreateKeyCommand, ScheduleKeyDeletionCommand,
+        EnableKeyCommand, DisableKeyCommand,
+        EncryptCommand: KMSEncryptCommand,
+        DecryptCommand: KMSDecryptCommand } = require('@aws-sdk/client-kms');
+const { SQSClient, ListQueuesCommand, GetQueueAttributesCommand,
+        CreateQueueCommand, DeleteQueueCommand,
+        SendMessageCommand, ReceiveMessageCommand,
+        DeleteMessageCommand, PurgeQueueCommand } = require('@aws-sdk/client-sqs');
+const { SNSClient, ListTopicsCommand, GetTopicAttributesCommand,
+        CreateTopicCommand, DeleteTopicCommand,
+        PublishCommand: SNSPublishCommand, SubscribeCommand,
+        ListSubscriptionsByTopicCommand, UnsubscribeCommand,
+        ListSubscriptionsCommand } = require('@aws-sdk/client-sns');
 
 const FLOCI_ENDPOINT = process.env.FLOCI_ENDPOINT || 'http://floci:4566';
 const AWS_CREDS = { region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
@@ -28,6 +49,11 @@ const s3     = new S3Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT, forcePathS
 const dynamo = new DynamoDBClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 const elb    = new ElasticLoadBalancingV2Client({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 const ecr    = new ECRClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const iam    = new IAMClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const sm     = new SecretsManagerClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const kms    = new KMSClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const sns    = new SNSClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
+const sqs    = new SQSClient({ ...AWS_CREDS, endpoint: FLOCI_ENDPOINT });
 
 const app  = express();
 const PORT = 3000;
@@ -1587,6 +1613,106 @@ app.get('/api/ecr/auth-token', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── IAM routes ────────────────────────────────────────────────────────────────
+app.get('/api/iam/summary', async (req, res) => {
+  try {
+    const [users, roles, policies, groups] = await Promise.all([
+      iam.send(new ListUsersCommand({})).catch(() => ({ Users: [] })),
+      iam.send(new ListRolesCommand({})).catch(() => ({ Roles: [] })),
+      iam.send(new ListPoliciesCommand({ Scope: 'Local' })).catch(() => ({ Policies: [] })),
+      iam.send(new ListGroupsCommand({})).catch(() => ({ Groups: [] })),
+    ]);
+    res.json({
+      users:    (users.Users    || []).length,
+      roles:    (roles.Roles    || []).length,
+      policies: (policies.Policies || []).length,
+      groups:   (groups.Groups  || []).length,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/iam/users', async (req, res) => {
+  try {
+    const data = await iam.send(new ListUsersCommand({}));
+    const users = await Promise.all((data.Users || []).map(async u => {
+      let policies = [];
+      let groups = [];
+      try {
+        const ap = await iam.send(new ListAttachedUserPoliciesCommand({ UserName: u.UserName }));
+        policies = (ap.AttachedPolicies || []).map(p => p.PolicyName);
+      } catch(_) {}
+      try {
+        const grp = await iam.send(new ListGroupsForUserCommand({ UserName: u.UserName }));
+        groups = (grp.Groups || []).map(g => g.GroupName);
+      } catch(_) {}
+      return {
+        userId:     u.UserId,
+        userName:   u.UserName,
+        arn:        u.Arn,
+        created:    u.CreateDate,
+        path:       u.Path,
+        policies,
+        groups,
+      };
+    }));
+    res.json(users);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/iam/roles', async (req, res) => {
+  try {
+    const data = await iam.send(new ListRolesCommand({}));
+    const roles = await Promise.all((data.Roles || []).map(async r => {
+      let policies = [];
+      try {
+        const ap = await iam.send(new ListAttachedRolePoliciesCommand({ RoleName: r.RoleName }));
+        policies = (ap.AttachedPolicies || []).map(p => p.PolicyName);
+      } catch(_) {}
+      return {
+        roleId:      r.RoleId,
+        roleName:    r.RoleName,
+        arn:         r.Arn,
+        created:     r.CreateDate,
+        path:        r.Path,
+        description: r.Description,
+        trustPolicy: r.AssumeRolePolicyDocument ? decodeURIComponent(r.AssumeRolePolicyDocument) : null,
+        policies,
+      };
+    }));
+    res.json(roles);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/iam/policies', async (req, res) => {
+  try {
+    const data = await iam.send(new ListPoliciesCommand({ Scope: 'Local' }));
+    const policies = (data.Policies || []).map(p => ({
+      policyId:   p.PolicyId,
+      policyName: p.PolicyName,
+      arn:        p.Arn,
+      created:    p.CreateDate,
+      updated:    p.UpdateDate,
+      attachCount: p.AttachmentCount,
+      description: p.Description,
+    }));
+    res.json(policies);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/iam/groups', async (req, res) => {
+  try {
+    const data = await iam.send(new ListGroupsCommand({}));
+    const groups = (data.Groups || []).map(g => ({
+      groupId:   g.GroupId,
+      groupName: g.GroupName,
+      arn:       g.Arn,
+      created:   g.CreateDate,
+      path:      g.Path,
+    }));
+    res.json(groups);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // S3 routes
 app.get('/api/s3/buckets', async (req, res) => {
   try {
@@ -2777,6 +2903,433 @@ app.get('/api/feasibility/stream', async (req, res) => {
   await pause(500);
   emit({ phase:'complete', status:'done', report });
   res.end();
+});
+
+// ── Secrets Manager routes ────────────────────────────────────────────────────
+
+app.get('/api/secrets/list', async (req, res) => {
+  try {
+    const data = await sm.send(new ListSecretsCommand({ MaxResults: 100 }));
+    const secrets = (data.SecretList || []).map(s => ({
+      arn:             s.ARN,
+      name:            s.Name,
+      description:     s.Description || '',
+      lastChanged:     s.LastChangedDate || null,
+      lastAccessed:    s.LastAccessedDate || null,
+      rotationEnabled: s.RotationEnabled || false,
+      rotationRules:   s.RotationRules || null,
+      tags:            (s.Tags || []).reduce((acc, t) => { acc[t.Key] = t.Value; return acc; }, {}),
+      kmsKeyId:        s.KmsKeyId || null,
+      deletedDate:     s.DeletedDate || null,
+    }));
+    res.json({ secrets, total: secrets.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/secrets/value/:name', async (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  try {
+    const [desc, val] = await Promise.all([
+      sm.send(new DescribeSecretCommand({ SecretId: name })).catch(() => null),
+      sm.send(new GetSecretValueCommand({ SecretId: name })).catch(e => ({ _error: e.message })),
+    ]);
+    const secret = {
+      arn:             desc?.ARN || name,
+      name:            desc?.Name || name,
+      description:     desc?.Description || '',
+      rotationEnabled: desc?.RotationEnabled || false,
+      lastChanged:     desc?.LastChangedDate || null,
+      lastAccessed:    desc?.LastAccessedDate || null,
+      tags:            (desc?.Tags || []).reduce((acc, t) => { acc[t.Key] = t.Value; return acc; }, {}),
+      kmsKeyId:        desc?.KmsKeyId || null,
+    };
+    if (val._error) {
+      secret.valueError = val._error;
+    } else {
+      secret.secretString = val.SecretString || null;
+      secret.secretBinary = val.SecretBinary ? '[binary]' : null;
+      secret.versionId    = val.VersionId || null;
+      secret.createdDate  = val.CreatedDate || null;
+      // Detect if value is JSON
+      if (secret.secretString) {
+        try { secret.parsedJson = JSON.parse(secret.secretString); } catch(_) {}
+      }
+    }
+    res.json(secret);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/secrets/create', async (req, res) => {
+  const { name, description, secretString, secretBinary, tags } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!secretString && !secretBinary) return res.status(400).json({ error: 'secretString or secretBinary is required' });
+  try {
+    const params = { Name: name };
+    if (description)  params.Description  = description;
+    if (secretString) params.SecretString = secretString;
+    if (secretBinary) params.SecretBinary = secretBinary;
+    if (tags && Object.keys(tags).length)
+      params.Tags = Object.entries(tags).map(([Key, Value]) => ({ Key, Value }));
+    const data = await sm.send(new CreateSecretCommand(params));
+    res.json({ arn: data.ARN, name: data.Name, versionId: data.VersionId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/secrets/:name', async (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const { secretString, description } = req.body || {};
+  if (!secretString) return res.status(400).json({ error: 'secretString is required' });
+  try {
+    const params = { SecretId: name, SecretString: secretString };
+    if (description) params.Description = description;
+    const data = await sm.send(new UpdateSecretCommand(params));
+    res.json({ arn: data.ARN, name: data.Name, versionId: data.VersionId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/secrets/:name', async (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const force = req.query.force === 'true';
+  try {
+    await sm.send(new DeleteSecretCommand({
+      SecretId: name,
+      ForceDeleteWithoutRecovery: force,
+    }));
+    res.json({ deleted: true, name });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── KMS routes ────────────────────────────────────────────────────────────────
+
+app.get('/api/kms/keys', async (req, res) => {
+  try {
+    const listData = await kms.send(new ListKeysCommand({ Limit: 100 }));
+    const keys = listData.Keys || [];
+
+    // Fetch aliases once
+    let aliasMap = {};
+    try {
+      const aliasData = await kms.send(new ListAliasesCommand({ Limit: 100 }));
+      for (const a of (aliasData.Aliases || [])) {
+        if (a.TargetKeyId) {
+          aliasMap[a.TargetKeyId] = aliasMap[a.TargetKeyId] || [];
+          aliasMap[a.TargetKeyId].push(a.AliasName);
+        }
+      }
+    } catch(_) {}
+
+    const described = await Promise.all(keys.map(async k => {
+      try {
+        const d = await kms.send(new DescribeKeyCommand({ KeyId: k.KeyId }));
+        const m = d.KeyMetadata || {};
+        return {
+          keyId:       m.KeyId,
+          arn:         m.Arn,
+          description: m.Description || '',
+          enabled:     m.Enabled,
+          keyState:    m.KeyState,
+          keyUsage:    m.KeyUsage,
+          keySpec:     m.KeySpec || m.CustomerMasterKeySpec,
+          origin:      m.Origin,
+          manager:     m.KeyManager,
+          createdAt:   m.CreationDate,
+          deletionDate: m.DeletionDate || null,
+          aliases:     aliasMap[m.KeyId] || [],
+        };
+      } catch(_) {
+        return { keyId: k.KeyId, arn: k.KeyArn, error: true };
+      }
+    }));
+    res.json({ keys: described, total: described.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kms/aliases', async (req, res) => {
+  try {
+    const data = await kms.send(new ListAliasesCommand({ Limit: 100 }));
+    res.json({ aliases: data.Aliases || [] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kms/keys/create', async (req, res) => {
+  const { description, keyUsage = 'ENCRYPT_DECRYPT', keySpec = 'SYMMETRIC_DEFAULT', tags } = req.body || {};
+  try {
+    const params = { KeyUsage: keyUsage, KeySpec: keySpec };
+    if (description) params.Description = description;
+    if (tags && Object.keys(tags).length)
+      params.Tags = Object.entries(tags).map(([TagKey, TagValue]) => ({ TagKey, TagValue }));
+    const data = await kms.send(new CreateKeyCommand(params));
+    const m = data.KeyMetadata || {};
+    res.json({ keyId: m.KeyId, arn: m.Arn, keyState: m.KeyState });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kms/key/:id/enable', async (req, res) => {
+  try {
+    await kms.send(new EnableKeyCommand({ KeyId: req.params.id }));
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kms/key/:id/disable', async (req, res) => {
+  try {
+    await kms.send(new DisableKeyCommand({ KeyId: req.params.id }));
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kms/key/:id/schedule-deletion', async (req, res) => {
+  const { pendingWindowInDays = 7 } = req.body || {};
+  try {
+    const data = await kms.send(new ScheduleKeyDeletionCommand({
+      KeyId: req.params.id, PendingWindowInDays: pendingWindowInDays,
+    }));
+    res.json({ keyId: data.KeyId, deletionDate: data.DeletionDate, keyState: data.KeyState });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kms/encrypt', async (req, res) => {
+  const { keyId, plaintext } = req.body || {};
+  if (!keyId || !plaintext) return res.status(400).json({ error: 'keyId and plaintext required' });
+  try {
+    const data = await kms.send(new KMSEncryptCommand({
+      KeyId: keyId,
+      Plaintext: Buffer.from(plaintext, 'utf8'),
+    }));
+    res.json({
+      keyId:      data.KeyId,
+      ciphertext: Buffer.from(data.CiphertextBlob).toString('base64'),
+      algorithm:  data.EncryptionAlgorithm,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kms/decrypt', async (req, res) => {
+  const { keyId, ciphertext } = req.body || {};
+  if (!ciphertext) return res.status(400).json({ error: 'ciphertext (base64) required' });
+  try {
+    const params = { CiphertextBlob: Buffer.from(ciphertext, 'base64') };
+    if (keyId) params.KeyId = keyId;
+    const data = await kms.send(new KMSDecryptCommand(params));
+    res.json({
+      keyId:     data.KeyId,
+      plaintext: Buffer.from(data.Plaintext).toString('utf8'),
+      algorithm: data.EncryptionAlgorithm,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── SNS routes ────────────────────────────────────────────────────────────────
+
+app.get('/api/sns/topics', async (req, res) => {
+  try {
+    const listData = await sns.send(new ListTopicsCommand({}));
+    const topics = listData.Topics || [];
+    const detailed = await Promise.all(topics.map(async t => {
+      try {
+        const attrs = await sns.send(new GetTopicAttributesCommand({ TopicArn: t.TopicArn }));
+        const a = attrs.Attributes || {};
+        const name = t.TopicArn.split(':').pop();
+        return {
+          arn:               t.TopicArn,
+          name,
+          displayName:       a.DisplayName || '',
+          subscriptions:     parseInt(a.SubscriptionsConfirmed || '0'),
+          pendingSubs:       parseInt(a.SubscriptionsPending || '0'),
+          deletedSubs:       parseInt(a.SubscriptionsDeleted || '0'),
+          owner:             a.Owner || '',
+          fifo:              name.endsWith('.fifo'),
+        };
+      } catch(_) {
+        const name = t.TopicArn.split(':').pop();
+        return { arn: t.TopicArn, name, error: true };
+      }
+    }));
+    res.json({ topics: detailed, total: detailed.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sns/topic/:arn/subscriptions', async (req, res) => {
+  const arn = decodeURIComponent(req.params.arn);
+  try {
+    const data = await sns.send(new ListSubscriptionsByTopicCommand({ TopicArn: arn }));
+    const subs = (data.Subscriptions || []).map(s => ({
+      arn:      s.SubscriptionArn,
+      protocol: s.Protocol,
+      endpoint: s.Endpoint,
+      owner:    s.Owner,
+      topicArn: s.TopicArn,
+    }));
+    res.json({ subscriptions: subs, total: subs.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sns/subscriptions', async (req, res) => {
+  try {
+    const data = await sns.send(new ListSubscriptionsCommand({}));
+    const subs = (data.Subscriptions || []).map(s => ({
+      arn:      s.SubscriptionArn,
+      protocol: s.Protocol,
+      endpoint: s.Endpoint,
+      owner:    s.Owner,
+      topicArn: s.TopicArn,
+    }));
+    res.json({ subscriptions: subs, total: subs.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sns/topics/create', async (req, res) => {
+  const { name, fifo = false, displayName, attributes } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const topicName = fifo && !name.endsWith('.fifo') ? `${name}.fifo` : name;
+  try {
+    const attrs = {};
+    if (fifo) { attrs.FifoTopic = 'true'; attrs.ContentBasedDeduplication = 'true'; }
+    if (displayName) attrs.DisplayName = displayName;
+    if (attributes) Object.assign(attrs, attributes);
+    const data = await sns.send(new CreateTopicCommand({
+      Name: topicName,
+      Attributes: Object.keys(attrs).length ? attrs : undefined,
+    }));
+    res.json({ topicArn: data.TopicArn });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sns/topic/:arn', async (req, res) => {
+  const arn = decodeURIComponent(req.params.arn);
+  try {
+    await sns.send(new DeleteTopicCommand({ TopicArn: arn }));
+    res.json({ deleted: true, arn });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sns/topic/:arn/publish', async (req, res) => {
+  const arn = decodeURIComponent(req.params.arn);
+  const { message, subject, messageAttributes } = req.body || {};
+  if (!message) return res.status(400).json({ error: 'message is required' });
+  try {
+    const params = { TopicArn: arn, Message: message };
+    if (subject) params.Subject = subject;
+    if (messageAttributes) params.MessageAttributes = messageAttributes;
+    const data = await sns.send(new SNSPublishCommand(params));
+    res.json({ messageId: data.MessageId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sns/topic/:arn/subscribe', async (req, res) => {
+  const arn = decodeURIComponent(req.params.arn);
+  const { protocol, endpoint } = req.body || {};
+  if (!protocol || !endpoint) return res.status(400).json({ error: 'protocol and endpoint required' });
+  try {
+    const data = await sns.send(new SubscribeCommand({
+      TopicArn: arn, Protocol: protocol, Endpoint: endpoint,
+    }));
+    res.json({ subscriptionArn: data.SubscriptionArn });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sns/subscription/:arn', async (req, res) => {
+  const arn = decodeURIComponent(req.params.arn);
+  try {
+    await sns.send(new UnsubscribeCommand({ SubscriptionArn: arn }));
+    res.json({ deleted: true, arn });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── SQS routes ─────────────────────────────────────────────────────────────────
+
+app.get('/api/sqs/queues', async (req, res) => {
+  try {
+    const list = await sqs.send(new ListQueuesCommand({ MaxResults: 100 }));
+    const urls = list.QueueUrls || [];
+    const queues = await Promise.all(urls.map(async url => {
+      try {
+        const a = await sqs.send(new GetQueueAttributesCommand({
+          QueueUrl: url,
+          AttributeNames: ['All']
+        }));
+        const attr = a.Attributes || {};
+        const name = url.split('/').pop();
+        return {
+          name,
+          url,
+          arn: attr.QueueArn || '',
+          fifo: name.endsWith('.fifo'),
+          messages: parseInt(attr.ApproximateNumberOfMessages || '0'),
+          messagesNotVisible: parseInt(attr.ApproximateNumberOfMessagesNotVisible || '0'),
+          messagesDelayed: parseInt(attr.ApproximateNumberOfMessagesDelayed || '0'),
+          visibilityTimeout: attr.VisibilityTimeout,
+          messageRetentionPeriod: attr.MessageRetentionPeriod,
+          created: attr.CreatedTimestamp ? new Date(parseInt(attr.CreatedTimestamp) * 1000).toISOString() : null,
+        };
+      } catch { return { name: url.split('/').pop(), url, arn: '', fifo: false, messages: 0, messagesNotVisible: 0, messagesDelayed: 0 }; }
+    }));
+    res.json({ queues, total: queues.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sqs/queues/create', async (req, res) => {
+  const { name, fifo, visibilityTimeout, messageRetention } = req.body;
+  try {
+    const queueName = fifo && !name.endsWith('.fifo') ? `${name}.fifo` : name;
+    const attrs = {};
+    if (fifo) attrs.FifoQueue = 'true';
+    if (visibilityTimeout) attrs.VisibilityTimeout = String(visibilityTimeout);
+    if (messageRetention) attrs.MessageRetentionPeriod = String(messageRetention);
+    const data = await sqs.send(new CreateQueueCommand({ QueueName: queueName, Attributes: attrs }));
+    res.json({ url: data.QueueUrl });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sqs/queue', async (req, res) => {
+  const { queueUrl } = req.body;
+  try {
+    await sqs.send(new DeleteQueueCommand({ QueueUrl: queueUrl }));
+    res.json({ deleted: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sqs/queue/send', async (req, res) => {
+  const { queueUrl, messageBody, delaySeconds, messageGroupId, messageDeduplicationId } = req.body;
+  try {
+    const params = { QueueUrl: queueUrl, MessageBody: messageBody };
+    if (delaySeconds) params.DelaySeconds = parseInt(delaySeconds);
+    if (messageGroupId) params.MessageGroupId = messageGroupId;
+    if (messageDeduplicationId) params.MessageDeduplicationId = messageDeduplicationId;
+    const data = await sqs.send(new SendMessageCommand(params));
+    res.json({ messageId: data.MessageId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sqs/queue/messages', async (req, res) => {
+  const { queueUrl, maxMessages } = req.query;
+  try {
+    const data = await sqs.send(new ReceiveMessageCommand({
+      QueueUrl: queueUrl,
+      MaxNumberOfMessages: Math.min(parseInt(maxMessages) || 10, 10),
+      VisibilityTimeout: 30,
+      WaitTimeSeconds: 0,
+      AttributeNames: ['All'],
+      MessageAttributeNames: ['All'],
+    }));
+    res.json({ messages: data.Messages || [] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sqs/queue/message', async (req, res) => {
+  const { queueUrl, receiptHandle } = req.body;
+  try {
+    await sqs.send(new DeleteMessageCommand({ QueueUrl: queueUrl, ReceiptHandle: receiptHandle }));
+    res.json({ deleted: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sqs/queue/purge', async (req, res) => {
+  const { queueUrl } = req.body;
+  try {
+    await sqs.send(new PurgeQueueCommand({ QueueUrl: queueUrl }));
+    res.json({ purged: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(PORT, () => console.log(`K8s backend listening on :${PORT}`));

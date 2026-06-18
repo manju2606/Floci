@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amazon SNS — Floci</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root {
+      --bg:#f2f3f3; --card-bg:#fff; --border:#d5dbdb;
+      --text-primary:#16191f; --text-secondary:#687078; --text-muted:#545b64;
+      --row-hover:#f7f8f8; --input-bg:#fff; --input-border:#aab7b8;
+    }
+    [data-theme="dark"] {
+      --bg:#0d1117; --card-bg:#161b22; --border:#30363d;
+      --text-primary:#e6edf3; --text-secondary:#8b949e; --text-muted:#8b949e;
+      --row-hover:#1c2128; --input-bg:#1c2128; --input-border:#30363d;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif; background:var(--bg); color:var(--text-primary); min-height:100vh; }
+    header { background:#232f3e; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; }
+    header .logo { font-size:22px; font-weight:700; color:#ff9900; letter-spacing:1px; }
+    header .subtitle { font-size:13px; color:#aab7b8; margin-top:2px; }
+    .theme-btn { background:none; border:1px solid #4a5568; color:#aab7b8; padding:5px 10px; border-radius:3px; cursor:pointer; font-size:16px; }
+    .theme-btn:hover { border-color:#fff; color:#fff; }
+    .banner { background:#1a2332; color:#aab7b8; font-size:12px; text-align:center; padding:6px; }
+    .banner span { color:#ff9900; font-weight:600; }
+    main { max-width:1100px; margin:36px auto; padding:0 24px; }
+    .page-hd { display:flex; align-items:center; gap:14px; margin-bottom:28px; }
+    .page-hd .icon { width:44px; height:44px; border-radius:10px; background:#fff0e8; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+    .page-hd h1 { font-size:22px; font-weight:700; }
+    .page-hd p  { font-size:13px; color:var(--text-secondary); margin-top:3px; }
+    .back-link { font-size:13px; color:#0073bb; text-decoration:none; display:inline-flex; align-items:center; gap:5px; margin-bottom:20px; }
+    .back-link:hover { text-decoration:underline; }
+
+    .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px; margin-bottom:28px; }
+    .stat { background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:16px 20px; }
+    .stat .val { font-size:28px; font-weight:700; color:#0073bb; }
+    .stat .lbl { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+
+    .tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:24px; }
+    .tab { padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:none; color:var(--text-secondary); border-bottom:2px solid transparent; margin-bottom:-2px; }
+    .tab.active { color:#0073bb; border-bottom-color:#0073bb; }
+
+    .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+    .search-box { flex:1; min-width:200px; position:relative; }
+    .search-box input { width:100%; padding:7px 10px 7px 32px; border:1px solid var(--input-border); border-radius:4px; background:var(--input-bg); color:var(--text-primary); font-size:13px; }
+    .search-box::before { content:'🔍'; position:absolute; left:9px; top:7px; font-size:13px; }
+    .btn { padding:7px 16px; border-radius:4px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+    .btn-primary { background:#0073bb; color:#fff; }
+    .btn-primary:hover { background:#005d9e; }
+    .btn-success { background:#1a7a4a; color:#fff; }
+    .btn-success:hover { background:#145f3a; }
+    .btn-danger  { background:#d13212; color:#fff; }
+    .btn-danger:hover { background:#b22711; }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .btn-outline { background:none; border:1px solid var(--input-border); color:var(--text-primary); }
+    .btn-outline:hover { border-color:#0073bb; color:#0073bb; }
+
+    .table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-bottom:24px; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; font-size:12px; font-weight:600; color:var(--text-secondary); background:var(--bg); padding:10px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:12px 14px; font-size:13px; border-bottom:1px solid var(--border); vertical-align:top; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--row-hover); }
+    .topic-name { font-weight:600; color:#0073bb; cursor:pointer; }
+    .topic-name:hover { text-decoration:underline; }
+    .mono { font-family:monospace; font-size:11px; word-break:break-all; color:var(--text-muted); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .badge-green  { background:#eaf7f0; color:#1a7a4a; }
+    .badge-gray   { background:#f2f3f3; color:#545b64; }
+    .badge-orange { background:#fff0e8; color:#c05700; }
+    .badge-blue   { background:#e8f4fd; color:#0073bb; }
+    .badge-purple { background:#f3e8fd; color:#6b3fa0; }
+    [data-theme="dark"] .badge-green  { background:#1a3a2a; color:#4caf82; }
+    [data-theme="dark"] .badge-gray   { background:#1c2128; color:#8b949e; }
+    [data-theme="dark"] .badge-orange { background:#2a1800; color:#e09040; }
+    [data-theme="dark"] .badge-blue   { background:#0d2137; color:#58a9e0; }
+    [data-theme="dark"] .badge-purple { background:#2a1a3a; color:#b07fe0; }
+    .actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .sub-row { background:var(--bg); }
+    .sub-row td { font-size:12px; padding:8px 14px; }
+    .date { color:var(--text-secondary); font-size:12px; }
+    .empty { text-align:center; padding:48px; color:var(--text-secondary); }
+    .loading { text-align:center; padding:48px; }
+    .spinner { display:inline-block; width:24px; height:24px; border:3px solid var(--border); border-top-color:#0073bb; border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--card-bg); border-radius:8px; padding:28px; width:520px; max-width:95vw; max-height:90vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,.3); }
+    .modal h2 { font-size:18px; margin-bottom:20px; }
+    .modal-close { position:absolute; top:16px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-secondary); }
+    .form-row { margin-bottom:16px; }
+    .form-row label { display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.4px; }
+    .form-row input, .form-row select, .form-row textarea { width:100%; padding:8px 10px; border:1px solid var(--input-border); border-radius:4px; background:var(--input-bg); color:var(--text-primary); font-size:13px; font-family:inherit; }
+    .form-row textarea { resize:vertical; min-height:80px; }
+    .form-hint { font-size:11px; color:var(--text-secondary); margin-top:4px; }
+    .form-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .error-msg { background:#fdecea; border:1px solid #f5c6cb; color:#d13212; padding:10px 14px; border-radius:4px; font-size:13px; margin-bottom:16px; }
+    [data-theme="dark"] .error-msg { background:#2a1414; border-color:#5a2020; color:#ff7b6e; }
+    .success-msg { background:#eaf7f0; border:1px solid #a9dfbf; color:#1a7a4a; padding:10px 14px; border-radius:4px; font-size:13px; margin-bottom:16px; font-family:monospace; }
+    [data-theme="dark"] .success-msg { background:#1a3a2a; border-color:#2a6a4a; color:#4caf82; }
+
+    .sub-table { width:100%; border-collapse:collapse; margin-top:8px; }
+    .sub-table th { font-size:11px; padding:6px 10px; background:var(--bg); border-bottom:1px solid var(--border); }
+    .sub-table td { font-size:12px; padding:7px 10px; border-bottom:1px solid var(--border); }
+    .sub-table tr:last-child td { border-bottom:none; }
+
+    .toast { position:fixed; bottom:24px; right:24px; background:#232f3e; color:#fff; padding:12px 20px; border-radius:6px; font-size:13px; z-index:2000; display:none; box-shadow:0 4px 16px rgba(0,0,0,.3); }
+    .toast.show { display:block; animation:fadeIn .2s; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+    footer { text-align:center; padding:32px; font-size:12px; color:#aab7b8; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">&#9830; Floci</div>
+    <div class="subtitle">Local AWS Emulator</div>
+  </div>
+  <button id="theme-btn" class="theme-btn" onclick="toggleTheme()"></button>
+</header>
+<div class="banner">
+  Endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp; Region: <span>us-east-1</span> &nbsp;|&nbsp; Service: <span>Amazon SNS</span>
+</div>
+
+<main>
+  <a class="back-link" href="index.html">&#8592; Back to Dashboard</a>
+  <div class="page-hd">
+    <div class="icon">&#128276;</div>
+    <div>
+      <h1>Amazon Simple Notification Service</h1>
+      <p>Pub/sub messaging — fan out messages to queues, Lambda, HTTP endpoints, and email.</p>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="val" id="stat-topics">—</div><div class="lbl">Topics</div></div>
+    <div class="stat"><div class="val" id="stat-subs">—</div><div class="lbl">Subscriptions</div></div>
+    <div class="stat"><div class="val" id="stat-pending">—</div><div class="lbl">Pending Confirm.</div></div>
+    <div class="stat"><div class="val" id="stat-fifo">—</div><div class="lbl">FIFO Topics</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('topics', this)">Topics</button>
+    <button class="tab" onclick="switchTab('subscriptions', this)">All Subscriptions</button>
+  </div>
+
+  <!-- Topics tab -->
+  <div id="tab-topics">
+    <div class="toolbar">
+      <div class="search-box"><input id="search-topics" type="text" placeholder="Search by topic name…" oninput="filterTopics()" /></div>
+      <button class="btn btn-primary" onclick="openCreateTopic()">+ Create Topic</button>
+      <button class="btn btn-outline" onclick="loadAll()">&#x21bb; Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table id="topics-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Subscriptions</th>
+            <th>Pending</th>
+            <th>ARN</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="topics-body">
+          <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- All subscriptions tab -->
+  <div id="tab-subscriptions" style="display:none">
+    <div class="toolbar">
+      <div class="search-box"><input id="search-subs" type="text" placeholder="Search by protocol or endpoint…" oninput="filterSubs()" /></div>
+      <button class="btn btn-outline" onclick="loadSubscriptions()">&#x21bb; Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table id="subs-table">
+        <thead>
+          <tr>
+            <th>Protocol</th>
+            <th>Endpoint</th>
+            <th>Topic</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="subs-body">
+          <tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Create Topic Modal -->
+<div id="create-topic-modal" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('create-topic-modal')">&#215;</button>
+    <h2>&#128276; Create Topic</h2>
+    <div id="ct-error" class="error-msg" style="display:none"></div>
+    <div class="form-row">
+      <label>Topic Name *</label>
+      <input id="ct-name" type="text" placeholder="e.g. order-events" />
+    </div>
+    <div class="form-row">
+      <label>Display Name</label>
+      <input id="ct-display" type="text" placeholder="Optional display name (SMS)" />
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" id="ct-fifo" style="width:auto;margin-right:6px" onchange="toggleFifo()"/>
+      FIFO Topic (strict ordering + deduplication)</label>
+      <div class="form-hint">FIFO topics append <code>.fifo</code> to the name and support SQS FIFO subscribers only.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('create-topic-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTopic()">Create Topic</button>
+    </div>
+  </div>
+</div>
+
+<!-- Publish Modal -->
+<div id="publish-modal" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('publish-modal')">&#215;</button>
+    <h2>&#128228; Publish Message</h2>
+    <p id="publish-topic-name" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+    <div id="pub-error"   class="error-msg"   style="display:none"></div>
+    <div id="pub-success" class="success-msg" style="display:none"></div>
+    <div class="form-row">
+      <label>Subject (optional)</label>
+      <input id="pub-subject" type="text" placeholder="Email subject or message subject" />
+    </div>
+    <div class="form-row">
+      <label>Message *</label>
+      <textarea id="pub-message" style="min-height:100px" placeholder="Enter message body…"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('publish-modal')">Close</button>
+      <button class="btn btn-success" onclick="publishMessage()">Publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Subscribe Modal -->
+<div id="subscribe-modal" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('subscribe-modal')">&#215;</button>
+    <h2>&#10133; Subscribe to Topic</h2>
+    <p id="sub-topic-name" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+    <div id="sub-error" class="error-msg" style="display:none"></div>
+    <div class="form-row">
+      <label>Protocol *</label>
+      <select id="sub-protocol" onchange="updateEndpointHint()">
+        <option value="sqs">SQS</option>
+        <option value="http">HTTP</option>
+        <option value="https">HTTPS</option>
+        <option value="email">Email</option>
+        <option value="email-json">Email (JSON)</option>
+        <option value="lambda">Lambda</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Endpoint *</label>
+      <input id="sub-endpoint" type="text" placeholder="" />
+      <div id="sub-hint" class="form-hint">SQS queue ARN: arn:aws:sqs:us-east-1:000000000000:queue-name</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('subscribe-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="subscribeToTopic()">Subscribe</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="delete-topic-modal" class="modal-overlay">
+  <div class="modal" style="width:420px">
+    <button class="modal-close" onclick="closeModal('delete-topic-modal')">&#215;</button>
+    <h2>Delete Topic?</h2>
+    <p style="font-size:14px;color:var(--text-secondary);margin:12px 0 20px">
+      Permanently delete <strong id="delete-topic-name"></strong>? All subscriptions will be removed.
+    </p>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal('delete-topic-modal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDeleteTopic()">Delete Topic</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+
+<script>
+const API = '/api';
+let allTopics = [];
+let allSubs   = [];
+let publishTarget   = null;
+let subscribeTarget = null;
+let deleteTarget    = null;
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('floci-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+document.getElementById('theme-btn').textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#d13212' : '#232f3e';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-topics').style.display       = name==='topics' ? '' : 'none';
+  document.getElementById('tab-subscriptions').style.display = name==='subscriptions' ? '' : 'none';
+  if (name === 'subscriptions') loadSubscriptions();
+}
+
+async function loadAll() {
+  await Promise.all([loadTopics(), loadStatsFromSubs()]);
+}
+
+async function loadTopics() {
+  document.getElementById('topics-body').innerHTML = '<tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>';
+  try {
+    const r = await fetch(`${API}/sns/topics`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    allTopics = d.topics || [];
+    updateStats(allTopics, null);
+    renderTopics(allTopics);
+  } catch(e) {
+    document.getElementById('topics-body').innerHTML = `<tr><td colspan="6" class="empty">&#9888; ${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+async function loadStatsFromSubs() {
+  try {
+    const r = await fetch(`${API}/sns/subscriptions`);
+    const d = await r.json();
+    if (!d.error) updateStats(null, d.subscriptions||[]);
+  } catch(_) {}
+}
+
+function updateStats(topics, subs) {
+  if (topics !== null) {
+    document.getElementById('stat-topics').textContent = topics.length;
+    document.getElementById('stat-fifo').textContent   = topics.filter(t=>t.fifo).length;
+    document.getElementById('stat-pending').textContent = topics.reduce((s,t)=>s+(t.pendingSubs||0),0);
+  }
+  if (subs !== null) {
+    document.getElementById('stat-subs').textContent = subs.length;
+  }
+}
+
+function renderTopics(topics) {
+  const tbody = document.getElementById('topics-body');
+  if (!topics.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No topics found. Create your first topic above.</td></tr>'; return; }
+  tbody.innerHTML = topics.map(t => {
+    const typeBadge = t.fifo
+      ? '<span class="badge badge-purple">FIFO</span>'
+      : '<span class="badge badge-blue">Standard</span>';
+    return `<tr>
+      <td><span class="topic-name" onclick="loadTopicSubs('${escHtml(t.arn)}')">${escHtml(t.name)}</span>${t.displayName?`<br><span style="font-size:11px;color:var(--text-muted)">${escHtml(t.displayName)}</span>`:''}</td>
+      <td>${typeBadge}</td>
+      <td><strong>${t.subscriptions}</strong></td>
+      <td>${t.pendingSubs>0?`<span class="badge badge-orange">${t.pendingSubs}</span>`:'<span style="color:var(--text-muted)">0</span>'}</td>
+      <td><span class="mono" title="${escHtml(t.arn)}">${escHtml(t.arn.replace('arn:aws:sns:us-east-1:000000000000:','…:'))}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-success btn-sm" onclick="openPublish('${escHtml(t.arn)}','${escHtml(t.name)}')">Publish</button>
+        <button class="btn btn-outline btn-sm" onclick="openSubscribe('${escHtml(t.arn)}','${escHtml(t.name)}')">Subscribe</button>
+        <button class="btn btn-danger btn-sm" onclick="openDeleteTopic('${escHtml(t.arn)}','${escHtml(t.name)}')">Delete</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTopics() {
+  const q = document.getElementById('search-topics').value.toLowerCase();
+  renderTopics(allTopics.filter(t => t.name.toLowerCase().includes(q)));
+}
+
+// Expand subscriptions inline
+async function loadTopicSubs(arn) {
+  try {
+    const r = await fetch(`${API}/sns/topic/${encodeURIComponent(arn)}/subscriptions`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const subs = d.subscriptions || [];
+    const existingRow = document.getElementById(`subs-${arn.split(':').pop()}`);
+    if (existingRow) { existingRow.remove(); return; }
+    const topicRow = [...document.querySelectorAll('#topics-body tr')].find(row =>
+      row.innerHTML.includes(escHtml(arn))
+    );
+    if (!topicRow) return;
+    const subRow = document.createElement('tr');
+    subRow.id = `subs-${arn.split(':').pop()}`;
+    subRow.className = 'sub-row';
+    subRow.innerHTML = `<td colspan="6" style="padding:0 0 0 40px">
+      ${!subs.length ? '<p style="padding:12px;color:var(--text-muted);font-size:12px">No subscriptions for this topic.</p>' : `
+      <table class="sub-table">
+        <thead><tr><th>Protocol</th><th>Endpoint</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${subs.map(s=>`
+          <tr>
+            <td><span class="badge badge-blue">${escHtml(s.protocol)}</span></td>
+            <td class="mono">${escHtml(s.endpoint)}</td>
+            <td>${s.arn==='PendingConfirmation'?'<span class="badge badge-orange">Pending</span>':'<span class="badge badge-green">Confirmed</span>'}</td>
+            <td>${s.arn!=='PendingConfirmation'?`<button class="btn btn-danger btn-sm" onclick="unsubscribe('${escHtml(s.arn)}')">Unsubscribe</button>`:'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </td>`;
+    topicRow.after(subRow);
+  } catch(e) { toast('Error loading subscriptions: ' + e.message, true); }
+}
+
+// All subscriptions tab
+async function loadSubscriptions() {
+  document.getElementById('subs-body').innerHTML = '<tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>';
+  try {
+    const r = await fetch(`${API}/sns/subscriptions`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    allSubs = d.subscriptions || [];
+    updateStats(null, allSubs);
+    renderSubs(allSubs);
+  } catch(e) {
+    document.getElementById('subs-body').innerHTML = `<tr><td colspan="5" class="empty">&#9888; ${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+function renderSubs(subs) {
+  const tbody = document.getElementById('subs-body');
+  if (!subs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No subscriptions found.</td></tr>'; return; }
+  tbody.innerHTML = subs.map(s => `<tr>
+    <td><span class="badge badge-blue">${escHtml(s.protocol)}</span></td>
+    <td class="mono" style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.endpoint)}</td>
+    <td class="mono" style="font-size:11px;max-width:200px">${escHtml((s.topicArn||'').split(':').pop())}</td>
+    <td>${s.arn==='PendingConfirmation'?'<span class="badge badge-orange">Pending</span>':'<span class="badge badge-green">Confirmed</span>'}</td>
+    <td>${s.arn!=='PendingConfirmation'?`<button class="btn btn-danger btn-sm" onclick="unsubscribe('${escHtml(s.arn)}')">Unsubscribe</button>`:'—'}</td>
+  </tr>`).join('');
+}
+
+function filterSubs() {
+  const q = document.getElementById('search-subs').value.toLowerCase();
+  renderSubs(allSubs.filter(s =>
+    (s.protocol||'').toLowerCase().includes(q) || (s.endpoint||'').toLowerCase().includes(q)
+  ));
+}
+
+// ── Create Topic ──────────────────────────────────────────────────────────────
+function openCreateTopic() {
+  document.getElementById('ct-name').value = '';
+  document.getElementById('ct-display').value = '';
+  document.getElementById('ct-fifo').checked = false;
+  document.getElementById('ct-error').style.display = 'none';
+  openModal('create-topic-modal');
+}
+function toggleFifo() {}
+async function createTopic() {
+  const name        = document.getElementById('ct-name').value.trim();
+  const displayName = document.getElementById('ct-display').value.trim();
+  const fifo        = document.getElementById('ct-fifo').checked;
+  if (!name) { showModalErr('ct-error', 'Topic name is required.'); return; }
+  try {
+    const r = await fetch(`${API}/sns/topics/create`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, fifo, displayName }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('create-topic-modal');
+    toast(`Topic created: ${d.topicArn.split(':').pop()}`);
+    loadTopics();
+  } catch(e) { showModalErr('ct-error', e.message); }
+}
+
+// ── Publish ───────────────────────────────────────────────────────────────────
+function openPublish(arn, name) {
+  publishTarget = arn;
+  document.getElementById('publish-topic-name').textContent = `Topic: ${name}`;
+  document.getElementById('pub-subject').value = '';
+  document.getElementById('pub-message').value = '';
+  document.getElementById('pub-error').style.display   = 'none';
+  document.getElementById('pub-success').style.display = 'none';
+  openModal('publish-modal');
+}
+async function publishMessage() {
+  const message = document.getElementById('pub-message').value;
+  const subject = document.getElementById('pub-subject').value.trim();
+  document.getElementById('pub-error').style.display   = 'none';
+  document.getElementById('pub-success').style.display = 'none';
+  if (!message) { showModalErr('pub-error', 'Message is required.'); return; }
+  try {
+    const r = await fetch(`${API}/sns/topic/${encodeURIComponent(publishTarget)}/publish`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message, subject }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const el = document.getElementById('pub-success');
+    el.textContent = `Message published. ID: ${d.messageId}`;
+    el.style.display = '';
+  } catch(e) { showModalErr('pub-error', e.message); }
+}
+
+// ── Subscribe ─────────────────────────────────────────────────────────────────
+const endpointHints = {
+  sqs:        'SQS queue ARN: arn:aws:sqs:us-east-1:000000000000:queue-name',
+  http:       'HTTP endpoint URL: http://example.com/notify',
+  https:      'HTTPS endpoint URL: https://example.com/notify',
+  email:      'Email address: user@example.com',
+  'email-json': 'Email address: user@example.com',
+  lambda:     'Lambda function ARN: arn:aws:lambda:us-east-1:000000000000:function:name',
+};
+function updateEndpointHint() {
+  const proto = document.getElementById('sub-protocol').value;
+  document.getElementById('sub-hint').textContent = endpointHints[proto] || '';
+  document.getElementById('sub-endpoint').placeholder = endpointHints[proto] || '';
+}
+function openSubscribe(arn, name) {
+  subscribeTarget = arn;
+  document.getElementById('sub-topic-name').textContent = `Topic: ${name}`;
+  document.getElementById('sub-protocol').value = 'sqs';
+  document.getElementById('sub-endpoint').value = '';
+  document.getElementById('sub-error').style.display = 'none';
+  updateEndpointHint();
+  openModal('subscribe-modal');
+}
+async function subscribeToTopic() {
+  const protocol = document.getElementById('sub-protocol').value;
+  const endpoint = document.getElementById('sub-endpoint').value.trim();
+  if (!endpoint) { showModalErr('sub-error', 'Endpoint is required.'); return; }
+  try {
+    const r = await fetch(`${API}/sns/topic/${encodeURIComponent(subscribeTarget)}/subscribe`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ protocol, endpoint }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('subscribe-modal');
+    toast(`Subscribed (${protocol}): ${d.subscriptionArn.includes('pending')? 'pending confirmation' : d.subscriptionArn}`);
+    loadTopics();
+  } catch(e) { showModalErr('sub-error', e.message); }
+}
+
+// ── Delete Topic ──────────────────────────────────────────────────────────────
+function openDeleteTopic(arn, name) {
+  deleteTarget = arn;
+  document.getElementById('delete-topic-name').textContent = name;
+  openModal('delete-topic-modal');
+}
+async function confirmDeleteTopic() {
+  try {
+    const r = await fetch(`${API}/sns/topic/${encodeURIComponent(deleteTarget)}`, { method:'DELETE' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('delete-topic-modal');
+    toast('Topic deleted');
+    deleteTarget = null;
+    loadTopics();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function unsubscribe(subArn) {
+  try {
+    const r = await fetch(`${API}/sns/subscription/${encodeURIComponent(subArn)}`, { method:'DELETE' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    toast('Unsubscribed');
+    loadAll();
+  } catch(e) { toast(e.message, true); }
+}
+
+function showModalErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = '';
+}
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); })
+);
+
+loadAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IAM — Floci Dashboard</title>
+  <script>(function(){document.documentElement.setAttribute('data-theme',localStorage.getItem('floci-theme')||'light')})();</script>
+  <style>
+    :root{--bg:#f2f3f3;--card-bg:#fff;--border:#d5dbdb;--text-primary:#16191f;--text-secondary:#687078;--text-muted:#545b64;--code-bg:#f2f3f3;--info-bg:#fdf3e3;--info-border:#f5cba7;}
+    [data-theme="dark"]{--bg:#0d1117;--card-bg:#161b22;--border:#30363d;--text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#8b949e;--code-bg:#1c2128;--info-bg:#1c1a0f;--info-border:#7a5c1e;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:"Amazon Ember","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;}
+    header{background:#232f3e;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+    header .logo{font-size:20px;font-weight:700;color:#ff9900;}
+    header .subtitle{font-size:12px;color:#aab7b8;margin-top:2px;}
+    header .right{display:flex;align-items:center;gap:10px;}
+    header a.back{font-size:13px;color:#aab7b8;text-decoration:none;border:1px solid #4a5568;padding:5px 14px;border-radius:3px;}
+    header a.back:hover{color:#fff;border-color:#fff;}
+    .theme-btn{background:none;border:1px solid #4a5568;color:#aab7b8;padding:5px 10px;border-radius:3px;cursor:pointer;font-size:16px;}
+
+    .hero{background:linear-gradient(135deg,#1a2332 0%,#2d3a4a 100%);padding:36px 32px;display:flex;align-items:center;gap:24px;}
+    .hero-icon{font-size:32px;background:#dd344c;width:72px;height:72px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .hero h1{font-size:24px;font-weight:700;color:#fff;}
+    .hero p{font-size:13px;color:#aab7b8;margin-top:6px;line-height:1.6;}
+    .banner{background:#1a2332;color:#aab7b8;font-size:12px;text-align:center;padding:6px;}
+    .banner span{color:#ff9900;font-weight:600;}
+
+    main{max-width:1100px;margin:32px auto;padding:0 24px;}
+
+    /* Summary cards */
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+    @media(max-width:700px){.summary-grid{grid-template-columns:repeat(2,1fr);}}
+    .scard{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:18px 20px;text-align:center;}
+    .scard .num{font-size:32px;font-weight:700;font-family:monospace;}
+    .scard .lbl{font-size:12px;color:var(--text-secondary);margin-top:4px;}
+
+    /* Tabs */
+    .tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:24px;}
+    .tab-btn{padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;background:none;border:none;color:var(--text-secondary);border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s;}
+    .tab-btn:hover{color:var(--text-primary);}
+    .tab-btn.active{color:#dd344c;border-bottom-color:#dd344c;}
+    .tab-panel{display:none;}
+    .tab-panel.active{display:block;}
+
+    /* Table */
+    .tbl-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:var(--card-bg);border-bottom:2px solid var(--border);padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);font-weight:700;}
+    td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:var(--bg);}
+    .mono{font-family:monospace;font-size:12px;}
+    .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin:1px 2px;}
+    .pill-blue{background:#e8f4fd;color:#0073bb;}[data-theme="dark"] .pill-blue{background:#0d2235;color:#60c0f8;}
+    .pill-green{background:#e8f8f0;color:#1a7a40;}[data-theme="dark"] .pill-green{background:#0d2a1a;color:#4ade80;}
+    .pill-grey{background:var(--bg);color:var(--text-secondary);}
+    .empty{text-align:center;padding:40px;color:var(--text-secondary);font-size:13px;}
+    .arn-cell{font-family:monospace;font-size:11px;color:var(--text-muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+    .arn-cell:hover{color:var(--text-primary);}
+    .spin{display:inline-block;animation:spin 1s linear infinite;}
+    @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+    /* CLI section */
+    .section{margin-bottom:32px;}
+    .section h2{font-size:16px;font-weight:600;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--border);}
+    .cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+    .cmd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:14px 16px;}
+    .cmd-card h4{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;}
+    .cmd-card code{display:block;font-family:"Courier New",monospace;font-size:11.5px;background:#1e2a3a;color:#a8d8a8;padding:10px 12px;border-radius:4px;white-space:pre;overflow-x:auto;cursor:pointer;position:relative;}
+    .cmd-card code:hover::after{content:"Copy";position:absolute;top:6px;right:8px;font-size:10px;background:#dd344c;color:#fff;padding:2px 6px;border-radius:3px;}
+
+    footer{text-align:center;padding:32px;font-size:12px;color:#aab7b8;}
+  </style>
+</head>
+<body>
+<header>
+  <div><div class="logo">&#9830; Floci</div><div class="subtitle">Local AWS Emulator</div></div>
+  <div class="right">
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn"></button>
+    <a class="back" href="index.html">&#8592; Dashboard</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon">&#x1F510;</div>
+  <div>
+    <h1>AWS IAM</h1>
+    <p>Identity and Access Management — manage users, roles, policies and groups.<br/>
+       Control who can access which AWS services and resources.</p>
+  </div>
+</div>
+
+<div class="banner">
+  Endpoint: <span>http://localhost:4566</span> &nbsp;|&nbsp;
+  Region: <span>us-east-1</span> &nbsp;|&nbsp;
+  Access Key: <span>test</span>
+</div>
+
+<main>
+
+  <!-- Summary -->
+  <div class="summary-grid" id="summary-grid">
+    <div class="scard"><div class="num" style="color:#dd344c;" id="cnt-users"><span class="spin">&#8635;</span></div><div class="lbl">Users</div></div>
+    <div class="scard"><div class="num" style="color:#0073bb;" id="cnt-roles"><span class="spin">&#8635;</span></div><div class="lbl">Roles</div></div>
+    <div class="scard"><div class="num" style="color:#e67e22;" id="cnt-policies"><span class="spin">&#8635;</span></div><div class="lbl">Customer Policies</div></div>
+    <div class="scard"><div class="num" style="color:#27ae60;" id="cnt-groups"><span class="spin">&#8635;</span></div><div class="lbl">Groups</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('users',this)">Users</button>
+    <button class="tab-btn" onclick="switchTab('roles',this)">Roles</button>
+    <button class="tab-btn" onclick="switchTab('policies',this)">Policies</button>
+    <button class="tab-btn" onclick="switchTab('groups',this)">Groups</button>
+    <button class="tab-btn" onclick="switchTab('cli',this)">CLI Commands</button>
+  </div>
+
+  <!-- Users -->
+  <div class="tab-panel active" id="tab-users">
+    <div class="tbl-wrap">
+      <table id="tbl-users">
+        <thead><tr><th>Username</th><th>ARN</th><th>Groups</th><th>Attached Policies</th><th>Created</th></tr></thead>
+        <tbody><tr><td colspan="5" class="empty"><span class="spin">&#8635;</span> Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Roles -->
+  <div class="tab-panel" id="tab-roles">
+    <div class="tbl-wrap">
+      <table id="tbl-roles">
+        <thead><tr><th>Role Name</th><th>ARN</th><th>Attached Policies</th><th>Description</th><th>Created</th></tr></thead>
+        <tbody><tr><td colspan="5" class="empty"><span class="spin">&#8635;</span> Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Policies -->
+  <div class="tab-panel" id="tab-policies">
+    <div class="tbl-wrap">
+      <table id="tbl-policies">
+        <thead><tr><th>Policy Name</th><th>ARN</th><th>Attachments</th><th>Updated</th></tr></thead>
+        <tbody><tr><td colspan="4" class="empty"><span class="spin">&#8635;</span> Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Groups -->
+  <div class="tab-panel" id="tab-groups">
+    <div class="tbl-wrap">
+      <table id="tbl-groups">
+        <thead><tr><th>Group Name</th><th>ARN</th><th>Path</th><th>Created</th></tr></thead>
+        <tbody><tr><td colspan="4" class="empty"><span class="spin">&#8635;</span> Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CLI Commands -->
+  <div class="tab-panel" id="tab-cli">
+
+    <div class="section">
+      <h2>Users</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List users</h4><code onclick="copyCmd(this)">aws iam list-users \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create user</h4><code onclick="copyCmd(this)">aws iam create-user \
+  --user-name alice \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create access key</h4><code onclick="copyCmd(this)">aws iam create-access-key \
+  --user-name alice \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Attach policy to user</h4><code onclick="copyCmd(this)">aws iam attach-user-policy \
+  --user-name alice \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>List user policies</h4><code onclick="copyCmd(this)">aws iam list-attached-user-policies \
+  --user-name alice \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete user</h4><code onclick="copyCmd(this)">aws iam delete-user \
+  --user-name alice \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Roles</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List roles</h4><code onclick="copyCmd(this)">aws iam list-roles \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create role (EC2 trust)</h4><code onclick="copyCmd(this)">aws iam create-role \
+  --role-name my-ec2-role \
+  --assume-role-policy-document '{
+    "Version":"2012-10-17",
+    "Statement":[{"Effect":"Allow",
+      "Principal":{"Service":"ec2.amazonaws.com"},
+      "Action":"sts:AssumeRole"}]
+  }' \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Attach policy to role</h4><code onclick="copyCmd(this)">aws iam attach-role-policy \
+  --role-name my-ec2-role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>List role policies</h4><code onclick="copyCmd(this)">aws iam list-attached-role-policies \
+  --role-name my-ec2-role \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete role</h4><code onclick="copyCmd(this)">aws iam delete-role \
+  --role-name my-ec2-role \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Policies</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List customer policies</h4><code onclick="copyCmd(this)">aws iam list-policies \
+  --scope Local \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create policy</h4><code onclick="copyCmd(this)">aws iam create-policy \
+  --policy-name my-s3-policy \
+  --policy-document '{
+    "Version":"2012-10-17",
+    "Statement":[{"Effect":"Allow",
+      "Action":["s3:GetObject","s3:PutObject"],
+      "Resource":"arn:aws:s3:::my-bucket/*"}]
+  }' \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Get policy</h4><code onclick="copyCmd(this)">aws iam get-policy \
+  --policy-arn &lt;policy-arn&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Delete policy</h4><code onclick="copyCmd(this)">aws iam delete-policy \
+  --policy-arn &lt;policy-arn&gt; \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Groups</h2>
+      <div class="cmd-grid">
+        <div class="cmd-card"><h4>List groups</h4><code onclick="copyCmd(this)">aws iam list-groups \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Create group</h4><code onclick="copyCmd(this)">aws iam create-group \
+  --group-name developers \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Add user to group</h4><code onclick="copyCmd(this)">aws iam add-user-to-group \
+  --group-name developers \
+  --user-name alice \
+  --endpoint-url http://localhost:4566</code></div>
+        <div class="cmd-card"><h4>Attach policy to group</h4><code onclick="copyCmd(this)">aws iam attach-group-policy \
+  --group-name developers \
+  --policy-arn arn:aws:iam::aws:policy/ReadOnlyAccess \
+  --endpoint-url http://localhost:4566</code></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-cli -->
+
+</main>
+<footer>Floci &mdash; Local AWS Emulator &mdash; Always Free</footer>
+<script>
+const API = '/api';
+
+function toggleTheme(){const n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('floci-theme',n);document.getElementById('theme-btn').textContent=n==='dark'?'☀':'🌙';}
+document.getElementById('theme-btn').textContent=document.documentElement.getAttribute('data-theme')==='dark'?'☀':'🌙';
+
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function copyCmd(el){navigator.clipboard.writeText(el.innerText).catch(()=>{});}
+
+function fmt(dateStr){if(!dateStr)return'—';return new Date(dateStr).toLocaleDateString();}
+function arn(a){return `<td class="arn-cell" title="${a||''}" onclick="navigator.clipboard.writeText('${a||''}').catch(()=>{})">${a||'—'}</td>`;}
+
+async function loadSummary(){
+  try{
+    const d=await fetch(`${API}/iam/summary`).then(r=>r.json());
+    document.getElementById('cnt-users').textContent=d.users??'0';
+    document.getElementById('cnt-roles').textContent=d.roles??'0';
+    document.getElementById('cnt-policies').textContent=d.policies??'0';
+    document.getElementById('cnt-groups').textContent=d.groups??'0';
+  }catch{
+    ['cnt-users','cnt-roles','cnt-policies','cnt-groups'].forEach(id=>document.getElementById(id).textContent='—');
+  }
+}
+
+async function loadUsers(){
+  const tb=document.querySelector('#tbl-users tbody');
+  try{
+    const users=await fetch(`${API}/iam/users`).then(r=>r.json());
+    if(!users.length){tb.innerHTML='<tr><td colspan="5" class="empty">No users found. Create one with the CLI Commands tab.</td></tr>';return;}
+    tb.innerHTML=users.map(u=>`
+      <tr>
+        <td class="mono">${u.userName}</td>
+        ${arn(u.arn)}
+        <td>${(u.groups||[]).map(g=>`<span class="pill pill-green">${g}</span>`).join('')||'<span style="color:var(--text-muted);font-size:12px;">none</span>'}</td>
+        <td>${(u.policies||[]).map(p=>`<span class="pill pill-blue">${p}</span>`).join('')||'<span style="color:var(--text-muted);font-size:12px;">none</span>'}</td>
+        <td style="font-size:12px;color:var(--text-secondary);">${fmt(u.created)}</td>
+      </tr>`).join('');
+  }catch(e){tb.innerHTML=`<tr><td colspan="5" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+async function loadRoles(){
+  const tb=document.querySelector('#tbl-roles tbody');
+  try{
+    const roles=await fetch(`${API}/iam/roles`).then(r=>r.json());
+    if(!roles.length){tb.innerHTML='<tr><td colspan="5" class="empty">No roles found.</td></tr>';return;}
+    tb.innerHTML=roles.map(r=>`
+      <tr>
+        <td class="mono">${r.roleName}</td>
+        ${arn(r.arn)}
+        <td>${(r.policies||[]).map(p=>`<span class="pill pill-blue">${p}</span>`).join('')||'<span style="color:var(--text-muted);font-size:12px;">none</span>'}</td>
+        <td style="font-size:12px;color:var(--text-secondary);">${r.description||'—'}</td>
+        <td style="font-size:12px;color:var(--text-secondary);">${fmt(r.created)}</td>
+      </tr>`).join('');
+  }catch(e){tb.innerHTML=`<tr><td colspan="5" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+async function loadPolicies(){
+  const tb=document.querySelector('#tbl-policies tbody');
+  try{
+    const policies=await fetch(`${API}/iam/policies`).then(r=>r.json());
+    if(!policies.length){tb.innerHTML='<tr><td colspan="4" class="empty">No customer-managed policies found.</td></tr>';return;}
+    tb.innerHTML=policies.map(p=>`
+      <tr>
+        <td class="mono">${p.policyName}</td>
+        ${arn(p.arn)}
+        <td style="text-align:center;"><span class="pill pill-${p.attachCount>0?'blue':'grey'}">${p.attachCount||0}</span></td>
+        <td style="font-size:12px;color:var(--text-secondary);">${fmt(p.updated)}</td>
+      </tr>`).join('');
+  }catch(e){tb.innerHTML=`<tr><td colspan="4" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+async function loadGroups(){
+  const tb=document.querySelector('#tbl-groups tbody');
+  try{
+    const groups=await fetch(`${API}/iam/groups`).then(r=>r.json());
+    if(!groups.length){tb.innerHTML='<tr><td colspan="4" class="empty">No groups found.</td></tr>';return;}
+    tb.innerHTML=groups.map(g=>`
+      <tr>
+        <td class="mono">${g.groupName}</td>
+        ${arn(g.arn)}
+        <td class="mono" style="font-size:11px;">${g.path||'/'}</td>
+        <td style="font-size:12px;color:var(--text-secondary);">${fmt(g.created)}</td>
+      </tr>`).join('');
+  }catch(e){tb.innerHTML=`<tr><td colspan="4" class="empty">Error: ${e.message}</td></tr>`;}
+}
+
+loadSummary();
+loadUsers();
+loadRoles();
+loadPolicies();
+loadGroups();
+</script>
+</body>
+</html>
