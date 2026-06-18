@@ -40,6 +40,16 @@ services:
     depends_on:
       - floci
 
+  dynamoui-retail:
+    image: aaronshaf/dynamodb-admin
+    ports:
+      - "8004:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://host.docker.internal:38000
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+
   k8s-agent:
     build: ./k8s-agent
     ports:
@@ -118,7 +128,7 @@ services:
     ports:
       - "8083:8081"
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REDIS_HOSTS=floci-redis:redis:6379,retail-checkout:host.docker.internal:36379
     depends_on:
       - redis
 
